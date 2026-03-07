@@ -1,3 +1,4 @@
 # Ignore python virtual environments
 .venv/
 venv/
+*.pyc
