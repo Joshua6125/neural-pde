@@ -1,0 +1,9 @@
+pytest>=7.0
+pytest-cov>=4.0
+pytest-xdist>=3.0
+pylint>=2.15
+black>=23.0
+flake8>=5.0
+mypy>=0.990
+pytest-timeout>=2.1
+pytest-mock>=3.10
