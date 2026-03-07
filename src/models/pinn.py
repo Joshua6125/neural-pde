@@ -15,3 +15,4 @@ class PINN(nn.Module):
         for layer in self.layers:
             h = jnp.tanh(layer(h))
         return self.output_layer(h)
+        
