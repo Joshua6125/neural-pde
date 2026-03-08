@@ -12,9 +12,6 @@ class MonteCarloIntegration(NDCubeIntegration):
     Monte Carlo integration for n-D cube integration.
 
     Complexity: O(samples) evaluations.
-    Convergence: O(1/sqrt(samples)) error.
-    Advantage: Dimension-independent scaling, simple implementation.
-    Disadvantage: Slower convergence than quadrature for smooth functions.
 
     Boundary: Assumes Dirichlet BC (u=0 on boundary).
     '''
@@ -82,41 +79,24 @@ class MonteCarloIntegration(NDCubeIntegration):
             "normals": jnp.concatenate(face_normals),
         }
 
-    @staticmethod
-    @jax.jit
-    def _integrate_interior(func, points, volume, n_samples):
-        """Compute interior integral using Monte Carlo."""
-        func_values = func(points)
-        # Monte Carlo: volume * (1/n) * sum(f)
-        integral = (volume / n_samples) * jnp.sum(func_values)
-        return integral
-
     def integrate_interior(
         self, func: Callable[[jnp.ndarray], jnp.ndarray]
     ) -> jnp.ndarray:
         """Integrate over interior using Monte Carlo sampling."""
-        return self._integrate_interior(
-            func, self.points_interior, self.volume, self.interior_samples
-        )
-
-    @staticmethod
-    @jax.jit
-    def _integrate_boundary(func, points, normals, face_area, n_faces, n_samples_per_face):
-        """Compute boundary integral using Monte Carlo."""
-        func_values = func(points, normals)
-        # Monte Carlo on boundary: sum over faces, each with area * (1/n) * sum(f)
-        integral = (face_area / n_samples_per_face) * jnp.sum(func_values)
+        # Evaluate function at random samples
+        func_values = func(self.points_interior)
+        # Monte Carlo: volume * (1/n) * sum(f)
+        integral = (self.volume / self.interior_samples) * jnp.sum(func_values)
         return integral
 
     def integrate_boundary(
         self, func: Callable[[jnp.ndarray, jnp.ndarray], jnp.ndarray]
     ) -> jnp.ndarray:
         """Integrate over boundary using Monte Carlo sampling."""
-        return self._integrate_boundary(
-            func,
+        func_values = func(
             self.boundary_data["points"],
-            self.boundary_data["normals"],
-            self.face_area,
-            2 * self.dim,
-            self.boundary_samples,
+            self.boundary_data["normals"]
         )
+        # Monte Carlo on boundary: area * (1/n) * sum(f)
+        integral = (self.face_area / self.boundary_samples) * jnp.sum(func_values)
+        return integral

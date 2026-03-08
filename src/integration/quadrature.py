@@ -5,7 +5,6 @@ from ..config import Config
 from numpy.polynomial.legendre import leggauss
 
 import sys
-import jax
 import jax.numpy as jnp
 
 class QuadratureIntegration(NDCubeIntegration):
@@ -18,10 +17,7 @@ class QuadratureIntegration(NDCubeIntegration):
     Boundary: Assumes Dirichlet BC (u=0 on boundary).
     '''
 
-    def __init__(
-        self,
-        config: Config
-    ):
+    def __init__(self, config: Config):
         assert config.dim > 0, "dim must be positive"
         assert config.gauss_legendre_degree > 0, "degree must be positive"
         assert config.x_min < config.x_max, "x_min must be < x_max"
@@ -71,29 +67,24 @@ class QuadratureIntegration(NDCubeIntegration):
 
         return points, weights
 
-    @staticmethod
-    @jax.jit
-    def _integrate_interior(func, points, weights):
-        # Evaluate function at quadrature points
-        func_values = func(points)
-
-        # Compute weighted sum
-        integral = jnp.sum(weights * func_values)
-        return integral
-
     def integrate_interior(
         self,
         func: Callable[[jnp.ndarray], jnp.ndarray]
     ) -> jnp.ndarray:
         """Integrate over interior using quadrature rule."""
-        return self._integrate_interior(func, self.points_interior, self.weights_interior)
+        # Evaluate function at quadrature points
+        func_values = func(self.points_interior)
+
+        # Compute weighted sum (quadrature formula)
+        integral = jnp.sum(self.weights_interior * func_values)
+        return integral
 
     def _generate_face_quadrature(self, dim_axis: int, boundary_value: float) -> jnp.ndarray:
         """Generate quadrature points on a specific boundary face."""
         # Create a grid for the (dim-1) dimensions that are not fixed
         free_axes = [i for i in range(self.dim) if i != dim_axis]
         free_points_mesh_axis = [self.points_interior[:, i] for i in free_axes]
-        free_points_mesh = jnp.meshgrid(*free_points_mesh_axis)
+        free_points_mesh = jnp.meshgrid(*free_points_mesh_axis, indexing='ij')
         free_points = jnp.stack(free_points_mesh, axis=-1).reshape(-1, self.dim - 1)
 
         # Insert the fixed boundary value into the correct position
@@ -112,6 +103,22 @@ class QuadratureIntegration(NDCubeIntegration):
 
     def _setup_boundary_grids(self) -> dict[str, jnp.ndarray]:
         """Generate quadrature points and weights on all boundary faces."""
+
+        if self.dim == 1:
+            points = jnp.array([[self.x_min], [self.x_max]])
+
+            normals = jnp.array([
+                [-1.0],
+                [ 1.0],
+            ])
+
+            weights = jnp.ones(2)
+
+            return {
+                "points": points,
+                "normals": normals,
+                "weights": weights,
+            }
 
         # 1D Gauss nodes on [-1,1]
         p_1d, w_1d = leggauss(self.degree)
@@ -165,22 +172,13 @@ class QuadratureIntegration(NDCubeIntegration):
             "weights": jnp.concatenate(face_weights),
         }
 
-    # TODO: Should consider passing along a traced params object to avoid
-    #       re-tracing the function for each face.
-    @staticmethod
-    @jax.jit
-    def _integrate_boundary(func, points, normals, weights):
-        func_values = func(points, normals)
-        return jnp.sum(weights * func_values)
-
     def integrate_boundary(
         self,
         func: Callable[[jnp.ndarray, jnp.ndarray], jnp.ndarray]
     ) -> jnp.ndarray:
         """Integrate function over the cube boundary."""
-        return self._integrate_boundary(
-            func,
+        func_values = func(
             self.boundary_faces["points"],
-            self.boundary_faces["normals"],
-            self.boundary_faces["weights"]
+            self.boundary_faces["normals"]
         )
+        return jnp.sum(self.boundary_faces["weights"] * func_values)

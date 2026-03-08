@@ -21,7 +21,7 @@ def config_quadrature_1d():
         dim=1,
         x_min=0.0,
         x_max=1.0,
-        integration_method='gauss_legendre',
+        integration_method='quadrature',
         gauss_legendre_degree=20,
         adaptive_integration=False,
     )
@@ -34,7 +34,7 @@ def config_quadrature_2d():
         dim=2,
         x_min=0.0,
         x_max=1.0,
-        integration_method='gauss_legendre',
+        integration_method='quadrature',
         gauss_legendre_degree=15,
         adaptive_integration=False,
     )
@@ -47,7 +47,7 @@ def config_quadrature_3d():
         dim=3,
         x_min=0.0,
         x_max=1.0,
-        integration_method='gauss_legendre',
+        integration_method='quadrature',
         gauss_legendre_degree=8,
         adaptive_integration=False,
     )
@@ -153,13 +153,13 @@ def test_functions_1d():
             'func': lambda x: x[:, 0] ** 2,
             'integral': 1.0 / 3.0,
             'tolerance': 1e-10,
-            'description': 'f(x) = x²',
+            'description': 'f(x) = x^2',
         },
         'sine': {
             'func': lambda x: jnp.sin(jnp.pi * x[:, 0]),
             'integral': 2.0 / jnp.pi,
             'tolerance': 1e-8,
-            'description': 'f(x) = sin(πx)',
+            'description': 'f(x) = sin(pi x)',
         },
         'exponential': {
             'func': lambda x: jnp.exp(x[:, 0]),
@@ -186,11 +186,11 @@ def test_functions_2d():
             'tolerance': 1e-10,
             'description': 'f(x,y) = xy',
         },
-        'product_sin': {
+        'product_sine': {
             'func': lambda x: jnp.sin(jnp.pi * x[:, 0]) * jnp.sin(jnp.pi * x[:, 1]),
             'integral': (2.0 / jnp.pi) ** 2,
             'tolerance': 1e-8,
-            'description': 'f(x,y) = sin(πx)sin(πy)',
+            'description': 'f(x,y) = sin(pi x)sin(pi y)',
         },
     }
 

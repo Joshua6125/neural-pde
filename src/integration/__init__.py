@@ -15,11 +15,6 @@ def get_integrator(config: Config) -> NDCubeIntegration:
     -------
     NDCubeIntegration
         Integrator instance (QuadratureIntegration or MonteCarloIntegration).
-
-    Raises
-    ------
-    ValueError
-        If integration_method not in {'quadrature', 'monte_carlo'}.
     """
     method = config.integration_method.lower()
 
