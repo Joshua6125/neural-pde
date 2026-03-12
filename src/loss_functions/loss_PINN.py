@@ -84,3 +84,4 @@ class PINNLoss(LossBase):
         ic_loss = jnp.where(is_ic, jax.vmap(self._ic_residual)(x_boundary), 0.0)
         bc_loss = jnp.where(is_spatial_bc, jax.vmap(self._spatial_bc_residual)(x_boundary), 0.0)
         return ic_loss + bc_loss
+    

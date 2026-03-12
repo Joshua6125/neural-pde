@@ -1,7 +1,7 @@
 import flax.linen as nn
 import jax.numpy as jnp
 
-class PINN(nn.Module):
+class NeuralNet(nn.Module):
     def __init__(self, hidden_dim: int, num_layers: int):
         self.hidden_dim = hidden_dim
         self.num_layers = num_layers
@@ -15,4 +15,3 @@ class PINN(nn.Module):
         for layer in self.layers:
             h = jnp.tanh(layer(h))
         return self.output_layer(h)
-        
