@@ -22,6 +22,8 @@ class Config:
         Random seed for reproducibility.
     adaptive_integration : bool
         Enable adaptive refinement (not yet implemented).
+    loss_function : str
+        Loss function: 'PINN' or 'LS'
     """
     dim: int = 2
     x_min: float = 0.0
@@ -32,3 +34,4 @@ class Config:
     monte_carlo_boundary_samples: int = 1000
     monte_carlo_seed: int = 42
     adaptive_integration: bool = False
+    loss_function: str = 'PINN'

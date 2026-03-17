@@ -6,7 +6,7 @@ import jax.numpy as jnp
 from .loss_base import LossBase
 
 
-class PINNLoss(LossBase):
+class LossPINN(LossBase):
     """PINN loss for the wave equation u_tt - c^2 Delta u = f on Q = J x Omega.
 
     Points x have shape [d+1] with x[0] = t (time) and x[1:] spatial.
@@ -56,8 +56,17 @@ class PINNLoss(LossBase):
         H = jax.hessian(self._u)(x)
         u_tt = H[0, 0]
         laplacian_u = jnp.trace(H[1:, 1:])
-        c = self.c(x) if callable(self.c) else self.c
-        f = self.f(x) if self.f is not None else 0.0
+
+        if callable(self.c):
+            c = self.c(x)
+        else:
+            c = self.c
+
+        if self.f is not None:
+            f = self.f(x)
+        else:
+            f = 0.0
+
         return (u_tt - c**2 * laplacian_u - f) ** 2
 
     def loss_interior(self, x_interior: jnp.ndarray) -> jnp.ndarray:
@@ -68,8 +77,17 @@ class PINNLoss(LossBase):
         """IC residuals (displacement + velocity) at a single point at t=t_min."""
         u_val = self._u(x)
         ut_val = jax.grad(self._u)(x)[0]
-        u0_val = self.u0(x) if self.u0 is not None else 0.0
-        ut0_val = self.ut0(x) if self.ut0 is not None else 0.0
+
+        if self.u0 is not None:
+            u0_val = self.u0(x)
+        else:
+            u0_val = 0.0
+
+        if self.ut0 is not None:
+            ut0_val = self.ut0(x)
+        else:
+            ut0_val = 0.0
+            
         return self.ic_weight * ((u_val - u0_val) ** 2 + (ut_val - ut0_val) ** 2)
 
     def _spatial_bc_residual(self, x: jnp.ndarray) -> jnp.ndarray:
@@ -84,4 +102,3 @@ class PINNLoss(LossBase):
         ic_loss = jnp.where(is_ic, jax.vmap(self._ic_residual)(x_boundary), 0.0)
         bc_loss = jnp.where(is_spatial_bc, jax.vmap(self._spatial_bc_residual)(x_boundary), 0.0)
         return ic_loss + bc_loss
-    

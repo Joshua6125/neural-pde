@@ -6,7 +6,7 @@ import jax.numpy as jnp
 from .loss_base import LossBase
 
 
-class LSLoss(LossBase):
+class LossLS(LossBase):
     """Least-squares loss for the first-order acoustic wave system.
 
     Minimises the functional:
@@ -16,7 +16,7 @@ class LSLoss(LossBase):
                 + |v(0) - v_theta|^2_{L^2(Omega)}
                 + |sigma(0) - sigma_theta|^2_{L^2(Omega)^d}
 
-    The L^2(Q) norms are double integrals over Q = J x Omega (Bochner space).
+    The L^2(Q) norms are double integrals over Q = J x Omega.
     Since Q = [0,T] x Omgea is treated as a (d+1)-dimensional cube by the
     integrator, the double integral reduces to a single integral over Q
     by Fubini and is handled automatically.
@@ -62,7 +62,7 @@ class LSLoss(LossBase):
         return self.sigma_model(x).reshape(-1)
 
     def _interior_residual(self, x: jnp.ndarray) -> jnp.ndarray:
-        """Pointwise sum of squared residuals of both equations at a single point."""
+        """Sum of squared residuals of both equations at a single point."""
         v_grad = jax.grad(self._v)(x)
         dt_v = v_grad[0]
         grad_v = v_grad[1:]
@@ -71,8 +71,15 @@ class LSLoss(LossBase):
         dt_sigma = J_sigma[:, 0]
         div_sigma = jnp.trace(J_sigma[:, 1:])
 
-        f = self.f(x) if self.f is not None else 0.0
-        g = self.g(x) if self.g is not None else jnp.zeros_like(grad_v)
+        if self.f is not None:
+            f = self.f(x)
+        else:
+            f = 0.0
+
+        if self.g is not None:
+            g = self.g(x)
+        else:
+            g = jnp.zeros_like(grad_v)
 
         res_v = dt_v - div_sigma - f
         res_sigma = dt_sigma - grad_v - g
@@ -87,8 +94,17 @@ class LSLoss(LossBase):
         """IC residuals at a single point at t=t_min."""
         v_val = self._v(x)
         sigma_val = self._sigma(x)
-        v0_val = self.v0(x) if self.v0 is not None else 0.0
-        sigma0_val = self.sigma0(x) if self.sigma0 is not None else jnp.zeros_like(sigma_val)
+
+        if self.v0 is not None:
+            v0_val = self.v0(x)
+        else:
+            v0_val = 0.0
+
+        if self.sigma0 is not None:
+            sigma0_val = self.sigma0(x)
+        else:
+            sigma0_val = jnp.zeros_like(sigma_val)
+
         return (v_val - v0_val) ** 2 + jnp.sum((sigma_val - sigma0_val) ** 2)
 
     def loss_boundary(self, x_boundary: jnp.ndarray, normal_vector: jnp.ndarray) -> jnp.ndarray:
