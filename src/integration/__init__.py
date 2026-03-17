@@ -18,7 +18,7 @@ def get_integrator(config: Config) -> NDCubeIntegration:
     """
     method = config.integration_method.lower()
 
-    if method in ('quadrature', 'quadrature'):
+    if method == 'quadrature':
         return QuadratureIntegration(config)
     elif method == 'monte_carlo':
         return MonteCarloIntegration(config)

@@ -52,7 +52,7 @@ class LossPINN(LossBase):
         return self.u_model(x).squeeze()
 
     def _pde_residual(self, x: jnp.ndarray) -> jnp.ndarray:
-        """Pointwise PDE residual (u_tt - c^2 Delta u - f)^2 at a single point."""
+        """PDE residual (u_tt - c^2 Delta u - f)^2"""
         H = jax.hessian(self._u)(x)
         u_tt = H[0, 0]
         laplacian_u = jnp.trace(H[1:, 1:])
@@ -70,11 +70,11 @@ class LossPINN(LossBase):
         return (u_tt - c**2 * laplacian_u - f) ** 2
 
     def loss_interior(self, x_interior: jnp.ndarray) -> jnp.ndarray:
-        """PDE residual squared at interior space-time points."""
+        """PDE residual squared at interior points."""
         return jax.vmap(self._pde_residual)(x_interior)
 
     def _ic_residual(self, x: jnp.ndarray) -> jnp.ndarray:
-        """IC residuals (displacement + velocity) at a single point at t=t_min."""
+        """IC residuals at t=t_min."""
         u_val = self._u(x)
         ut_val = jax.grad(self._u)(x)[0]
 
@@ -87,11 +87,11 @@ class LossPINN(LossBase):
             ut0_val = self.ut0(x)
         else:
             ut0_val = 0.0
-            
+
         return self.ic_weight * ((u_val - u0_val) ** 2 + (ut_val - ut0_val) ** 2)
 
     def _spatial_bc_residual(self, x: jnp.ndarray) -> jnp.ndarray:
-        """Homogeneous Dirichlet BC residual at a single spatial boundary point."""
+        """Homogeneous Dirichlet BC residual at spatial boundary."""
         return self.bc_weight * self._u(x) ** 2
 
     def loss_boundary(self, x_boundary: jnp.ndarray, normal_vector: jnp.ndarray) -> jnp.ndarray:

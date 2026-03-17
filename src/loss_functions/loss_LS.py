@@ -9,17 +9,8 @@ from .loss_base import LossBase
 class LossLS(LossBase):
     """Least-squares loss for the first-order acoustic wave system.
 
-    Minimises the functional:
-
-        G(v, sigma) = |delta_t v - div*sigma - f|^2_{L^2(Q)}
-                + |delta_t sigma - div v - g|^2_{L^2(Q)^d}
-                + |v(0) - v_theta|^2_{L^2(Omega)}
-                + |sigma(0) - sigma_theta|^2_{L^2(Omega)^d}
-
-    The L^2(Q) norms are double integrals over Q = J x Omega.
-    Since Q = [0,T] x Omgea is treated as a (d+1)-dimensional cube by the
-    integrator, the double integral reduces to a single integral over Q
-    by Fubini and is handled automatically.
+    TODO: Should add references somehow
+    Minimises the functional G as defined in FGK23
 
     Points x have shape [d+1] with x[0] = t (time) and x[1:] spatial.
 
@@ -62,7 +53,7 @@ class LossLS(LossBase):
         return self.sigma_model(x).reshape(-1)
 
     def _interior_residual(self, x: jnp.ndarray) -> jnp.ndarray:
-        """Sum of squared residuals of both equations at a single point."""
+        """Sum of squared residuals of both equations"""
         v_grad = jax.grad(self._v)(x)
         dt_v = v_grad[0]
         grad_v = v_grad[1:]
@@ -87,7 +78,7 @@ class LossLS(LossBase):
         return res_v ** 2 + jnp.sum(res_sigma ** 2)
 
     def loss_interior(self, x_interior: jnp.ndarray) -> jnp.ndarray:
-        """Interior residuals at space-time points."""
+        """Interior residuals"""
         return jax.vmap(self._interior_residual)(x_interior)
 
     def _ic_residual(self, x: jnp.ndarray) -> jnp.ndarray:
