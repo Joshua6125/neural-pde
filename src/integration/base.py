@@ -1,6 +1,7 @@
 from abc import ABC, abstractmethod
 from typing import Callable
 import jax.numpy as jnp
+import jax
 
 class NDCubeIntegration(ABC):
     """Base class for n-dimensional cube integration methods."""
@@ -28,3 +29,16 @@ class NDCubeIntegration(ABC):
         loss_boundary = self.integrate_boundary(boundary_func)
         total_loss = loss_interior + loss_boundary
         return total_loss, loss_interior, loss_boundary
+
+    def integrate_with_key(
+            self,
+            interior_func: Callable[[jnp.ndarray], jnp.ndarray],
+            boundary_func: Callable[[jnp.ndarray, jnp.ndarray], jnp.ndarray],
+            rng_key: jax.Array,
+        ) -> tuple[jnp.ndarray, jnp.ndarray, jnp.ndarray, jax.Array]:
+        """Integrate with explicit RNG threading.
+
+        Deterministic integrators ignore the key and return it unchanged.
+        """
+        total_loss, loss_interior, loss_boundary = self.integrate(interior_func, boundary_func)
+        return total_loss, loss_interior, loss_boundary, rng_key

@@ -156,7 +156,7 @@ def test_quadrature_invalid_dim(config_quadrature_1d):
     from src.integration import QuadratureIntegration
 
     bad_config = replace(config_quadrature_1d, dim=-1)
-    with pytest.raises(AssertionError, match="dim must be positive"):
+    with pytest.raises(AssertionError, match="dim must be strictly positive"):
         QuadratureIntegration(bad_config)
 
 

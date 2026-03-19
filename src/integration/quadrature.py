@@ -1,6 +1,6 @@
 from typing import Callable
 from .base import NDCubeIntegration
-from ..config import Config
+from ..config import QuadratureConfig
 
 from numpy.polynomial.legendre import leggauss
 
@@ -17,10 +17,8 @@ class QuadratureIntegration(NDCubeIntegration):
     Boundary: Assumes Dirichlet BC (u=0 on boundary).
     '''
 
-    def __init__(self, config: Config):
-        assert config.dim > 0, "dim must be positive"
-        assert config.gauss_legendre_degree > 0, "degree must be strictly positive"
-        assert config.x_min < config.x_max, "x_min must be < x_max"
+    def __init__(self, config: QuadratureConfig):
+        config.validate()
 
         self.degree = config.gauss_legendre_degree
         self.adaptive = config.adaptive_integration

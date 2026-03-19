@@ -1,31 +1,26 @@
 from .base import NDCubeIntegration
 from .quadrature import QuadratureIntegration
 from .monte_carlo import MonteCarloIntegration
-from ..config import Config
+from ..config import IntegrationConfig, MonteCarloConfig, QuadratureConfig
 
-def get_integrator(config: Config) -> NDCubeIntegration:
+def get_integrator(config: IntegrationConfig) -> NDCubeIntegration:
     """Factory function for choosing integration method.
 
     Parameters
     ----------
-    config : Config
-        Configuration object specifying integration method and parameters.
+    config : IntegrationConfig
+        Typed integration configuration (quadrature or monte carlo).
 
     Returns
     -------
     NDCubeIntegration
         Integrator instance (QuadratureIntegration or MonteCarloIntegration).
     """
-    method = config.integration_method.lower()
-
-    if method == 'quadrature':
+    if isinstance(config, QuadratureConfig):
         return QuadratureIntegration(config)
-    elif method == 'monte_carlo':
+    if isinstance(config, MonteCarloConfig):
         return MonteCarloIntegration(config)
-    else:
-        raise ValueError(
-            f"Unknown integration method: '{config.integration_method}'. "
-            f"Must be 'quadrature' or 'monte_carlo'."
-        )
+
+    raise ValueError("Unknown integration config type.")
 
 __all__ = ["NDCubeIntegration", "QuadratureIntegration", "MonteCarloIntegration", "get_integrator"]

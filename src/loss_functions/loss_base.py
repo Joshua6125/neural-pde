@@ -1,6 +1,6 @@
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
-from typing import Callable, Literal
+from typing import Callable, Literal, TypeAlias
 import jax.numpy as jnp
 
 @dataclass(frozen=True)
@@ -21,6 +21,9 @@ class LSLossConfig:
     g: Callable[[jnp.ndarray], jnp.ndarray] | None = None
     v0: Callable[[jnp.ndarray], jnp.ndarray] | None = None
     sigma0: Callable[[jnp.ndarray], jnp.ndarray] | None = None
+
+
+AnyLossConfig: TypeAlias = PINNLossConfig | LSLossConfig
 
 
 class LossBase(ABC):

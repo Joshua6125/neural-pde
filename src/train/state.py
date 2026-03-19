@@ -19,6 +19,9 @@ class TrainConfig:
         Optimizer name: 'adam' or 'sgd'.
     seed : int
         Random seed used for parameter initialization.
+    integration_seed : int | None
+        Optional dedicated seed for integration sampling. If ``None``,
+        integration randomness is derived from ``seed``.
     log_every : int
         Logging frequency in epochs.
     use_jit : bool
@@ -29,6 +32,7 @@ class TrainConfig:
     learning_rate: float = 1e-3
     optimizer: Literal["adam", "sgd"] = "adam"
     seed: int = 0
+    integration_seed: int | None = None
     log_every: int = 100
     use_jit: bool = True
 
@@ -36,6 +40,8 @@ class TrainConfig:
         assert self.epochs > 0, "epochs must be strictly positive"
         assert self.learning_rate > 0.0, "learning_rate must be strictly positive"
         assert self.log_every > 0, "log_every must be strictly positive"
+        if self.integration_seed is not None:
+            assert self.integration_seed >= 0, "integration_seed must be non-negative"
 
 
 @dataclass(frozen=True)
@@ -45,7 +51,7 @@ class TrainState:
     step: int
     params: Any
     opt_state: optax.OptState
-    rng_key: jax.Array
+    integration_key: jax.Array
 
     def apply_gradients(
             self,
@@ -60,7 +66,7 @@ class TrainState:
             step=self.step + 1,
             params=params,
             opt_state=opt_state,
-            rng_key=self.rng_key,
+            integration_key=self.integration_key,
         )
 
 

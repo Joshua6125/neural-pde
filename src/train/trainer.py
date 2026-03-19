@@ -37,49 +37,78 @@ class Trainer:
         self.train_cfg = train_cfg
         self.train_cfg.validate()
 
+        self._train_step_fn = self._train_step_impl
         if self.train_cfg.use_jit:
-            self._train_step_impl = jax.jit(self._train_step_impl)
+            self._train_step_fn = jax.jit(self._train_step_impl)
 
     def init_state(self, sample_input: jnp.ndarray) -> TrainState:
         """Initialize parameters, optimizer state, and RNG."""
-        rng = jr.PRNGKey(self.train_cfg.seed)
-        rng, init_key = jr.split(rng)
+        root_key = jr.PRNGKey(self.train_cfg.seed)
+        root_key, init_key, derived_integration_key = jr.split(root_key, 3)
         params = self.method.init_params(init_key, sample_input)
         opt_state = self.optimizer.init(params)
-        return TrainState(step=0, params=params, opt_state=opt_state, rng_key=rng)
+        integration_key = (
+            jr.PRNGKey(self.train_cfg.integration_seed)
+            if self.train_cfg.integration_seed is not None
+            else derived_integration_key
+        )
+        return TrainState(
+            step=0,
+            params=params,
+            opt_state=opt_state,
+            integration_key=integration_key,
+        )
 
-    def _loss_with_aux(self, params: Any) -> tuple[jnp.ndarray, tuple[jnp.ndarray, jnp.ndarray]]:
+    def _loss_with_aux(
+            self,
+            params: Any,
+            integration_key: jax.Array,
+        ) -> tuple[jnp.ndarray, tuple[jnp.ndarray, jnp.ndarray, jax.Array]]:
         interior_fn, boundary_fn = self.method.loss_functions(params)
-        total, interior, boundary = self.integrator.integrate(interior_fn, boundary_fn)
-        return total, (interior, boundary)
+        total, interior, boundary, next_key = self.integrator.integrate_with_key(
+            interior_fn,
+            boundary_fn,
+            integration_key,
+        )
+        return total, (interior, boundary, next_key)
 
     def _train_step_impl(
             self,
             params: Any,
             opt_state: optax.OptState,
-        ) -> tuple[Any, optax.OptState, jnp.ndarray, jnp.ndarray, jnp.ndarray]:
+            integration_key: jax.Array,
+        ) -> tuple[Any, optax.OptState, jnp.ndarray, jnp.ndarray, jnp.ndarray, jax.Array]:
         """Core train step that can be JIT-compiled."""
-        (total_loss, (interior_loss, boundary_loss)), grads = jax.value_and_grad(
-            self._loss_with_aux,
+        value, grads = jax.value_and_grad(
+            lambda p: self._loss_with_aux(p, integration_key),
             has_aux=True,
         )(params)
+        total_loss, (interior_loss, boundary_loss, next_integration_key) = value
 
         updates, next_opt_state = self.optimizer.update(grads, opt_state, params)
         next_params = optax.apply_updates(params, updates)
-        return next_params, next_opt_state, total_loss, interior_loss, boundary_loss
+        return (
+            next_params,
+            next_opt_state,
+            total_loss,
+            interior_loss,
+            boundary_loss,
+            next_integration_key,
+        )
 
     def train_step(self, state: TrainState) -> tuple[TrainState, TrainStepMetrics]:
         """Run one optimization step and return updated state and metrics."""
-        params, opt_state, total_loss, interior_loss, boundary_loss = self._train_step_impl(
+        params, opt_state, total_loss, interior_loss, boundary_loss, integration_key = self._train_step_fn(
             state.params,
             state.opt_state,
+            state.integration_key,
         )
 
         state = TrainState(
             step=state.step + 1,
             params=params,
             opt_state=opt_state,
-            rng_key=state.rng_key,
+            integration_key=integration_key,
         )
 
         metrics = TrainStepMetrics(

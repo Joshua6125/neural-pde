@@ -1,10 +1,10 @@
-from .loss_base import LossBase, LSLossConfig, PINNLossConfig
+from .loss_base import AnyLossConfig, PINNLossConfig, LSLossConfig, LossBase
 from .loss_PINN import LossPINN
 from .loss_LS import LossLS
 
 
 def get_loss_function(
-        loss_cfg: LSLossConfig | PINNLossConfig,
+        loss_cfg: AnyLossConfig,
         u_model=None,
         v_model=None,
         sigma_model=None
@@ -13,8 +13,8 @@ def get_loss_function(
 
     Parameters
     ----------
-    loss_cfg : Config
-        Configuration object specifying loss function and parameters.
+    loss_cfg : LSLossConfig | PINNLossConfig
+        Loss configuration object specifying parameters for the chosen method.
 
     Returns
     -------
