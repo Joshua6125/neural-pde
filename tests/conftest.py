@@ -8,7 +8,7 @@ Provides:
 
 import pytest
 import jax.numpy as jnp
-from src.config import MonteCarloConfig, QuadratureConfig
+from src.integration.config import MonteCarloConfig, QuadratureConfig
 
 
 # ------ Config Fixtures for Quadrature ------

@@ -1,6 +1,6 @@
 from typing import Callable
 from .base import NDCubeIntegration
-from ..config import MonteCarloConfig
+from .config import MonteCarloConfig
 
 import jax
 import jax.numpy as jnp

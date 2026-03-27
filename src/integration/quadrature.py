@@ -1,6 +1,6 @@
 from typing import Callable
 from .base import NDCubeIntegration
-from ..config import QuadratureConfig
+from .config import QuadratureConfig
 
 from numpy.polynomial.legendre import leggauss
 
