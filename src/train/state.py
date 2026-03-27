@@ -30,7 +30,7 @@ class TrainConfig:
 
     epochs: int = 1000
     learning_rate: float = 1e-3
-    optimizer: Literal["adam", "sgd"] = "adam"
+    optimizer: Literal["adam", "adamw", "sgd"] = "adamw"
     seed: int = 0
     integration_seed: int | None = None
     log_every: int = 100
@@ -75,9 +75,11 @@ def get_optimizer(config: TrainConfig) -> optax.GradientTransformation:
     config.validate()
     if config.optimizer == "adam":
         return optax.adam(config.learning_rate)
+    if config.optimizer == "adamw":
+        return optax.adamw(config.learning_rate)
     if config.optimizer == "sgd":
         return optax.sgd(config.learning_rate)
 
     raise ValueError(
-        f"Unknown optimizer: '{config.optimizer}'. Must be 'adam' or 'sgd'."
+        f"Unknown optimizer: '{config.optimizer}'. Must be 'adam', 'adamw' or 'sgd'."
     )
