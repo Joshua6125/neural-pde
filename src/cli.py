@@ -34,6 +34,8 @@ def run_training(
         Bundles model architecture and PDE parameters.
     integration_cfg : IntegrationConfig
         Integration configuration (quadrature, Monte Carlo, etc.)
+    model_cfg : AnyModelConfig
+        Model config (type of model used etc)
     train_cfg : TrainConfig
         Training hyperparameters (learning rate, steps, seed, etc.)
     sample_input : jnp.ndarray | None
