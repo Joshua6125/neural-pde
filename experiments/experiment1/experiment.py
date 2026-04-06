@@ -7,7 +7,7 @@ from typing import Tuple
 import numpy as np
 import jax.numpy as jnp
 
-project_root = Path(__file__).parent.parent
+project_root = Path(__file__).parent.parent.parent
 sys.path.insert(0, str(project_root))
 
 from src.cli import run_training
