@@ -145,6 +145,7 @@ class Trainer:
         for epoch in range(self.train_cfg.epochs):
             state, metrics = self.train_step(state)
             if epoch % self.train_cfg.log_every == 0:
+                print(f"Training progress: {epoch}/{self.train_cfg.epochs}")
                 history.append(metrics)
 
             if callback is not None:

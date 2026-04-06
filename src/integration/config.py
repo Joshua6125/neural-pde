@@ -20,12 +20,12 @@ class QuadratureConfig(IntegrationConfigBase):
     """Configuration for Gauss-Legendre quadrature integration."""
 
     integration_method: Literal["quadrature"] = "quadrature"
-    gauss_legendre_degree: int = 100
+    degree: int = 100
     adaptive_integration: bool = False
 
     def validate(self) -> None:
         self.validate_domain()
-        assert self.gauss_legendre_degree > 0, "degree must be strictly positive"
+        assert self.degree > 0, "degree must be strictly positive"
 
 
 @dataclass(frozen=True)

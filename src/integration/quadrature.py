@@ -20,7 +20,7 @@ class QuadratureIntegration(NDCubeIntegration):
     def __init__(self, config: QuadratureConfig):
         config.validate()
 
-        self.degree = config.gauss_legendre_degree
+        self.degree = config.degree
         self.adaptive = config.adaptive_integration
         if self.adaptive:
             # TODO: Implement adaptive quadrature
