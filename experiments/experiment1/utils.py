@@ -8,15 +8,13 @@ Provides:
 - Visualization helpers
 """
 
-import jax
 import jax.numpy as jnp
 from jax import vmap
 from functools import partial
 import numpy as np
 from dataclasses import dataclass
-from typing import Callable, Tuple
+from typing import Tuple
 import matplotlib.pyplot as plt
-from matplotlib import cm
 import os
 
 
@@ -37,10 +35,17 @@ def analytical_solution(
 
     u(t, x, y) = sin(π*t/T) * sin(π*(x+L)/(2L)) * sin(π*(y+L)/(2L))
     """
+    # Handle floating-point precision at t=T (where sin(π) should be exactly 0)
+    t_normalized = t / config.T
+    t_at_boundary = jnp.isclose(t_normalized, 1.0, atol=1e-10)
+
     t_term = jnp.sin(jnp.pi * t / config.T)
     x_term = jnp.sin(jnp.pi * (x + config.L) / (2 * config.L))
     y_term = jnp.sin(jnp.pi * (y + config.L) / (2 * config.L))
-    return t_term * x_term * y_term
+
+    # If t is at the boundary (t=T), return 0 regardless of spatial terms
+    result = t_term * x_term * y_term
+    return jnp.where(t_at_boundary, 0.0, result)
 
 
 def analytical_solution_t(
@@ -112,6 +117,7 @@ def generate_test_points(
     x_points = np.linspace(-config.L, config.L, n_space_per_dim)
     y_points = np.linspace(-config.L, config.L, n_space_per_dim)
 
+    # TODO: use numpy cartesion instead
     test_points_list = []
     for t in t_points:
         for x in x_points:
@@ -131,6 +137,8 @@ def generate_test_points(
             jnp.array(t), jnp.array(x), jnp.array(y), config
         ))
         reference_solutions.append(u_ref)
+
+    print()
 
     reference_solutions = np.array(reference_solutions)
     print(f"Reference solutions computed.")
@@ -196,12 +204,16 @@ def plot_solution_comparison(
         config = ProblemConfig()
 
     if time_indices is None:
-        # Sample 4 time steps uniformly
         unique_times = np.unique(test_points[:, 0])
         if len(unique_times) > 4:
-            time_indices = np.linspace(0, len(unique_times) - 1, 4, dtype=int)
-            time_indices = [np.where(test_points[:, 0] == unique_times[i])[0][0]
-                           for i in time_indices]
+            selected_time_indices = np.round(np.linspace(0, len(unique_times) - 1, 4)).astype(int)
+            # Use max(test_points[:, 0]) for exact robustness
+            time_indices = []
+            for idx in selected_time_indices:
+                target_time = unique_times[idx]
+                # Find closest match to handle floating-point precision
+                closest_idx = np.argmin(np.abs(test_points[:, 0] - target_time))
+                time_indices.append(closest_idx)
         else:
             time_indices = list(range(len(unique_times)))
 
@@ -214,8 +226,8 @@ def plot_solution_comparison(
     for row, idx in enumerate(time_indices):
         t_val = test_points[idx, 0]
 
-        # Extract spatial points at this time
-        time_mask = np.isclose(test_points[:, 0], t_val)
+        # Extract spatial points at this time - use tight tolerance
+        time_mask = np.isclose(test_points[:, 0], t_val, atol=1e-10)
         t_space = test_points[time_mask]
         u_p = u_pred[time_mask]
         u_e = u_exact[time_mask]
@@ -250,7 +262,7 @@ def plot_solution_comparison(
     os.makedirs(os.path.dirname(output_path), exist_ok=True)
     plt.savefig(output_path, dpi=150, bbox_inches="tight")
     plt.close()
-    print(f"Solution comparison plot saved to {output_path}")
+    print(f"\nSolution comparison plot saved to {output_path}")
 
 
 def plot_error_map(

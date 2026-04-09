@@ -11,7 +11,7 @@ project_root = Path(__file__).parent.parent.parent
 sys.path.insert(0, str(project_root))
 
 from src.cli import run_training
-from src.algorithms import PINNConfig
+from src.loss_functions import PINNConfig
 from src.models import PINNModelConfig, NeuralNetModelConfig, build_model
 from src.integration import QuadratureConfig, MonteCarloConfig
 from src.train import TrainConfig
@@ -90,7 +90,7 @@ def get_integration_config(
 
 def get_training_config() -> TrainConfig:
     return TrainConfig(
-        epochs=20000,
+        epochs=200,
         learning_rate=1e-4,
         optimizer="adamw",
         use_jit=True,
