@@ -4,7 +4,7 @@ from typing import Callable
 
 import jax.numpy as jnp
 
-from .algorithms import AlgorithmConfig, build_algorithm
+from .loss_functions import AlgorithmConfig, build_algorithm
 from .integration import IntegrationConfig, get_integrator
 from .models import AnyModelConfig, build_model
 from .train import (

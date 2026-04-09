@@ -1,4 +1,4 @@
-"""loss functions tests (PINN, Least Squares).
+"""loss functions and method tests (PINN, Least Squares).
 
 Test modules:
     - test_PINN: PINN loss tests
