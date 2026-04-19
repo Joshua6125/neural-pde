@@ -12,13 +12,13 @@ class TrainConfig:
     Attributes
     ----------
     epochs : int
-        Number of optimization steps.
+        Number of optimisation steps.
     learning_rate : float
-        Optimizer learning rate.
+        Optimiser learning rate.
     optimizer : str
-        Optimizer name: 'adam' or 'sgd'.
+        Optimiser name: 'adam' or 'sgd'.
     seed : int
-        Random seed used for parameter initialization.
+        Random seed used for parameter initialisation.
     integration_seed : int | None
         Optional dedicated seed for integration sampling. If ``None``,
         integration randomness is derived from ``seed``.

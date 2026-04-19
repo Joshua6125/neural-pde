@@ -39,7 +39,7 @@ def run_training(
     train_cfg : TrainConfig
         Training hyperparameters (learning rate, steps, seed, etc.)
     sample_input : jnp.ndarray | None
-        Sample input for model initialization.
+        Sample input for model initialisation.
     state : TrainState | None
         Continue from existing state.
     callback : Callable | None

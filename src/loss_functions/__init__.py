@@ -4,20 +4,6 @@ Each algorithm is self-contained and combines:
 - Configuration (model + PDE parameters)
 - Loss function (residual computation)
 - Algorithm class (parameterization + loss binding)
-
-This allows clean separation of concerns while keeping related code together.
-
-Usage:
-    from src.algorithms import LSConfig, build_algorithm
-    from src.models import build_model
-
-    # Define algorithm
-    cfg = LSConfig(model=LSModelConfig(...), f=source_fn)
-    model = build_model(cfg.model)
-    algorithm = build_algorithm(cfg, model)
-
-    # Use with trainer
-    trainer = Trainer(method=algorithm, ...)
 """
 
 from typing import TypeAlias
@@ -53,18 +39,7 @@ def build_algorithm(config: AlgorithmConfig, model: AnyBuiltModel) -> PINN | LS:
     Raises
     ------
     ValueError
-        If config type is not recognized
-
-    Examples
-    --------
-    >>> from src.algorithms import build_algorithm, PINNConfig
-    >>> from src.models import build_model, PINNModelConfig
-    >>>
-    >>> model_cfg = PINNModelConfig(u_model=NeuralNetModelConfig(...))
-    >>> algo_cfg = PINNConfig(model=model_cfg, c=1.0)
-    >>>
-    >>> model = build_model(model_cfg)
-    >>> algorithm = build_algorithm(algo_cfg, model)
+        If config type is not recognised
     """
     if isinstance(config, PINNConfig):
         return PINN(model=model, config=config)
