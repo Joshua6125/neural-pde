@@ -1,18 +1,18 @@
 from .neuralnet import NeuralNet
+from .kan import KANModel
 from .builder import (
     AnyBuiltModel,
     AnyModelConfig,
-    LSModelConfig,
     NeuralNetModelConfig,
-    PINNModelConfig,
+    KANModelConfig,
     build_model,
 )
 
 __all__ = [
     "NeuralNet",
+    "KANModel",
     "NeuralNetModelConfig",
-    "PINNModelConfig",
-    "LSModelConfig",
+    "KANModelConfig",
     "AnyModelConfig",
     "AnyBuiltModel",
     "build_model",

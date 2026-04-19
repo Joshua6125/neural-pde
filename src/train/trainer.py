@@ -128,7 +128,7 @@ class Trainer:
         Parameters
         ----------
         sample_input : jnp.ndarray | None
-            Required if ``state`` is not provided. Used for model initialization.
+            Required if ``state`` is not provided. Used for model initialisation.
         state : TrainState | None
             Existing state for continuing training.
         callback : Callable[[TrainStepMetrics], None] | None
