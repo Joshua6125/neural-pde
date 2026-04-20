@@ -125,6 +125,7 @@ class TestPINNConfigDefaults:
         assert config.bc_weight == 1.0
 
 
+# TODO: Finish tests here.
 class TestPINNConfigTypes:
     """Test type validation."""
 
