@@ -147,8 +147,8 @@ class TestLSLossFunctionsWithConfig:
     def test_loss_functions_matches_exact_zero_solution(self, mock_model_valid, callable_v0_zero, callable_sigma0_linear, callable_v_boundary_linear, rng_key, sample_input_2d):
         """Loss closures can represent an exact zero-residual configuration."""
         config = LSConfig(
-            f=None,
-            g=None,
+            f=0.0,
+            g=0.0,
             v0=callable_v0_zero,
             sigma0=callable_sigma0_linear,
             v_boundary=callable_v_boundary_linear,

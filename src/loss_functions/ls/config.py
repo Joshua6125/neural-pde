@@ -17,8 +17,8 @@ class LSConfig(AlgorithmConfig):
     """
     kind: Literal["ls"] = "ls"
     model: AnyModelConfig = field(default_factory=NeuralNetModelConfig)
-    f: Callable[[jnp.ndarray], jnp.ndarray] | None = None
-    g: Callable[[jnp.ndarray], jnp.ndarray] | None = None
-    v0: Callable[[jnp.ndarray], jnp.ndarray] | None = None
-    sigma0: Callable[[jnp.ndarray], jnp.ndarray] | None = None
-    v_boundary: Callable[[jnp.ndarray], jnp.ndarray] | None = None
+    f: float | Callable[[jnp.ndarray], jnp.ndarray] = 0.0
+    g: float | Callable[[jnp.ndarray], jnp.ndarray] = 0.0
+    v0: float | Callable[[jnp.ndarray], jnp.ndarray] = 0.0
+    sigma0: float | Callable[[jnp.ndarray], jnp.ndarray] = 0.0
+    v_boundary: float | Callable[[jnp.ndarray], jnp.ndarray] = 0.0

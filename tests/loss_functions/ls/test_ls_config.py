@@ -50,30 +50,30 @@ class TestLSConfigInstantiation:
 class TestLSConfigDefaults:
     """Test default values in LSConfig."""
 
-    def test_f_defaults_to_none(self):
-        """f defaults to None."""
+    def test_f_defaults_to_zero(self):
+        """f defaults to zero."""
         config = LSConfig()
-        assert config.f is None
+        assert config.f == 0.0
 
-    def test_g_defaults_to_none(self):
-        """g defaults to None."""
+    def test_g_defaults_to_zero(self):
+        """g defaults to zero."""
         config = LSConfig()
-        assert config.g is None
+        assert config.g == 0.0
 
-    def test_v0_defaults_to_none(self):
-        """v0 defaults to None."""
+    def test_v0_defaults_to_zero(self):
+        """v0 defaults to zero."""
         config = LSConfig()
-        assert config.v0 is None
+        assert config.v0 == 0.0
 
-    def test_sigma0_defaults_to_none(self):
-        """sigma0 defaults to None."""
+    def test_sigma0_defaults_to_zero(self):
+        """sigma0 defaults to zero."""
         config = LSConfig()
-        assert config.sigma0 is None
+        assert config.sigma0 == 0.0
 
-    def test_v_boundary_defaults_to_none(self):
-        """v_boundary defaults to None."""
+    def test_v_boundary_defaults_to_zero(self):
+        """v_boundary defaults to zero."""
         config = LSConfig()
-        assert config.v_boundary is None
+        assert config.v_boundary == 0.0
 
 
 class TestLSConfigImmutability:
@@ -118,10 +118,10 @@ class TestLSConfigMultipleArgs:
         config = LSConfig(f=callable_f_zero)
         assert config.kind == "ls"
         assert config.f is callable_f_zero
-        assert config.g is None
-        assert config.v0 is None
-        assert config.sigma0 is None
-        assert config.v_boundary is None
+        assert config.g == 0.0
+        assert config.v0 == 0.0
+        assert config.sigma0 ==0.0
+        assert config.v_boundary == 0.0
 
     def test_custom_model_config_is_supported(self):
         """Custom model config instances are supported."""
@@ -139,8 +139,8 @@ class TestLSConfigBoundaryBehaviour:
 
     def test_boundary_callable_can_be_none(self):
         """v_boundary can be omitted for pure interior/IC training."""
-        config = LSConfig(v_boundary=None)
-        assert config.v_boundary is None
+        config = LSConfig(v_boundary=0.0)
+        assert config.v_boundary == 0.0
 
     def test_boundary_callable_can_be_defined(self, callable_v_boundary_linear):
         """v_boundary can be defined for Dirichlet boundary use cases."""

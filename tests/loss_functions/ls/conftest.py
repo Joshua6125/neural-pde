@@ -33,7 +33,7 @@ class MockLSModelValid:
 class MockLSModelVectorV:
     """Mock LS model with vector-shaped v output of length 1."""
 
-    def init(self, rng_key: jax.Array, x: jnp.ndarray) -> dict[str, int]:
+    def init(self, rng_key: jax.Array, x: jnp.ndarray) -> Any:
         return {"dummy": 0}
 
     def apply(self, params: Any, x: jnp.ndarray) -> dict[str, jnp.ndarray]:
@@ -47,7 +47,7 @@ class MockLSModelVectorV:
 class MockLSModelNotDict:
     """Mock LS model returning a non-dict output."""
 
-    def init(self, rng_key: jax.Array, x: jnp.ndarray) -> dict[str, int]:
+    def init(self, rng_key: jax.Array, x: jnp.ndarray) -> Any:
         return {"dummy": 0}
 
     def apply(self, params, x):
@@ -57,7 +57,7 @@ class MockLSModelNotDict:
 class MockLSModelMissingV:
     """Mock LS model missing the v output."""
 
-    def init(self, rng_key: jax.Array, x: jnp.ndarray) -> dict[str, int]:
+    def init(self, rng_key: jax.Array, x: jnp.ndarray) -> Any:
         return {"dummy": 0}
 
     def apply(self, params: Any, x: jnp.ndarray) -> dict[str, jnp.ndarray]:
@@ -68,7 +68,7 @@ class MockLSModelMissingV:
 class MockLSModelMissingSigma:
     """Mock LS model missing the sigma output."""
 
-    def init(self, rng_key: jax.Array, x: jnp.ndarray) -> dict[str, int]:
+    def init(self, rng_key: jax.Array, x: jnp.ndarray) -> Any:
         return {"dummy": 0}
 
     def apply(self, params: Any, x: jnp.ndarray) -> dict[str, jnp.ndarray]:
@@ -78,7 +78,7 @@ class MockLSModelMissingSigma:
 class MockLSModelBadVShape:
     """Mock LS model with invalid v output shape."""
 
-    def init(self, rng_key: jax.Array, x: jnp.ndarray) -> dict[str, int]:
+    def init(self, rng_key: jax.Array, x: jnp.ndarray) -> Any:
         return {"dummy": 0}
 
     def apply(self, params: Any, x: jnp.ndarray) -> dict[str, jnp.ndarray]:
@@ -92,7 +92,7 @@ class MockLSModelBadVShape:
 class MockLSModelBadSigmaShape:
     """Mock LS model with invalid sigma output shape for 2D input."""
 
-    def init(self, rng_key: jax.Array, x: jnp.ndarray) -> dict[str, int]:
+    def init(self, rng_key: jax.Array, x: jnp.ndarray) -> Any:
         return {"dummy": 0}
 
     def apply(self, params: Any, x: jnp.ndarray) -> dict[str, jnp.ndarray]:

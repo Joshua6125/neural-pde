@@ -99,20 +99,20 @@ class TestPINNConfigDefaults:
         config = PINNConfig()
         assert config.c == 1.0
 
-    def test_f_defaults_to_one(self):
-        """f defaults to None."""
+    def test_f_defaults_to_zero(self):
+        """f defaults to zero."""
         config = PINNConfig()
-        assert config.f == 1.0
+        assert config.f == 0.0
 
-    def test_u0_defaults_to_one(self):
-        """u0 defaults to None."""
+    def test_u0_defaults_to_zero(self):
+        """u0 defaults to zero."""
         config = PINNConfig()
-        assert config.u0 == 1.0
+        assert config.u0 == 0.0
 
-    def test_ut0_defaults_to_one(self):
-        """ut0 defaults to None."""
+    def test_ut0_defaults_to_zero(self):
+        """ut0 defaults to zero."""
         config = PINNConfig()
-        assert config.ut0 == 1.0
+        assert config.ut0 == 0.0
 
     def test_ic_weight_defaults_to_one(self):
         """ic_weight defaults to 1.0."""

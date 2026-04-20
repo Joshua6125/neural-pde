@@ -33,11 +33,11 @@ class LSLoss(Loss):
         self,
         v_model: Callable[[jnp.ndarray], jnp.ndarray],
         sigma_model: Callable[[jnp.ndarray], jnp.ndarray],
-        f: Callable[[jnp.ndarray], jnp.ndarray] | None = None,
-        g: Callable[[jnp.ndarray], jnp.ndarray] | None = None,
-        v0: Callable[[jnp.ndarray], jnp.ndarray] | None = None,
-        sigma0: Callable[[jnp.ndarray], jnp.ndarray] | None = None,
-        v_boundary: Callable[[jnp.ndarray], jnp.ndarray] | None = None,
+        f: float | Callable[[jnp.ndarray], jnp.ndarray] = 0.0,
+        g: float | Callable[[jnp.ndarray], jnp.ndarray] = 0.0,
+        v0: float | Callable[[jnp.ndarray], jnp.ndarray] = 0.0,
+        sigma0: float | Callable[[jnp.ndarray], jnp.ndarray] = 0.0,
+        v_boundary: float | Callable[[jnp.ndarray], jnp.ndarray] = 0.0,
     ):
         self.v_model = v_model
         self.sigma_model = sigma_model
@@ -46,7 +46,7 @@ class LSLoss(Loss):
         self.v0 = v0
         self.sigma0 = sigma0
         self.v_boundary = v_boundary
-        if self.v_boundary is not None:
+        if not self.v_boundary == 0.0:
             print("WARNING: LS formulation is only proven for Dirichlet boundary conditions")
 
     def _v(self, x: jnp.ndarray) -> jnp.ndarray:
@@ -65,8 +65,14 @@ class LSLoss(Loss):
         dt_sigma = J_sigma[:, 0]
         div_sigma = jnp.trace(J_sigma[:, 1:])
 
-        f = self.f(x) if self.f is not None else 0.0
-        g = self.g(x) if self.g is not None else jnp.zeros_like(grad_v)
+        f = self.f(x) if callable(self.f) else self.f
+        if not jnp.isscalar(f):
+            raise ValueError("f should be scalar or return scalar type.")
+
+        g = self.g(x) if callable(self.g) else self.g
+        if jnp.isscalar(g): g = g * jnp.ones_like(grad_v)
+        if not jnp.shape(g) == jnp.shape(grad_v):
+            raise ValueError("g should be or return the right shape.")
 
         res_v = dt_v - div_sigma - f
         res_sigma = dt_sigma - grad_v - g
@@ -82,8 +88,14 @@ class LSLoss(Loss):
         v_val = self._v(x)
         sigma_val = self._sigma(x)
 
-        v0_val = self.v0(x) if self.v0 is not None else 0.0
-        sigma0_val = self.sigma0(x) if self.sigma0 is not None else jnp.zeros_like(sigma_val)
+        v0_val = self.v0(x) if callable(self.v0) else self.v0
+        if not jnp.isscalar(v0_val):
+            raise ValueError("v0 should be scalar or return scalar type.")
+
+        sigma0_val = self.sigma0(x) if callable(self.sigma0) else self.sigma0
+        if jnp.isscalar(sigma0_val): sigma0_val = sigma0_val * jnp.ones_like(sigma_val)
+        if not jnp.shape(sigma0_val) == jnp.shape(sigma_val):
+            raise ValueError("sigma0 should be or return the right shape.")
 
         return (v_val - v0_val) ** 2 + jnp.sum((sigma_val - sigma0_val) ** 2)
 
@@ -93,7 +105,10 @@ class LSLoss(Loss):
             return jnp.zeros(())
 
         v_val = self._v(x)
-        v_boundary_val = self.v_boundary(x)
+        v_boundary_val = self.v_boundary(x) if callable(self.v_boundary) else self.v_boundary
+        if not jnp.isscalar(v_boundary_val):
+            raise ValueError("v_boundary should be scalar or return scalar type.")
+
         return (v_val - v_boundary_val) ** 2
 
     def loss_boundary(self, x_boundary: jnp.ndarray, normal_vector: jnp.ndarray) -> jnp.ndarray:

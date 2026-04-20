@@ -36,9 +36,9 @@ class PINNLoss(Loss):
         self,
         u_model: Callable[[jnp.ndarray], jnp.ndarray],
         c: float | Callable[[jnp.ndarray], jnp.ndarray] = 1.0,
-        f: float | Callable[[jnp.ndarray], jnp.ndarray] = 1.0,
-        u0: float | Callable[[jnp.ndarray], jnp.ndarray] = 1.0,
-        ut0: float | Callable[[jnp.ndarray], jnp.ndarray] = 1.0,
+        f: float | Callable[[jnp.ndarray], jnp.ndarray] = 0.0,
+        u0: float | Callable[[jnp.ndarray], jnp.ndarray] = 0.0,
+        ut0: float | Callable[[jnp.ndarray], jnp.ndarray] = 0.0,
         ic_weight: float = 1.0,
         bc_weight: float = 1.0,
     ):
