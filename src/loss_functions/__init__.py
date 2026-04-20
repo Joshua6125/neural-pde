@@ -12,13 +12,14 @@ from .base import AlgorithmConfig, Loss
 from .pinn import PINN, PINNConfig, PINNLoss
 from .ls import LS, LSConfig, LSLoss
 
-from ..models import AnyBuiltModel
+from ..models import BuiltModelProtocol
 
-# Type alias for all available algorithm configurations
+
 AlgorithmConfigType: TypeAlias = PINNConfig | LSConfig
+LossAlgorithm: TypeAlias = PINN | LS
 
 
-def build_algorithm(config: AlgorithmConfig, model: AnyBuiltModel) -> PINN | LS:
+def build_algorithm(config: AlgorithmConfig, model: BuiltModelProtocol) -> LossAlgorithm:
     """Build an algorithm from configuration and model.
 
     This factory function instantiates the appropriate algorithm class
@@ -28,12 +29,12 @@ def build_algorithm(config: AlgorithmConfig, model: AnyBuiltModel) -> PINN | LS:
     ----------
     config : AlgorithmConfig
         Algorithm configuration (PINNConfig, LSConfig, etc.)
-    model : AnyBuiltModel
+    model : BuiltModelProtocol
         Already-built neural network model from build_model()
 
     Returns
     -------
-    PINN or LS
+    LossAlgorithm
         Configured algorithm (implements TrainingMethod) ready for training
 
     Raises
@@ -65,4 +66,5 @@ __all__ = [
     "build_algorithm",
     # Type alias
     "AlgorithmConfigType",
+    "LossAlgorithm",
 ]

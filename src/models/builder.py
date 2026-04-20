@@ -1,11 +1,20 @@
 from dataclasses import dataclass, field
-from typing import Literal, TypeAlias, Mapping
+from typing import Literal, TypeAlias, Mapping, Protocol, Any
 
 from .neuralnet import NeuralNet
 from .kan import KANModel
 
+import jax
+import jax.numpy as jnp
+
 
 AnyBuiltModel: TypeAlias = NeuralNet | KANModel
+
+
+# TODO: Potentially add @runtime_checkable here.
+class BuiltModelProtocol(Protocol):
+    def init(self, rng_key: jax.Array, sample_input: jnp.ndarray) -> Any: ...
+    def apply(self, params: Any, x: jnp.ndarray) -> dict[str, jnp.ndarray]: ...
 
 
 @dataclass(frozen=True)
@@ -37,7 +46,9 @@ class NeuralNetModelConfig(BaseModelConfig):
 
 @dataclass(frozen=True)
 class KANModelConfig(BaseModelConfig):
-    kind: Literal['kan'] = "kan"
+    """Configuration for KAN model."""
+
+    kind: Literal["kan"] = "kan"
     hidden_dim: int = 64
     num_layers: int = 4
     grid_size: int = 5

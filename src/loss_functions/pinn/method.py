@@ -3,7 +3,7 @@
 import jax
 import jax.numpy as jnp
 
-from ...models import AnyBuiltModel
+from ...models import BuiltModelProtocol
 from ...train import TrainingMethod
 from .loss import PINNLoss
 from .config import PINNConfig
@@ -14,7 +14,7 @@ class PINN(TrainingMethod):
 
     def __init__(
         self,
-        model: AnyBuiltModel,
+        model: BuiltModelProtocol,
         config: PINNConfig,
     ):
         self.model = model

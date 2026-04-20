@@ -3,8 +3,8 @@
 import jax
 import jax.numpy as jnp
 
-from ...models import AnyBuiltModel
-from ...train.base import TrainingMethod
+from ...models import BuiltModelProtocol
+from ...train import TrainingMethod
 from .loss import LSLoss
 from .config import LSConfig
 
@@ -14,7 +14,7 @@ class LS(TrainingMethod):
 
     def __init__(
         self,
-        model: AnyBuiltModel,
+        model: BuiltModelProtocol,
         config: LSConfig,
     ):
         self.model = model

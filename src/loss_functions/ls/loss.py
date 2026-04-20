@@ -47,7 +47,7 @@ class LSLoss(Loss):
         self.sigma0 = sigma0
         self.v_boundary = v_boundary
         if self.v_boundary is not None:
-            print("WARNING: the LS formulation is only proven for Dirichlet boundary conditions")
+            print("WARNING: LS formulation is only proven for Dirichlet boundary conditions")
 
     def _v(self, x: jnp.ndarray) -> jnp.ndarray:
         return self.v_model(x).squeeze()
