@@ -102,13 +102,16 @@ class MonteCarloIntegration(NDCubeIntegration):
         integral = (self.face_area / self.boundary_samples) * jnp.sum(func_values)
         return integral
 
-    def integrate_with_key(
+    def integrate(
             self,
             interior_func: Callable[[jnp.ndarray], jnp.ndarray],
             boundary_func: Callable[[jnp.ndarray, jnp.ndarray], jnp.ndarray],
-            rng_key: jax.Array,
-        ) -> tuple[jnp.ndarray, jnp.ndarray, jnp.ndarray, jax.Array]:
+            rng_key: jax.Array | None = jax.random.PRNGKey(42),
+        ) -> tuple[jnp.ndarray, jnp.ndarray, jnp.ndarray]:
         """Integrate with explicit RNG threading for reproducible resampling."""
+        if rng_key is None:
+            raise ValueError("rng_key may not be None in Monte Carlo Integration.")
+
         points_interior, next_key = self._sample_interior(rng_key)
         boundary_data, next_key = self._setup_boundary_samples(next_key)
 
@@ -118,4 +121,4 @@ class MonteCarloIntegration(NDCubeIntegration):
         interior_loss = (self.volume / self.interior_samples) * jnp.sum(interior_values)
         boundary_loss = (self.face_area / self.boundary_samples) * jnp.sum(boundary_values)
         total_loss = interior_loss + boundary_loss
-        return total_loss, interior_loss, boundary_loss, next_key
+        return total_loss, interior_loss, boundary_loss

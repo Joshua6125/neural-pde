@@ -22,23 +22,11 @@ class NDCubeIntegration(ABC):
     def integrate(
             self,
             interior_func: Callable[[jnp.ndarray], jnp.ndarray],
-            boundary_func: Callable[[jnp.ndarray, jnp.ndarray], jnp.ndarray]
+            boundary_func: Callable[[jnp.ndarray, jnp.ndarray], jnp.ndarray],
+            rng_key: jax.Array | None = None,
         ) -> tuple[jnp.ndarray, jnp.ndarray, jnp.ndarray]:
         """Main integration method. Returns (total_loss, interior_loss, boundary_loss)."""
         loss_interior = self.integrate_interior(interior_func)
         loss_boundary = self.integrate_boundary(boundary_func)
         total_loss = loss_interior + loss_boundary
         return total_loss, loss_interior, loss_boundary
-
-    def integrate_with_key(
-            self,
-            interior_func: Callable[[jnp.ndarray], jnp.ndarray],
-            boundary_func: Callable[[jnp.ndarray, jnp.ndarray], jnp.ndarray],
-            rng_key: jax.Array,
-        ) -> tuple[jnp.ndarray, jnp.ndarray, jnp.ndarray, jax.Array]:
-        """Integrate with explicit RNG threading.
-
-        Deterministic integrators ignore the key and return it unchanged.
-        """
-        total_loss, loss_interior, loss_boundary = self.integrate(interior_func, boundary_func)
-        return total_loss, loss_interior, loss_boundary, rng_key
