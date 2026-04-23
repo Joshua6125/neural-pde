@@ -70,6 +70,7 @@ class Trainer:
             boundary_fn,
             integration_key,
         )
+        # Split key to ensure next time we have other sample points
         next_key, _ = jr.split(integration_key)
 
         return total, (interior, boundary, next_key)
@@ -135,6 +136,7 @@ class Trainer:
                 integration_key=integration_key,
             )
 
+            # We only want to convert floats if we want to log
             should_log = epoch % self.train_cfg.log_every == 0
             should_materialise_metrics = should_log or callback is not None
             metrics = None
