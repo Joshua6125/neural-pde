@@ -1,5 +1,5 @@
 from .base import TrainingMethod
-from .state import TrainConfig, TrainState, get_optimizer
+from .state import TrainConfig, TrainState, get_optimiser
 from .trainer import TrainStepMetrics, Trainer
 
 __all__ = [
@@ -8,5 +8,5 @@ __all__ = [
     "TrainState",
     "TrainStepMetrics",
     "Trainer",
-    "get_optimizer"
+    "get_optimiser"
 ]

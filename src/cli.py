@@ -12,7 +12,7 @@ from .train import (
     TrainState,
     TrainStepMetrics,
     Trainer,
-    get_optimizer,
+    get_optimiser,
 )
 
 
@@ -53,12 +53,12 @@ def run_training(
     integrator = get_integrator(integration_cfg)
     model = build_model(model_cfg)
     algorithm = build_algorithm(algorithm_cfg, model)
-    optimizer = get_optimizer(train_cfg)
+    optimiser = get_optimiser(train_cfg)
 
     trainer = Trainer(
         method=algorithm,
         integrator=integrator,
-        optimizer=optimizer,
+        optimiser=optimiser,
         train_cfg=train_cfg,
     )
 

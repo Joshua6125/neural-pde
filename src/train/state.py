@@ -15,7 +15,7 @@ class TrainConfig:
         Number of optimisation steps.
     learning_rate : float
         Optimiser learning rate.
-    optimizer : str
+    optimiser : str
         Optimiser name: 'adam' or 'sgd'.
     seed : int
         Random seed used for parameter initialisation.
@@ -30,7 +30,7 @@ class TrainConfig:
 
     epochs: int = 1000
     learning_rate: float = 1e-3
-    optimizer: Literal["adam", "adamw", "sgd"] = "adamw"
+    optimiser: Literal["adam", "adamw", "sgd"] = "adamw"
     seed: int = 0
     integration_seed: int | None = None
     log_every: int = 100
@@ -56,10 +56,10 @@ class TrainState:
     def apply_gradients(
             self,
             grads: Any,
-            optimizer: optax.GradientTransformation
+            optimiser: optax.GradientTransformation
         ) -> "TrainState":
         """Apply gradients and return updated state."""
-        updates, opt_state = optimizer.update(grads, self.opt_state, self.params)
+        updates, opt_state = optimiser.update(grads, self.opt_state, self.params)
         params = optax.apply_updates(self.params, updates)
 
         return TrainState(
@@ -70,16 +70,16 @@ class TrainState:
         )
 
 
-def get_optimizer(config: TrainConfig) -> optax.GradientTransformation:
+def get_optimiser(config: TrainConfig) -> optax.GradientTransformation:
     """Factory function for choosing optimization method."""
     config.validate()
-    if config.optimizer == "adam":
+    if config.optimiser == "adam":
         return optax.adam(config.learning_rate)
-    if config.optimizer == "adamw":
+    if config.optimiser == "adamw":
         return optax.adamw(config.learning_rate)
-    if config.optimizer == "sgd":
+    if config.optimiser == "sgd":
         return optax.sgd(config.learning_rate)
 
     raise ValueError(
-        f"Unknown optimizer: '{config.optimizer}'. Must be 'adam', 'adamw' or 'sgd'."
+        f"Unknown optimiser: '{config.optimiser}'. Must be 'adam', 'adamw' or 'sgd'."
     )

@@ -103,7 +103,7 @@ def train_cfg_default():
     return TrainConfig(
         epochs=5,
         learning_rate=1e-2,
-        optimizer="adam",
+        optimiser="adam",
         seed=7,
         log_every=1,
         use_jit=False
@@ -116,7 +116,7 @@ def train_cfg_with_integration_seed():
     return TrainConfig(
         epochs=5,
         learning_rate=1e-2,
-        optimizer="adam",
+        optimiser="adam",
         seed=7,
         integration_seed=99,
         log_every=1,
@@ -130,7 +130,7 @@ def train_cfg_short_jit():
     return TrainConfig(
         epochs=2,
         learning_rate=1e-2,
-        optimizer="adamw",
+        optimiser="adamw",
         seed=3,
         log_every=1,
         use_jit=True
@@ -138,8 +138,8 @@ def train_cfg_short_jit():
 
 
 @pytest.fixture
-def optimizer_adam(train_cfg_default):
-    """Adam optimizer built from default train config."""
+def optimiser_adam(train_cfg_default):
+    """Adam optimiser built from default train config."""
     return optax.adam(train_cfg_default.learning_rate)
 
 

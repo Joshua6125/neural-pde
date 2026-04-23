@@ -18,10 +18,10 @@ class TestTrainerWithRealPINN:
         integrator = get_integrator(
             QuadratureConfig(dim=2, x_min=0.0, x_max=1.0, degree=4, adaptive_integration=False)
         )
-        cfg = TrainConfig(epochs=2, learning_rate=1e-3, optimizer="adam", seed=0, log_every=1, use_jit=False)
-        optimizer = optax.adam(cfg.learning_rate)
+        cfg = TrainConfig(epochs=2, learning_rate=1e-3, optimiser="adam", seed=0, log_every=1, use_jit=False)
+        optimiser = optax.adam(cfg.learning_rate)
 
-        trainer = Trainer(method=real_pinn_method, integrator=integrator, optimizer=optimizer, train_cfg=cfg)
+        trainer = Trainer(method=real_pinn_method, integrator=integrator, optimiser=optimiser, train_cfg=cfg)
         state, history = trainer.fit(sample_input=sample_input_vector_2d)
 
         assert state.step == cfg.epochs
@@ -36,10 +36,10 @@ class TestTrainerWithRealLS:
         integrator = get_integrator(
             QuadratureConfig(dim=2, x_min=0.0, x_max=1.0, degree=3, adaptive_integration=False)
         )
-        cfg = TrainConfig(epochs=2, learning_rate=1e-3, optimizer="adamw", seed=1, log_every=1, use_jit=False)
-        optimizer = optax.adamw(cfg.learning_rate)
+        cfg = TrainConfig(epochs=2, learning_rate=1e-3, optimiser="adamw", seed=1, log_every=1, use_jit=False)
+        optimiser = optax.adamw(cfg.learning_rate)
 
-        trainer = Trainer(method=real_ls_method, integrator=integrator, optimizer=optimizer, train_cfg=cfg)
+        trainer = Trainer(method=real_ls_method, integrator=integrator, optimiser=optimiser, train_cfg=cfg)
         state, history = trainer.fit(sample_input=sample_input_vector_2d)
 
         assert state.step == cfg.epochs
@@ -60,7 +60,7 @@ class TestTrainerWithRealLS:
         cfg = TrainConfig(
             epochs=2,
             learning_rate=1e-3,
-            optimizer="sgd",
+            optimiser="sgd",
             seed=11,
             integration_seed=29,
             log_every=1,
@@ -69,7 +69,7 @@ class TestTrainerWithRealLS:
         trainer = Trainer(
             method=real_ls_method,
             integrator=integrator,
-            optimizer=optax.sgd(cfg.learning_rate),
+            optimiser=optax.sgd(cfg.learning_rate),
             train_cfg=cfg,
         )
 
@@ -100,7 +100,7 @@ class TestTrainerIntegrationHistorySemantics:
         cfg = TrainConfig(
             epochs=epochs,
             learning_rate=5e-4,
-            optimizer="adam",
+            optimiser="adam",
             seed=0,
             log_every=log_every,
             use_jit=False,
@@ -108,7 +108,7 @@ class TestTrainerIntegrationHistorySemantics:
         trainer = Trainer(
             method=real_pinn_method,
             integrator=integrator,
-            optimizer=optax.adam(cfg.learning_rate),
+            optimiser=optax.adam(cfg.learning_rate),
             train_cfg=cfg,
         )
 

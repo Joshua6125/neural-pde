@@ -18,14 +18,14 @@ class TestTrainerInitialisation:
         self,
         mock_training_method,
         deterministic_integrator,
-        optimizer_adam,
+        optimiser_adam,
         train_cfg_default,
         sample_input_vector_2d,
     ):
         trainer = Trainer(
             method=mock_training_method,
             integrator=deterministic_integrator,
-            optimizer=optimizer_adam,
+            optimiser=optimiser_adam,
             train_cfg=train_cfg_default,
         )
 
@@ -38,14 +38,14 @@ class TestTrainerInitialisation:
         self,
         mock_training_method,
         deterministic_integrator,
-        optimizer_adam,
+        optimiser_adam,
         train_cfg_with_integration_seed,
         sample_input_vector_2d,
     ):
         trainer = Trainer(
             method=mock_training_method,
             integrator=deterministic_integrator,
-            optimizer=optimizer_adam,
+            optimiser=optimiser_adam,
             train_cfg=train_cfg_with_integration_seed,
         )
 
@@ -56,14 +56,14 @@ class TestTrainerInitialisation:
         self,
         mock_training_method,
         deterministic_integrator,
-        optimizer_adam,
+        optimiser_adam,
     ):
         bad_cfg = TrainConfig(epochs=0)
         with pytest.raises(AssertionError, match="epochs must be strictly positive"):
             Trainer(
                 method=mock_training_method,
                 integrator=deterministic_integrator,
-                optimizer=optimizer_adam,
+                optimiser=optimiser_adam,
                 train_cfg=bad_cfg,
             )
 
@@ -75,14 +75,14 @@ class TestTrainerTrainStep:
         self,
         mock_training_method,
         deterministic_integrator,
-        optimizer_adam,
+        optimiser_adam,
         train_cfg_default,
         sample_input_vector_2d,
     ):
         trainer = Trainer(
             method=mock_training_method,
             integrator=deterministic_integrator,
-            optimizer=optimizer_adam,
+            optimiser=optimiser_adam,
             train_cfg=train_cfg_default,
         )
         state = trainer.init_state(sample_input_vector_2d)
@@ -96,14 +96,14 @@ class TestTrainerTrainStep:
         self,
         mock_training_method,
         deterministic_integrator,
-        optimizer_adam,
+        optimiser_adam,
         train_cfg_default,
         sample_input_vector_2d,
     ):
         trainer = Trainer(
             method=mock_training_method,
             integrator=deterministic_integrator,
-            optimizer=optimizer_adam,
+            optimiser=optimiser_adam,
             train_cfg=train_cfg_default,
         )
         state = trainer.init_state(sample_input_vector_2d)
@@ -119,14 +119,14 @@ class TestTrainerTrainStep:
         self,
         mock_training_method,
         deterministic_integrator,
-        optimizer_adam,
+        optimiser_adam,
         train_cfg_default,
         sample_input_vector_2d,
     ):
         trainer = Trainer(
             method=mock_training_method,
             integrator=deterministic_integrator,
-            optimizer=optimizer_adam,
+            optimiser=optimiser_adam,
             train_cfg=train_cfg_default,
         )
         state = trainer.init_state(sample_input_vector_2d)
@@ -139,14 +139,14 @@ class TestTrainerTrainStep:
         self,
         mock_nan_method,
         deterministic_integrator,
-        optimizer_adam,
+        optimiser_adam,
         train_cfg_default,
         sample_input_vector_2d,
     ):
         trainer = Trainer(
             method=mock_nan_method,
             integrator=deterministic_integrator,
-            optimizer=optimizer_adam,
+            optimiser=optimiser_adam,
             train_cfg=train_cfg_default,
         )
         state = trainer.init_state(sample_input_vector_2d)
@@ -160,14 +160,14 @@ class TestTrainerTrainStep:
         self,
         mock_malformed_method,
         deterministic_integrator,
-        optimizer_adam,
+        optimiser_adam,
         train_cfg_default,
         sample_input_vector_2d,
     ):
         trainer = Trainer(
             method=mock_malformed_method,
             integrator=deterministic_integrator,
-            optimizer=optimizer_adam,
+            optimiser=optimiser_adam,
             train_cfg=train_cfg_default,
         )
         state = trainer.init_state(sample_input_vector_2d)
@@ -183,13 +183,13 @@ class TestTrainerFit:
         self,
         mock_training_method,
         deterministic_integrator,
-        optimizer_adam,
+        optimiser_adam,
         train_cfg_default,
     ):
         trainer = Trainer(
             method=mock_training_method,
             integrator=deterministic_integrator,
-            optimizer=optimizer_adam,
+            optimiser=optimiser_adam,
             train_cfg=train_cfg_default,
         )
 
@@ -200,14 +200,14 @@ class TestTrainerFit:
         self,
         mock_training_method,
         deterministic_integrator,
-        optimizer_adam,
+        optimiser_adam,
         sample_input_vector_2d,
     ):
         cfg = TrainConfig(epochs=3, log_every=1, use_jit=False)
         trainer = Trainer(
             method=mock_training_method,
             integrator=deterministic_integrator,
-            optimizer=optimizer_adam,
+            optimiser=optimiser_adam,
             train_cfg=cfg,
         )
 
@@ -220,14 +220,14 @@ class TestTrainerFit:
         self,
         mock_training_method,
         deterministic_integrator,
-        optimizer_adam,
+        optimiser_adam,
         sample_input_vector_2d,
     ):
         cfg = TrainConfig(epochs=2, log_every=1, use_jit=False)
         trainer = Trainer(
             method=mock_training_method,
             integrator=deterministic_integrator,
-            optimizer=optimizer_adam,
+            optimiser=optimiser_adam,
             train_cfg=cfg,
         )
         initial_state = trainer.init_state(sample_input_vector_2d)
@@ -242,7 +242,7 @@ class TestTrainerFit:
         self,
         mock_training_method,
         deterministic_integrator,
-        optimizer_adam,
+        optimiser_adam,
         sample_input_vector_2d,
         epochs,
         log_every,
@@ -252,7 +252,7 @@ class TestTrainerFit:
         trainer = Trainer(
             method=mock_training_method,
             integrator=deterministic_integrator,
-            optimizer=optimizer_adam,
+            optimiser=optimiser_adam,
             train_cfg=cfg,
         )
 
@@ -264,7 +264,7 @@ class TestTrainerFit:
         self,
         mock_training_method,
         deterministic_integrator,
-        optimizer_adam,
+        optimiser_adam,
         sample_input_vector_2d,
         callback_recorder,
     ):
@@ -273,7 +273,7 @@ class TestTrainerFit:
         trainer = Trainer(
             method=mock_training_method,
             integrator=deterministic_integrator,
-            optimizer=optimizer_adam,
+            optimiser=optimiser_adam,
             train_cfg=cfg,
         )
 
@@ -287,14 +287,14 @@ class TestTrainerFit:
         self,
         mock_training_method,
         deterministic_integrator,
-        optimizer_adam,
+        optimiser_adam,
         sample_input_vector_2d,
     ):
         cfg = TrainConfig(epochs=3, log_every=1, use_jit=False)
         trainer = Trainer(
             method=mock_training_method,
             integrator=deterministic_integrator,
-            optimizer=optimizer_adam,
+            optimiser=optimiser_adam,
             train_cfg=cfg,
         )
 
@@ -309,14 +309,14 @@ class TestTrainerFit:
         self,
         mock_training_method,
         deterministic_integrator,
-        optimizer_adam,
+        optimiser_adam,
         train_cfg_short_jit,
         sample_input_vector_2d,
     ):
         trainer = Trainer(
             method=mock_training_method,
             integrator=deterministic_integrator,
-            optimizer=optimizer_adam,
+            optimiser=optimiser_adam,
             train_cfg=train_cfg_short_jit,
         )
 
@@ -328,7 +328,7 @@ class TestTrainerFit:
     def test_fit_raises_when_method_missing_init_params(
         self,
         deterministic_integrator,
-        optimizer_adam,
+        optimiser_adam,
         sample_input_vector_2d,
     ):
         class NotATrainingMethod:
@@ -338,7 +338,7 @@ class TestTrainerFit:
         trainer = Trainer(
             method=NotATrainingMethod(),  # type: ignore[arg-type]
             integrator=deterministic_integrator,
-            optimizer=optimizer_adam,
+            optimiser=optimiser_adam,
             train_cfg=cfg,
         )
 

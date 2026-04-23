@@ -28,12 +28,12 @@ class Trainer:
             self,
             method: TrainingMethod,
             integrator: NDCubeIntegration,
-            optimizer: optax.GradientTransformation,
+            optimiser: optax.GradientTransformation,
             train_cfg: TrainConfig,
         ):
         self.method = method
         self.integrator = integrator
-        self.optimizer = optimizer
+        self.optimiser = optimiser
         self.train_cfg = train_cfg
         self.train_cfg.validate()
 
@@ -42,11 +42,11 @@ class Trainer:
             self._train_step_fn = jax.jit(self._train_step_impl)
 
     def init_state(self, sample_input: jnp.ndarray) -> TrainState:
-        """Initialize parameters, optimizer state, and RNG."""
+        """Initialize parameters, optimiser state, and RNG."""
         root_key = jr.PRNGKey(self.train_cfg.seed)
         root_key, init_key, derived_integration_key = jr.split(root_key, 3)
         params = self.method.init_params(init_key, sample_input)
-        opt_state = self.optimizer.init(params)
+        opt_state = self.optimiser.init(params)
         integration_key = (
             jr.PRNGKey(self.train_cfg.integration_seed)
             if self.train_cfg.integration_seed is not None
@@ -85,7 +85,7 @@ class Trainer:
         value, grads = jax.value_and_grad(fun, has_aux=True)(params)
         total_loss, (interior_loss, boundary_loss, next_integration_key) = value
 
-        updates, next_opt_state = self.optimizer.update(grads, opt_state, params)
+        updates, next_opt_state = self.optimiser.update(grads, opt_state, params)
         next_params = optax.apply_updates(params, updates)
         return (
             next_params,
