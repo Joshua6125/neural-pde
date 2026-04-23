@@ -26,6 +26,15 @@ class Loss:
     residuals for integration.
     """
 
+    @staticmethod
+    def _constant_function(value: float | jnp.ndarray) -> Callable[[jnp.ndarray], jnp.ndarray]:
+        constant = jnp.asarray(value)
+
+        def constant_fn(_: jnp.ndarray, constant: jnp.ndarray = constant) -> jnp.ndarray:
+            return constant
+
+        return constant_fn
+
     @abstractmethod
     def loss_interior(self, x_interior: jnp.ndarray) -> jnp.ndarray:
         """Compute loss at interior points."""

@@ -50,6 +50,15 @@ class PINNLoss(Loss):
         self.ic_weight = ic_weight
         self.bc_weight = bc_weight
 
+        self._c_fn = c if callable(c) else self._constant_function(c)
+        self._f_fn = f if callable(f) else self._constant_function(f)
+        self._u0_fn = u0 if callable(u0) else self._constant_function(u0)
+        self._ut0_fn = ut0 if callable(ut0) else self._constant_function(ut0)
+
+        self._vmapped_pde_residual = jax.vmap(self._pde_residual)
+        self._vmapped_ic_residual = jax.vmap(self._ic_residual)
+        self._vmapped_spatial_bc_residual = jax.vmap(self._spatial_bc_residual)
+
     def _u(self, x: jnp.ndarray) -> jnp.ndarray:
         return self.u_model(x).squeeze()
 
@@ -59,31 +68,31 @@ class PINNLoss(Loss):
         u_tt = H[0, 0]
         laplacian_u = jnp.trace(H[1:, 1:])
 
-        c = self.c(x) if callable(self.c) else self.c
-        if not jnp.isscalar(c):
+        c = self._c_fn(x)
+        if jnp.ndim(c) != 0:
             raise ValueError("c should be scalar or return scalar type.")
 
-        f = self.f(x) if callable(self.f) else self.f
-        if not jnp.isscalar(f):
+        f = self._f_fn(x)
+        if jnp.ndim(f) != 0:
             raise ValueError("f should be scalar or return scalar type.")
 
         return (u_tt - c**2 * laplacian_u - f) ** 2
 
     def loss_interior(self, x_interior: jnp.ndarray) -> jnp.ndarray:
         """PDE residual squared at interior points."""
-        return jax.vmap(self._pde_residual)(x_interior)
+        return self._vmapped_pde_residual(x_interior)
 
     def _ic_residual(self, x: jnp.ndarray) -> jnp.ndarray:
         """IC residuals at t=t_min."""
         u_val = self._u(x)
         ut_val = jax.grad(self._u)(x)[0]
 
-        u0_val = self.u0(x) if callable(self.u0) else self.u0
-        if not jnp.isscalar(u0_val):
+        u0_val = self._u0_fn(x)
+        if jnp.ndim(u0_val) != 0:
             raise ValueError("u0 should be scalar or return scalar type.")
 
-        ut0_val = self.ut0(x) if callable(self.ut0) else self.ut0
-        if not jnp.isscalar(ut0_val):
+        ut0_val = self._ut0_fn(x)
+        if jnp.ndim(ut0_val) != 0:
             raise ValueError("ut0 should be scalar or return scalar type.")
 
         return self.ic_weight * ((u_val - u0_val) ** 2 + (ut_val - ut0_val) ** 2)
@@ -99,6 +108,6 @@ class PINNLoss(Loss):
 
         return jnp.where(
             is_ic,
-            jax.vmap(self._ic_residual)(x_boundary),
-            jnp.where(is_spatial_bc, jax.vmap(self._spatial_bc_residual)(x_boundary), 0.0),
+            self._vmapped_ic_residual(x_boundary),
+            jnp.where(is_spatial_bc, self._vmapped_spatial_bc_residual(x_boundary), 0.0),
         )

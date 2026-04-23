@@ -49,6 +49,18 @@ class LSLoss(Loss):
         if not self.v_boundary == 0.0:
             print("WARNING: LS formulation is only proven for Dirichlet boundary conditions")
 
+        self._f_fn = f if callable(f) else self._constant_function(f)
+        self._g_fn = g if callable(g) else self._constant_function(g)
+        self._v0_fn = v0 if callable(v0) else self._constant_function(v0)
+        self._sigma0_fn = sigma0 if callable(sigma0) else self._constant_function(sigma0)
+        self._v_boundary_fn = (
+            v_boundary if callable(v_boundary) else self._constant_function(v_boundary)
+        ) if v_boundary is not None else None
+
+        self._vmapped_interior_residual = jax.vmap(self._interior_residual)
+        self._vmapped_ic_residual = jax.vmap(self._ic_residual)
+        self._vmapped_spatial_bc_residual = jax.vmap(self._spatial_bc_residual)
+
     def _v(self, x: jnp.ndarray) -> jnp.ndarray:
         return self.v_model(x).squeeze()
 
@@ -65,12 +77,13 @@ class LSLoss(Loss):
         dt_sigma = J_sigma[:, 0]
         div_sigma = jnp.trace(J_sigma[:, 1:])
 
-        f = self.f(x) if callable(self.f) else self.f
-        if not jnp.isscalar(f):
+        f = self._f_fn(x)
+        if jnp.ndim(f) != 0:
             raise ValueError("f should be scalar or return scalar type.")
 
-        g = self.g(x) if callable(self.g) else self.g
-        if jnp.isscalar(g): g = g * jnp.ones_like(grad_v)
+        g = self._g_fn(x)
+        if jnp.ndim(g) == 0:
+            g = g * jnp.ones_like(grad_v)
         if not jnp.shape(g) == jnp.shape(grad_v):
             raise ValueError("g should be or return the right shape.")
 
@@ -81,19 +94,20 @@ class LSLoss(Loss):
 
     def loss_interior(self, x_interior: jnp.ndarray) -> jnp.ndarray:
         """Interior residuals."""
-        return jax.vmap(self._interior_residual)(x_interior)
+        return self._vmapped_interior_residual(x_interior)
 
     def _ic_residual(self, x: jnp.ndarray) -> jnp.ndarray:
         """IC residuals at t=t_min."""
         v_val = self._v(x)
         sigma_val = self._sigma(x)
 
-        v0_val = self.v0(x) if callable(self.v0) else self.v0
-        if not jnp.isscalar(v0_val):
+        v0_val = self._v0_fn(x)
+        if jnp.ndim(v0_val) != 0:
             raise ValueError("v0 should be scalar or return scalar type.")
 
-        sigma0_val = self.sigma0(x) if callable(self.sigma0) else self.sigma0
-        if jnp.isscalar(sigma0_val): sigma0_val = sigma0_val * jnp.ones_like(sigma_val)
+        sigma0_val = self._sigma0_fn(x)
+        if jnp.ndim(sigma0_val) == 0:
+            sigma0_val = sigma0_val * jnp.ones_like(sigma_val)
         if not jnp.shape(sigma0_val) == jnp.shape(sigma_val):
             raise ValueError("sigma0 should be or return the right shape.")
 
@@ -105,8 +119,8 @@ class LSLoss(Loss):
             return jnp.zeros(())
 
         v_val = self._v(x)
-        v_boundary_val = self.v_boundary(x) if callable(self.v_boundary) else self.v_boundary
-        if not jnp.isscalar(v_boundary_val):
+        v_boundary_val = self._v_boundary_fn(x) if self._v_boundary_fn is not None else 0.0
+        if jnp.ndim(v_boundary_val) != 0:
             raise ValueError("v_boundary should be scalar or return scalar type.")
 
         return (v_val - v_boundary_val) ** 2
@@ -118,6 +132,6 @@ class LSLoss(Loss):
 
         return jnp.where(
             is_ic,
-            jax.vmap(self._ic_residual)(x_boundary),
-            jnp.where(is_spatial_bc, jax.vmap(self._spatial_bc_residual)(x_boundary), 0.0),
+            self._vmapped_ic_residual(x_boundary),
+            jnp.where(is_spatial_bc, self._vmapped_spatial_bc_residual(x_boundary), 0.0),
         )
