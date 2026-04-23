@@ -96,6 +96,7 @@ def get_ls_model_config(
             hidden_dim=pinn_model.hidden_dim,
             num_layers=pinn_model.num_layers,
             output_heads={"v": 1, "sigma": 1},
+            input_dim=2,
         )
 
     raise ValueError("Requested model type must be neural or kan.")

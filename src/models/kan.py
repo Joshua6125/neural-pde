@@ -17,7 +17,7 @@ class KANModel(nn.Module):
     hidden_dim: int
     num_layers: int
     output_heads: Mapping[str, int]
-    input_dim: int | None = None
+    input_dim: int
     grid_size: int = 5
     degree: int = 3
     model_type: str = "efficient"  # aliases: "efficient" | "cheby" | "original"
@@ -35,27 +35,25 @@ class KANModel(nn.Module):
                 raise ValueError("output head names must be non-empty")
             if dim <= 0:
                 raise ValueError("each output head dimension must be strictly positive")
-
-    def _layer_dims(self, input_dim: int) -> list[int]:
-        if input_dim <= 0:
+        if self.input_dim <= 0:
             raise ValueError("input_dim must be strictly positive")
+
+    def _layer_dims(self) -> list[int]:
         total_out_dim = sum(self.output_heads.values())
-        return [input_dim] + [self.hidden_dim] * self.num_layers + [total_out_dim]
+        return [self.input_dim] + [self.hidden_dim] * self.num_layers + [total_out_dim]
 
     def setup(self):
         self.validate()
-        self.kan = None
-        if self.input_dim is not None:
-            layer_type, required_parameters = self._kan_hparams()
-            self.kan = nnx.bridge.to_linen(
-                KAN,
-                self._layer_dims(self.input_dim),
-                layer_type=layer_type,
-                required_parameters=required_parameters,
-                seed=self.seed,
-                skip_rng=True,
-                name="kan_backbone",
-            )
+        layer_type, required_parameters = self._kan_hparams()
+        self.kan = nnx.bridge.to_linen(
+            KAN,
+            self._layer_dims(),
+            layer_type=layer_type,
+            required_parameters=required_parameters,
+            seed=self.seed,
+            skip_rng=True,
+            name="kan_backbone",
+        )
 
     @nn.compact
     def __call__(self, x) -> dict[str, jnp.ndarray]:
@@ -64,21 +62,7 @@ class KANModel(nn.Module):
         was_unbatched = x.ndim == 1
         x_in = x[None, :] if was_unbatched else x
 
-        if self.kan is None:
-            input_dim = int(x_in.shape[-1])
-            layer_type, required_parameters = self._kan_hparams()
-            kan = nnx.bridge.to_linen(
-                KAN,
-                self._layer_dims(input_dim),
-                layer_type=layer_type,
-                required_parameters=required_parameters,
-                seed=self.seed,
-                skip_rng=True,
-                name="kan_backbone",
-            )
-            y = kan(x_in)
-        else:
-            y = self.kan(x_in)
+        y = self.kan(x_in)
 
         outputs = self._split_output_heads(y)
 

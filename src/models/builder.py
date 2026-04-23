@@ -24,9 +24,6 @@ class BuiltModelAdapter:
         self._module = module
 
     def init(self, rng_key: jax.Array, sample_input: jnp.ndarray) -> Any:
-        if isinstance(self._module, KANModel) and self._module.input_dim is None:
-            inferred_dim = int(sample_input.shape[-1])
-            self._module = replace(self._module, input_dim=inferred_dim)
         return self._module.init(rng_key, sample_input)
 
     def apply(self, params: Any, x: jnp.ndarray) -> dict[str, jnp.ndarray]:
@@ -70,7 +67,7 @@ class KANModelConfig(BaseModelConfig):
     kind: Literal["kan"] = "kan"
     hidden_dim: int = 64
     num_layers: int = 4
-    input_dim: int | None = None
+    input_dim: int = 1
     grid_size: int = 5
     degree: int = 3
     model_type: str = "efficient"
@@ -84,6 +81,7 @@ class KANModelConfig(BaseModelConfig):
             assert self.input_dim > 0, "input_dim must be strictly positive"
         assert self.grid_size > 0, "grid_size must be strictly positive"
         assert self.degree > 0, "degree must be strictly positive"
+        assert self.input_dim > 0, "input_dim must be strictly positive"
 
 
 AnyModelConfig: TypeAlias = NeuralNetModelConfig | KANModelConfig
