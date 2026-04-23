@@ -3,6 +3,7 @@
 
 results
 data
+*.tar.gz
 
 
 # Byte-compiled / optimized / DLL files
