@@ -197,15 +197,26 @@ def run_experiment(force_recompute_ref: bool = False) -> dict:
         state = run_data["state"]
         print(f"  Evaluating {label}...")
         predictions_by_label[label] = _evaluate_combination(combo, state.params, test_points)
+    batch_points = jnp.asarray(test_points)
+    v_exact_jax = jax.vmap(
+    lambda p: analytical_solution_t(p[0], p[1], problem_config)
+    )(batch_points)
+    sigma_exact_jax = jax.vmap(
+    lambda p: analytical_solution_x(p[0], p[1], problem_config)
+    )(batch_points)
 
-    v_exact = np.array([
-        float(analytical_solution_t(jnp.array(t), jnp.array(x), problem_config))
-        for t, x in test_points
-    ])
-    sigma_exact = np.array([
-        float(analytical_solution_x(jnp.array(t), jnp.array(x), problem_config))
-        for t, x in test_points
-    ])
+    v_exact = np.asarray(jax.device_get(v_exact_jax))
+    sigma_exact = np.asarray(jax.device_get(sigma_exact_jax))
+
+
+    # v_exact = np.array([
+    #     float(analytical_solution_t(jnp.array(t), jnp.array(x), problem_config))
+    #     for t, x in test_points
+    # ])
+    # sigma_exact = np.array([
+    #     float(analytical_solution_x(jnp.array(t), jnp.array(x), problem_config))
+    #     for t, x in test_points
+    # ])
 
     evaluation: dict[str, dict[str, float | int]] = {}
     loss_decreasing: dict[str, bool] = {}
