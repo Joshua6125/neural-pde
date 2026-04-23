@@ -1,5 +1,3 @@
-
-import jax
 import jax.numpy as jnp
 
 from dataclasses import dataclass, field
@@ -12,6 +10,7 @@ from src.models import (
 from src.loss_functions import (
     PINNConfig,
     LSConfig,
+    AlgorithmConfig
 )
 from src.integration import MonteCarloConfig
 from src.train import TrainConfig
@@ -34,7 +33,7 @@ class ExperimentCombination:
     model: str
     label: str
     model_config: AnyModelConfig
-    algorithm_config: PINNConfig | LSConfig
+    algorithm_config: AlgorithmConfig
 
 
 def get_problem_config() -> ProblemConfig:
@@ -211,7 +210,7 @@ def get_integration_config(
 
 def get_training_config() -> TrainConfig:
     return TrainConfig(
-        epochs=100000,
+        epochs=1000,
         learning_rate=1e-4,
         optimiser="adamw",
         use_jit=True,

@@ -96,29 +96,6 @@ class Trainer:
             next_integration_key,
         )
 
-    def train_step(self, state: TrainState) -> tuple[TrainState, TrainStepMetrics]:
-        """Run one optimisation step and return updated state and metrics."""
-        params, opt_state, total_loss, interior_loss, boundary_loss, integration_key = self._train_step_fn(
-            state.params,
-            state.opt_state,
-            state.integration_key,
-        )
-
-        state = TrainState(
-            step=state.step + 1,
-            params=params,
-            opt_state=opt_state,
-            integration_key=integration_key,
-        )
-
-        metrics = TrainStepMetrics(
-            step=state.step,
-            total_loss=float(total_loss),
-            interior_loss=float(interior_loss),
-            boundary_loss=float(boundary_loss),
-        )
-        return state, metrics
-
     def fit(
             self,
             sample_input: jnp.ndarray | None = None,
@@ -145,12 +122,37 @@ class Trainer:
 
         history: list[TrainStepMetrics] = []
         for epoch in range(self.train_cfg.epochs):
-            state, metrics = self.train_step(state)
-            if epoch % self.train_cfg.log_every == 0:
+            params, opt_state, total_loss, interior_loss, boundary_loss, integration_key = self._train_step_fn(
+                state.params,
+                state.opt_state,
+                state.integration_key,
+            )
+
+            state = TrainState(
+                step=state.step + 1,
+                params=params,
+                opt_state=opt_state,
+                integration_key=integration_key,
+            )
+
+            should_log = epoch % self.train_cfg.log_every == 0
+            should_materialise_metrics = should_log or callback is not None
+            metrics = None
+            if should_materialise_metrics:
+                metrics = TrainStepMetrics(
+                    step=epoch,
+                    total_loss=float(total_loss),
+                    interior_loss=float(interior_loss),
+                    boundary_loss=float(boundary_loss),
+                )
+
+            if should_log:
                 print(f"Training progress: {epoch}/{self.train_cfg.epochs}")
+                assert metrics is not None
                 history.append(metrics)
 
             if callback is not None:
+                assert metrics is not None
                 callback(metrics)
 
         return state, history
