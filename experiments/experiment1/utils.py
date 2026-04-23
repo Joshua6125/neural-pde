@@ -5,86 +5,21 @@ Provides:
 - Problem setup (domain, parameters, source function)
 - Analytical/reference solution computation
 - Test data generation
-- Visualization helpers
+- Visualisation helpers
 """
 
 import jax.numpy as jnp
 from jax import vmap
 from functools import partial
 import numpy as np
-from dataclasses import dataclass
-from typing import Tuple
+from typing import Any, Tuple
 import matplotlib.pyplot as plt
 import os
-
-
-@dataclass
-class ProblemConfig:
-    L: float = 5.0
-    T: float = 1.0
-    c: float = 1.0
-
-def analytical_solution(
-    t: jnp.ndarray,
-    x: jnp.ndarray,
-    config: ProblemConfig,
-) -> jnp.ndarray:
-    """
-    Analytical solution.
-
-    u(t, x) = sin(π*t/T) * sin(π*(x+L)/(2L))
-    """
-    # Handle floating-point precision at t=T (where sin(π) should be exactly 0)
-    t_normalized = t / config.T
-    t_at_boundary = jnp.isclose(t_normalized, 1.0, atol=1e-10)
-
-    t_term = jnp.sin(jnp.pi * t / config.T)
-    x_term = jnp.sin(jnp.pi * (x + config.L) / (2 * config.L))
-
-    # If t is at the boundary (t=T), return 0 regardless of spatial terms
-    result = t_term * x_term
-    return jnp.where(t_at_boundary, 0.0, result)
-
-
-def analytical_solution_t(
-    t: jnp.ndarray,
-    x: jnp.ndarray,
-    config: ProblemConfig,
-) -> jnp.ndarray:
-    """
-    Time derivative of analytical solution: ∂u/∂t.
-
-    u_t(t, x) = (π/T) * cos(π*t/T) * sin(π*(x+L)/(2L))
-
-    This is the initial velocity constraint at t=0.
-    """
-    t_term = jnp.cos(jnp.pi * t / config.T) * (jnp.pi / config.T)
-    x_term = jnp.sin(jnp.pi * (x + config.L) / (2 * config.L))
-    return t_term * x_term
-
-
-def source_function(
-    t: jnp.ndarray,
-    x: jnp.ndarray,
-    config: ProblemConfig,
-) -> jnp.ndarray:
-    """
-    Source term computed analytically from u_tt - c²∇²u = f.
-
-        For u(t,x) = sin(πt/T) * sin(π(x+L)/2L):
-
-        u_tt = -π²/T² * sin(πt/T) * sin(π(x+L)/2L)
-        u_xx = -π²/(4L²) * sin(πt/T) * sin(π(x+L)/2L)
-
-        f = u_tt - c²u_xx
-            = (-π²/T² + c²π²/(4L²)) * sin(πt/T) * sin(π(x+L)/2L)
-            = (-π²/T² + c²π²/(4L²)) * u(t,x)
-    """
-    u = analytical_solution(t, x, config)
-
-    coeff = -jnp.pi**2 / config.T**2 + config.c**2 * jnp.pi**2 / (4 * config.L**2)
-    return coeff * u
-
+from config import (
+    ProblemConfig,
+    source_function,
+    analytical_solution
+)
 
 # Vectorize for batch inputs
 analytical_solution_batch = vmap(
@@ -163,17 +98,19 @@ def load_test_data(filepath: str = "data/reference_solution.npz") -> Tuple[np.nd
 
 
 def plot_convergence(
-    metrics: list,
+    metrics_by_method: dict[str, list],
     output_path: str = "results/convergence_curve.png",
 ) -> None:
-    losses = [m.total_loss for m in metrics]
-    epochs = list(range(len(losses)))
-
     plt.figure(figsize=(10, 6))
-    plt.plot(epochs, losses, linewidth=2, label="Training Loss")
+
+    for method_name, metrics in metrics_by_method.items():
+        losses = [m.total_loss for m in metrics]
+        epochs = [m.step for m in metrics]
+        plt.plot(epochs, losses, linewidth=2, label=f"{method_name} Loss")
+
     plt.xlabel("Epoch", fontsize=12)
     plt.ylabel("Loss", fontsize=12)
-    plt.title("PINN Training Convergence", fontsize=14)
+    plt.title("Training Convergence: PINN vs LS", fontsize=14)
     plt.grid(True, alpha=0.3)
     plt.legend(fontsize=10)
     plt.yscale("log")
@@ -186,7 +123,7 @@ def plot_convergence(
 
 def plot_solution_comparison(
     test_points: np.ndarray,
-    u_pred: np.ndarray,
+    predictions_by_method: dict[str, np.ndarray],
     u_exact: np.ndarray,
     time_indices: np.ndarray | list | None = None,
     output_path: str = "results/solution_snapshots.png",
@@ -221,16 +158,25 @@ def plot_solution_comparison(
         # Extract spatial points at this time - use tight tolerance
         time_mask = np.isclose(test_points[:, 0], t_val, atol=1e-10)
         t_space = test_points[time_mask]
-        u_p = u_pred[time_mask]
         u_e = u_exact[time_mask]
 
         x_sorted_idx = np.argsort(t_space[:, 1])
         x_vals = t_space[x_sorted_idx, 1]
-        u_p_sorted = u_p[x_sorted_idx]
         u_e_sorted = u_e[x_sorted_idx]
 
         axes[row].plot(x_vals, u_e_sorted, label="Exact", linewidth=2)
-        axes[row].plot(x_vals, u_p_sorted, label="Predicted", linestyle="--", linewidth=2)
+
+        for method_name, prediction in predictions_by_method.items():
+            u_method = prediction[time_mask]
+            u_method_sorted = u_method[x_sorted_idx]
+            axes[row].plot(
+                x_vals,
+                u_method_sorted,
+                label=f"{method_name}",
+                linestyle="--",
+                linewidth=2,
+            )
+
         axes[row].set_ylabel("u", fontsize=11)
         axes[row].set_title(f"t={t_val:.3f}", fontsize=11)
         axes[row].grid(True, alpha=0.3)
@@ -239,7 +185,7 @@ def plot_solution_comparison(
 
     axes[-1].set_xlabel("x", fontsize=11)
 
-    fig.suptitle("1D Solution Snapshots: PINN Predictions vs Reference", fontsize=14)
+    fig.suptitle("1D Solution Snapshots: PINN/LS vs Reference", fontsize=14)
     plt.tight_layout()
 
     os.makedirs(os.path.dirname(output_path), exist_ok=True)
@@ -250,37 +196,43 @@ def plot_solution_comparison(
 
 def plot_error_map(
     test_points: np.ndarray,
-    u_pred: np.ndarray,
+    predictions_by_method: dict[str, np.ndarray],
     u_exact: np.ndarray,
     output_path: str = "results/error_map.png",
 ) -> None:
     unique_t = np.unique(test_points[:, 0])
     unique_x = np.unique(test_points[:, 1])
 
-    error = np.abs(u_pred - u_exact)
+    if len(unique_t) * len(unique_x) == len(u_exact):
+        n_methods = len(predictions_by_method)
+        fig, axes = plt.subplots(1, n_methods, figsize=(6 * n_methods, 5), sharey=True)
 
-    if len(unique_t) * len(unique_x) == len(error):
-        error_grid = error.reshape(len(unique_t), len(unique_x))
+        if n_methods == 1:
+            axes = np.array([axes])
 
-        fig, ax = plt.subplots(figsize=(10, 5))
-        im = ax.imshow(
-            error_grid,
-            extent=(
-                float(unique_x.min()),
-                float(unique_x.max()),
-                float(unique_t.min()),
-                float(unique_t.max()),
-            ),
-            origin="lower",
-            aspect="auto",
-            cmap="hot",
-        )
-        cbar = plt.colorbar(im, ax=ax)
-        cbar.set_label("Absolute Error |u_pred - u_exact|", fontsize=11)
+        for i, (method_name, prediction) in enumerate(predictions_by_method.items()):
+            error = np.abs(prediction - u_exact)
+            error_grid = error.reshape(len(unique_t), len(unique_x))
 
-        ax.set_xlabel("x", fontsize=11)
-        ax.set_ylabel("t", fontsize=11)
-        ax.set_title("Error Map Over Time-Space Grid", fontsize=13)
+            im = axes[i].imshow(
+                error_grid,
+                extent=(
+                    float(unique_x.min()),
+                    float(unique_x.max()),
+                    float(unique_t.min()),
+                    float(unique_t.max()),
+                ),
+                origin="lower",
+                aspect="auto",
+                cmap="hot",
+            )
+            cbar = plt.colorbar(im, ax=axes[i])
+            cbar.set_label("Absolute Error |u_pred - u_exact|", fontsize=11)
+
+            axes[i].set_xlabel("x", fontsize=11)
+            axes[i].set_title(f"{method_name} Error", fontsize=13)
+
+        axes[0].set_ylabel("t", fontsize=11)
 
         os.makedirs(os.path.dirname(output_path), exist_ok=True)
         plt.savefig(output_path, dpi=150, bbox_inches="tight")
@@ -288,16 +240,73 @@ def plot_error_map(
         print(f"Error map saved to {output_path}")
 
 
+def reconstruct_u_from_v(
+    test_points: np.ndarray,
+    v_pred: np.ndarray,
+) -> np.ndarray:
+    """Reconstruct displacement u(t,x) from LS-predicted v = ∂u/∂t.
+
+    Uses cumulative trapezoidal integration in time at fixed x, with u(0,x)=0.
+    """
+    u_pred = np.zeros_like(v_pred)
+
+    x_values = np.unique(test_points[:, 1])
+    for x in x_values:
+        x_mask = np.isclose(test_points[:, 1], x, atol=1e-10)
+        idxs = np.where(x_mask)[0]
+
+        t_vals = test_points[idxs, 0]
+        order = np.argsort(t_vals)
+        sorted_idxs = idxs[order]
+        sorted_t = t_vals[order]
+        sorted_v = v_pred[sorted_idxs]
+
+        # u(0, x) = 0 and trapezoidal accumulation in time
+        sorted_u = np.zeros_like(sorted_v)
+        for i in range(1, len(sorted_t)):
+            dt = sorted_t[i] - sorted_t[i - 1]
+            sorted_u[i] = sorted_u[i - 1] + 0.5 * dt * (sorted_v[i] + sorted_v[i - 1])
+
+        u_pred[sorted_idxs] = sorted_u
+
+    return u_pred
+
+
 def save_experiment_log(
     log_dict: dict,
     output_path: str = "results/experiment_log.json",
 ) -> None:
-
     import json
+
     os.makedirs(os.path.dirname(output_path), exist_ok=True)
     with open(output_path, "w") as f:
         json.dump(log_dict, f, indent=2)
     print(f"Experiment log saved to {output_path}")
+
+
+def save_experiment_arrays(
+    output_path: str,
+    **arrays: Any,
+) -> str:
+    """Save raw experiment outputs for later inspection."""
+    import pickle
+
+    os.makedirs(os.path.dirname(output_path), exist_ok=True)
+    with open(output_path, "wb") as f:
+        pickle.dump(arrays, f)
+    print(f"Experiment arrays saved to {output_path}")
+    return output_path
+
+
+def save_model_checkpoint(params, output_path: str) -> str:
+    """Serialize model parameters to a compact binary checkpoint."""
+    from flax import serialization
+
+    os.makedirs(os.path.dirname(output_path), exist_ok=True)
+    with open(output_path, "wb") as f:
+        f.write(serialization.to_bytes(params))
+    print(f"Model checkpoint saved to {output_path}")
+    return output_path
 
 
 if __name__ == "__main__":

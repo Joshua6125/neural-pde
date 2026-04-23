@@ -2,8 +2,9 @@ import sys
 from pathlib import Path
 import time
 from datetime import datetime
-from typing import Tuple
+from typing import Any, Tuple, cast
 
+import jax
 import numpy as np
 import jax.numpy as jnp
 
@@ -11,91 +12,30 @@ project_root = Path(__file__).parent.parent.parent
 sys.path.insert(0, str(project_root))
 
 from src.cli import run_training
-from src.loss_functions import PINNConfig
-from src.models import PINNModelConfig, NeuralNetModelConfig, build_model
-from src.integration import QuadratureConfig, MonteCarloConfig
-from src.train import TrainConfig
+from src.models import build_model
+from config import (
+    ExperimentCombination,
+    ProblemConfig,
+    build_experiment_combinations,
+    get_integration_config,
+    get_problem_config,
+    get_training_config,
+    analytical_solution_t,
+    analytical_solution_x,
+)
 
 from utils import (
-    ProblemConfig,
     generate_test_points,
     save_test_data,
     load_test_data,
-    analytical_solution,
-    analytical_solution_t,
-    source_function,
+    reconstruct_u_from_v,
     plot_convergence,
     plot_solution_comparison,
     plot_error_map,
     save_experiment_log,
+    save_experiment_arrays,
+    save_model_checkpoint,
 )
-
-def get_problem_config() -> ProblemConfig:
-    return ProblemConfig(
-        L=5.0,
-        T=1.0,
-        c=1.0,
-    )
-
-
-def get_model_config() -> PINNModelConfig:
-    return PINNModelConfig(
-        u_model=NeuralNetModelConfig(
-            hidden_dim=64,
-            num_layers=5,
-            output_heads={"u": 1}
-        )
-    )
-
-
-def get_algorithm_config(
-    problem_config: ProblemConfig,
-) -> PINNConfig:
-    return PINNConfig(
-        model=get_model_config(),
-        f=lambda v: source_function(
-            jnp.array(v[0]), jnp.array(v[1]), problem_config
-        ),
-        u0=lambda v: analytical_solution(
-            jnp.array(v[0]), jnp.array(v[1]), problem_config
-        ),
-        ut0=lambda v: analytical_solution_t(
-            jnp.array(v[0]), jnp.array(v[1]), problem_config
-        ),
-        c=problem_config.c,
-        ic_weight=10.0,
-        bc_weight=100.0,
-    )
-
-
-def get_integration_config(
-    problem_config: ProblemConfig,
-) -> QuadratureConfig | MonteCarloConfig:
-    return MonteCarloConfig(
-        dim=2,
-        x_min=-problem_config.L,
-        x_max=problem_config.L,
-        monte_carlo_boundary_samples=10000,
-        monte_carlo_interior_samples=10000,
-        monte_carlo_seed=42
-    )
-
-    return QuadratureConfig(
-        dim=2,
-        x_min=-problem_config.L,
-        x_max=problem_config.L,
-        degree=8,
-    )
-
-
-def get_training_config() -> TrainConfig:
-    return TrainConfig(
-        epochs=200,
-        learning_rate=1e-4,
-        optimizer="adamw",
-        use_jit=True,
-        seed=42,
-    )
 
 
 def prepare_test_data(
@@ -123,9 +63,68 @@ def prepare_test_data(
     return test_points, reference_solutions
 
 
+def _safe_label(label: str) -> str:
+    return "".join(char.lower() if char.isalnum() else "_" for char in label).strip("_")
+
+
+def _error_stats(pred: np.ndarray, exact: np.ndarray) -> dict[str, float]:
+    error = np.abs(pred - exact)
+    return {
+        "l2_error": float(np.sqrt(np.mean(error**2))),
+        "max_error": float(np.max(error)),
+        "mean_abs_error": float(np.mean(error)),
+    }
+
+
+def _evaluate_combination(
+    combination: ExperimentCombination,
+    params: Any,
+    test_points: np.ndarray,
+) -> dict[str, np.ndarray]:
+    model = build_model(combination.model_config)
+    batch_points = jnp.asarray(test_points)
+
+    if combination.method == "pinn":
+        outputs = cast(dict[str, jnp.ndarray], model.apply(params, batch_points))
+        u_pred = np.asarray(outputs["u"]).reshape(-1)
+
+        def scalar_u(point: jnp.ndarray) -> jnp.ndarray:
+            batch = point[None, :]
+            out = cast(dict[str, jnp.ndarray], model.apply(params, batch))
+            return jnp.asarray(out["u"]).reshape(-1)[0]
+
+        grad_u = jax.vmap(jax.grad(scalar_u))(batch_points)
+        return {
+            "u": u_pred,
+            "v": np.asarray(grad_u[:, 0]),
+            "sigma": np.asarray(grad_u[:, 1]),
+        }
+
+    if combination.method == "ls":
+        outputs = cast(dict[str, jnp.ndarray], model.apply(params, batch_points))
+        v_pred = np.asarray(outputs["v"]).reshape(-1)
+        sigma_pred = np.asarray(outputs["sigma"]).reshape(-1)
+        return {
+            "u": reconstruct_u_from_v(test_points, v_pred),
+            "v": v_pred,
+            "sigma": sigma_pred,
+        }
+
+    raise ValueError(f"Unsupported method for evaluation: {combination.method}")
+
+
 def run_experiment(force_recompute_ref: bool = False) -> dict:
     print("[1/6] Setting up problem configuration...")
     problem_config = get_problem_config()
+
+    combinations = build_experiment_combinations(problem_config)
+    if not combinations:
+        raise ValueError("No experiment combinations were generated from ProblemConfig.")
+
+    print(
+        "  Requested combinations: "
+        + ", ".join(combo.label for combo in combinations)
+    )
 
     print("\n[2/6] Preparing reference solutions...")
     test_points, reference_solutions = prepare_test_data(
@@ -134,36 +133,53 @@ def run_experiment(force_recompute_ref: bool = False) -> dict:
     print(f"  Generated {len(test_points)} test points")
     print(f"  Reference solution range: [{reference_solutions.min():.4f}, {reference_solutions.max():.4f}]")
 
-    print("\n[3/6] Building neural network model...")
-    model_config = get_model_config()
-    print(f"  Model: u_model with hidden_dim={model_config.u_model.hidden_dim}, num_layers={model_config.u_model.num_layers}")
-    model = build_model(model_config)
-    print(f"  Model built successfully")
+    print("\n[3/6] Building run plan for all method-model combinations...")
+    for combo in combinations:
+        print(f"  - {combo.label}: method={combo.method}, model={combo.model}")
 
-    print("\n[4/6] Configuring PINN algorithm and integration...")
-    algo_config = get_algorithm_config(problem_config)
+    print("\n[4/6] Building shared integration and training config...")
     integration_config = get_integration_config(problem_config)
     train_config = get_training_config()
-    print(f"  Algorithm: PINN")
-    print(f"  Training: {train_config.epochs} epochs, lr={train_config.learning_rate}")
+    print(
+        f"  Shared training: {train_config.epochs} epochs, "
+        f"lr={train_config.learning_rate}"
+    )
 
-    # Train
-    print("\n[5/6] Running PINN training...")
-    start_time = time.time()
+    print("\n[5/6] Running training across all combinations...")
+    total_start = time.time()
+    trained_runs: dict[str, dict[str, Any]] = {}
+    metrics_by_label: dict[str, list] = {}
+    elapsed_by_label: dict[str, float] = {}
+    sample_input = jnp.array([[0.5, 0.0]])
 
     try:
-        state, metrics = run_training(
-            algorithm_cfg=algo_config,
-            integration_cfg=integration_config,
-            model_cfg=model_config,
-            train_cfg=train_config,
-            sample_input=jnp.array([[0.5, 0.0]]),  # Example input [t, x]
-        )
-        elapsed = time.time() - start_time
+        for combo in combinations:
+            run_start = time.time()
+            print(f"  Starting training for {combo.label}...")
 
-        print(f"  Training completed in {elapsed:.2f} seconds")
-        print(f"  Final loss: {metrics[-1].total_loss:.6e}")
-        print(f"  Best loss: {min(m.total_loss for m in metrics):.6e}")
+            state, metrics = run_training(
+                algorithm_cfg=combo.algorithm_config,
+                integration_cfg=integration_config,
+                model_cfg=combo.model_config,
+                train_cfg=train_config,
+                sample_input=sample_input,
+            )
+
+            run_elapsed = time.time() - run_start
+            elapsed_by_label[combo.label] = float(run_elapsed)
+            metrics_by_label[combo.label] = metrics
+            trained_runs[combo.label] = {
+                "combination": combo,
+                "state": state,
+                "metrics": metrics,
+            }
+
+            if not metrics:
+                raise RuntimeError(f"No training metrics recorded for {combo.label}.")
+
+            print(f"  {combo.label} training completed in {run_elapsed:.2f} seconds")
+            print(f"  {combo.label} final loss: {metrics[-1].total_loss:.6e}")
+            print(f"  {combo.label} best loss: {min(m.total_loss for m in metrics):.6e}")
 
     except Exception as e:
         print(f"  ERROR during training: {e}")
@@ -171,48 +187,126 @@ def run_experiment(force_recompute_ref: bool = False) -> dict:
         traceback.print_exc()
         return {"error": str(e)}
 
+    elapsed = time.time() - total_start
+
     print("\n[6/6] Evaluating on test set and generating plots...")
 
-    u_pred = []
-    for i, (t, x) in enumerate(test_points):
-        if (i + 1) % 500 == 0:
-            print(f"  Evaluation progress: {i + 1}/{len(test_points)}")
+    predictions_by_label: dict[str, dict[str, np.ndarray]] = {}
+    for label, run_data in trained_runs.items():
+        combo = cast(ExperimentCombination, run_data["combination"])
+        state = run_data["state"]
+        print(f"  Evaluating {label}...")
+        predictions_by_label[label] = _evaluate_combination(combo, state.params, test_points)
 
-        try:
-            # Prepare batch input [t, x]
-            batch = jnp.array([[t, x]])
-            # Apply model with trained parameters
-            u_dict = model.apply(state.params, batch)
-            u_val = u_dict["u"]  # type: ignore
-            u_pred.append(float(u_val[0][0]))
-        except Exception as e:
-            print(f"  Warning: Could not evaluate at ({t}, {x}): {e}")
-            u_pred.append(0.0)
+    v_exact = np.array([
+        float(analytical_solution_t(jnp.array(t), jnp.array(x), problem_config))
+        for t, x in test_points
+    ])
+    sigma_exact = np.array([
+        float(analytical_solution_x(jnp.array(t), jnp.array(x), problem_config))
+        for t, x in test_points
+    ])
 
-    u_pred = np.array(u_pred)
+    evaluation: dict[str, dict[str, float | int]] = {}
+    loss_decreasing: dict[str, bool] = {}
+    u_predictions_for_plot: dict[str, np.ndarray] = {}
+    error_payload: dict[str, dict[str, np.ndarray]] = {}
 
-    # Compute metrics
-    error = np.abs(u_pred - reference_solutions)
-    l2_error = np.sqrt(np.mean(error**2))
-    max_error = np.max(error)
-    mean_abs_error = np.mean(error)
+    for label, run_data in trained_runs.items():
+        metrics = run_data["metrics"]
+        predictions = predictions_by_label[label]
+        u_pred = predictions["u"]
+        v_pred = predictions["v"]
+        sigma_pred = predictions["sigma"]
 
-    print(f"  L2 Error: {l2_error:.6e}")
-    print(f"  Max Error: {max_error:.6e}")
-    print(f"  Mean Abs Error: {mean_abs_error:.6e}")
+        u_stats = _error_stats(u_pred, reference_solutions)
+        v_stats = _error_stats(v_pred, v_exact)
+        sigma_stats = _error_stats(sigma_pred, sigma_exact)
+
+        total_losses = [m.total_loss for m in metrics]
+        best_idx = int(np.argmin(total_losses))
+        evaluation[label] = {
+            **u_stats,
+            "v_l2_error": v_stats["l2_error"],
+            "v_max_error": v_stats["max_error"],
+            "v_mean_abs_error": v_stats["mean_abs_error"],
+            "sigma_l2_error": sigma_stats["l2_error"],
+            "sigma_max_error": sigma_stats["max_error"],
+            "sigma_mean_abs_error": sigma_stats["mean_abs_error"],
+            "final_loss": float(metrics[-1].total_loss),
+            "best_loss": float(total_losses[best_idx]),
+            "best_loss_epoch": int(metrics[best_idx].step),
+        }
+
+        loss_decreasing[label] = float(metrics[-1].total_loss) < float(metrics[0].total_loss)
+        u_predictions_for_plot[label] = u_pred
+        error_payload[label] = {
+            "u_error": np.abs(u_pred - reference_solutions),
+            "v_error": np.abs(v_pred - v_exact),
+            "sigma_error": np.abs(sigma_pred - sigma_exact),
+        }
+
+        print(f"  {label} L2 Error: {u_stats['l2_error']:.6e}")
+        print(f"  {label} v L2 Error: {v_stats['l2_error']:.6e}")
+        print(f"  {label} sigma L2 Error: {sigma_stats['l2_error']:.6e}")
 
     # Generate plots
-    print("\n  Generating visualizations...")
-    plot_convergence(metrics, "results/convergence_curve.png")
+    print("\n  Generating visualisations...")
+    plot_convergence(metrics_by_label, "results/convergence_curve.png")
     plot_solution_comparison(
-        test_points, u_pred, reference_solutions,
+        test_points,
+        u_predictions_for_plot,
+        reference_solutions,
         output_path="results/solution_snapshots.png",
         config=problem_config,
     )
     plot_error_map(
-        test_points, u_pred, reference_solutions,
+        test_points,
+        u_predictions_for_plot,
+        reference_solutions,
         output_path="results/error_map.png",
     )
+
+    artifact_dir = Path("results") / "artifacts"
+
+    serialisable_predictions = {
+        label: {
+            key: value for key, value in data.items()
+        }
+        for label, data in predictions_by_label.items()
+    }
+
+    save_experiment_arrays(
+        str(artifact_dir / "evaluation_outputs.pkl"),
+        test_points=test_points,
+        reference_solutions=reference_solutions,
+        predictions=serialisable_predictions,
+        v_exact=v_exact,
+        sigma_exact=sigma_exact,
+        errors=error_payload,
+    )
+
+    training_history = {
+        label: {
+            "step": np.array([m.step for m in metrics]),
+            "total_loss": np.array([m.total_loss for m in metrics]),
+            "interior_loss": np.array([m.interior_loss for m in metrics]),
+            "boundary_loss": np.array([m.boundary_loss for m in metrics]),
+        }
+        for label, metrics in metrics_by_label.items()
+    }
+
+    save_experiment_arrays(
+        str(artifact_dir / "training_history.pkl"),
+        training_history=training_history,
+    )
+
+    checkpoint_files: list[str] = []
+    for label, run_data in trained_runs.items():
+        filename = f"{_safe_label(label)}_params.msgpack"
+        output_path = str(artifact_dir / filename)
+        save_model_checkpoint(run_data["state"].params, output_path)
+        checkpoint_files.append(output_path)
 
     # Prepare results
     results = {
@@ -221,18 +315,23 @@ def run_experiment(force_recompute_ref: bool = False) -> dict:
             "type": "1D Wave Equation",
             "domain": f"[0, {problem_config.T}] x [-{problem_config.L}, {problem_config.L}]",
             "wave_speed": problem_config.c,
+            "methods": problem_config.methods,
+            "models": problem_config.models,
         },
-        "model": {
-            "type": "PINN",
-            "architecture": "NeuralNet",
-            "hidden_dim": model_config.u_model.hidden_dim,
-            "num_layers": model_config.u_model.num_layers,
-        },
+        "combinations": [
+            {
+                "label": combo.label,
+                "method": combo.method,
+                "model": combo.model,
+            }
+            for combo in combinations
+        ],
         "training": {
             "epochs": train_config.epochs,
             "learning_rate": train_config.learning_rate,
-            "optimizer": train_config.optimizer,
-            "elapsed_time_seconds": elapsed,
+            "optimiser": train_config.optimiser,
+            "elapsed_time_seconds": float(elapsed),
+            "combinations_elapsed_time_seconds": elapsed_by_label,
         },
         "integration": {
             "method": integration_config.integration_method,
@@ -240,22 +339,20 @@ def run_experiment(force_recompute_ref: bool = False) -> dict:
         },
         "evaluation": {
             "n_test_points": len(test_points),
-            "l2_error": float(l2_error),
-            "max_error": float(max_error),
-            "mean_abs_error": float(mean_abs_error),
-            "final_loss": float(metrics[-1].total_loss),
-            "best_loss": float(min(m.total_loss for m in metrics)),
-            "best_loss_epoch": int(np.argmin([m.total_loss for m in metrics])) * train_config.log_every,
+            "combinations": evaluation,
         },
         "convergence": {
-            "converged": True,  # Will be updated based on loss trajectory
-            "loss_decreasing": float(metrics[-1].total_loss) < float(metrics[0].total_loss),
+            "converged": bool(all(loss_decreasing.values())),
+            "loss_decreasing": loss_decreasing,
         },
         "output_files": [
             "results/convergence_curve.png",
             "results/solution_snapshots.png",
             "results/error_map.png",
             "results/experiment_log.json",
+            "results/artifacts/evaluation_outputs.pkl",
+            "results/artifacts/training_history.pkl",
+            *checkpoint_files,
         ],
     }
 
