@@ -75,6 +75,7 @@ def get_pinn_model_config(
             hidden_dim=problem_config.hidden_dim,
             num_layers=problem_config.num_layers,
             output_heads={"u": 1},
+            input_dim=2
         )
 
     raise ValueError("Requested model type must be neural or kan.")
@@ -92,11 +93,12 @@ def get_ls_model_config(
             output_heads={"v": 1, "sigma": 1},
         )
     if model_type == "kan":
+        if not isinstance(pinn_model, KANModelConfig): raise ValueError
         return KANModelConfig(
             hidden_dim=pinn_model.hidden_dim,
             num_layers=pinn_model.num_layers,
             output_heads={"v": 1, "sigma": 1},
-            input_dim=2,
+            input_dim=pinn_model.input_dim,
         )
 
     raise ValueError("Requested model type must be neural or kan.")

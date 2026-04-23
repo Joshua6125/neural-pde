@@ -158,3 +158,10 @@ class TestBuildModel:
 
         with pytest.raises(ValueError, match="Unknown model config type"):
             build_model(UnknownConfig())  # type: ignore[arg-type]
+
+    def test_build_model_kan_custom_parameters(self):
+        cfg = KANModelConfig(hidden_dim=16, num_layers=2, output_heads={"u": 1}, input_dim=4)
+        model = build_model(cfg)
+        assert model._module.hidden_dim == 16
+        assert model._module.num_layers == 2
+        assert model._module.input_dim == 4
