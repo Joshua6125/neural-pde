@@ -9,7 +9,7 @@ from jaxkan.models.KAN import KAN
 class KANModel(nn.Module):
     """Linen-compatible wrapper around jaxKAN's NNX KAN model.
 
-    The public behavior matches ``NeuralNet``:
+    The public behaviour matches ``NeuralNet``:
     - ``model.init(key, x)`` returns Linen variables
     - ``model.apply(variables, x)`` returns ``dict[str, jnp.ndarray]``
     """
@@ -17,45 +17,69 @@ class KANModel(nn.Module):
     hidden_dim: int
     num_layers: int
     output_heads: Mapping[str, int]
+    input_dim: int | None = None
     grid_size: int = 5
     degree: int = 3
     model_type: str = "efficient"  # aliases: "efficient" | "cheby" | "original"
     seed: int = 42
 
-    @nn.compact
-    def __call__(self, x) -> dict[str, jnp.ndarray]:
+    def validate(self) -> None:
         if self.hidden_dim <= 0:
             raise ValueError("hidden_dim must be strictly positive")
         if self.num_layers <= 0:
             raise ValueError("num_layers must be strictly positive")
         if len(self.output_heads) == 0:
             raise ValueError("output_heads must be non-empty")
-
         for name, dim in self.output_heads.items():
             if not name:
                 raise ValueError("output head names must be non-empty")
             if dim <= 0:
                 raise ValueError("each output head dimension must be strictly positive")
 
+    def _layer_dims(self, input_dim: int) -> list[int]:
+        if input_dim <= 0:
+            raise ValueError("input_dim must be strictly positive")
+        total_out_dim = sum(self.output_heads.values())
+        return [input_dim] + [self.hidden_dim] * self.num_layers + [total_out_dim]
+
+    def setup(self):
+        self.validate()
+        self.kan = None
+        if self.input_dim is not None:
+            layer_type, required_parameters = self._kan_hparams()
+            self.kan = nnx.bridge.to_linen(
+                KAN,
+                self._layer_dims(self.input_dim),
+                layer_type=layer_type,
+                required_parameters=required_parameters,
+                seed=self.seed,
+                skip_rng=True,
+                name="kan_backbone",
+            )
+
+    @nn.compact
+    def __call__(self, x) -> dict[str, jnp.ndarray]:
+        self.validate()
+
         was_unbatched = x.ndim == 1
         x_in = x[None, :] if was_unbatched else x
 
-        input_dim = x_in.shape[-1]
-        total_out_dim = sum(self.output_heads.values())
-        layer_dims = [input_dim] + [self.hidden_dim] * self.num_layers + [total_out_dim]
+        if self.kan is None:
+            input_dim = int(x_in.shape[-1])
+            layer_type, required_parameters = self._kan_hparams()
+            kan = nnx.bridge.to_linen(
+                KAN,
+                self._layer_dims(input_dim),
+                layer_type=layer_type,
+                required_parameters=required_parameters,
+                seed=self.seed,
+                skip_rng=True,
+                name="kan_backbone",
+            )
+            y = kan(x_in)
+        else:
+            y = self.kan(x_in)
 
-        layer_type, required_parameters = self._kan_hparams()
-
-        kan = nnx.bridge.to_linen(
-            KAN,
-            layer_dims,
-            layer_type=layer_type,
-            required_parameters=required_parameters,
-            seed=self.seed,
-            skip_rng=True,
-            name="kan_backbone",
-        )
-        y = kan(x_in)
         outputs = self._split_output_heads(y)
 
         if was_unbatched:

@@ -1,5 +1,6 @@
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
 from typing import Literal, TypeAlias, Mapping, Protocol, Any, cast
+from typing_extensions import runtime_checkable
 
 from .neuralnet import NeuralNet
 from .kan import KANModel
@@ -12,7 +13,7 @@ import flax.linen as nn
 # AnyBuiltModel: TypeAlias = NeuralNet | KANModel
 
 
-# TODO: Potentially add @runtime_checkable here.
+@runtime_checkable
 class BuiltModelProtocol(Protocol):
     def init(self, rng_key: jax.Array, sample_input: jnp.ndarray) -> Any: ...
     def apply(self, params: Any, x: jnp.ndarray) -> dict[str, jnp.ndarray]: ...
@@ -23,6 +24,9 @@ class BuiltModelAdapter:
         self._module = module
 
     def init(self, rng_key: jax.Array, sample_input: jnp.ndarray) -> Any:
+        if isinstance(self._module, KANModel) and self._module.input_dim is None:
+            inferred_dim = int(sample_input.shape[-1])
+            self._module = replace(self._module, input_dim=inferred_dim)
         return self._module.init(rng_key, sample_input)
 
     def apply(self, params: Any, x: jnp.ndarray) -> dict[str, jnp.ndarray]:
@@ -66,6 +70,7 @@ class KANModelConfig(BaseModelConfig):
     kind: Literal["kan"] = "kan"
     hidden_dim: int = 64
     num_layers: int = 4
+    input_dim: int | None = None
     grid_size: int = 5
     degree: int = 3
     model_type: str = "efficient"
@@ -75,6 +80,8 @@ class KANModelConfig(BaseModelConfig):
         super().validate()
         assert self.hidden_dim > 0, "hidden_dim must be strictly positive"
         assert self.num_layers > 0, "num_layers must be strictly positive"
+        if self.input_dim is not None:
+            assert self.input_dim > 0, "input_dim must be strictly positive"
         assert self.grid_size > 0, "grid_size must be strictly positive"
         assert self.degree > 0, "degree must be strictly positive"
 
@@ -101,6 +108,7 @@ def build_model(cfg: AnyModelConfig) -> BuiltModelAdapter:
                 hidden_dim=cfg.hidden_dim,
                 num_layers=cfg.num_layers,
                 output_heads=cfg.output_heads,
+                input_dim=cfg.input_dim,
                 grid_size=cfg.grid_size,
                 degree=cfg.degree,
                 model_type=cfg.model_type,
