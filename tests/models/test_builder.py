@@ -1,4 +1,4 @@
-"""Tests for model config validation and model factory behavior."""
+"""Tests for model config validation and model factory behaviour."""
 
 import importlib.util
 import warnings
@@ -29,7 +29,7 @@ pytestmark = pytest.mark.models
 
 
 class TestNeuralNetModelConfigValidation:
-    """Test NeuralNetModelConfig.validate behavior."""
+    """Test NeuralNetModelConfig.validate behaviour."""
 
     def test_validate_succeeds_for_valid_config(self):
         """A valid NeuralNetModelConfig validates without raising."""
@@ -77,7 +77,7 @@ class TestNeuralNetModelConfigValidation:
 
 
 class TestKANModelConfigValidation:
-    """Test KANModelConfig.validate behavior."""
+    """Test KANModelConfig.validate behaviour."""
 
     def test_validate_succeeds_for_valid_config(self):
         """A valid KANModelConfig validates without raising."""
@@ -85,6 +85,7 @@ class TestKANModelConfigValidation:
             hidden_dim=32,
             num_layers=2,
             output_heads={"u": 1},
+            input_dim=1,
             grid_size=5,
             degree=3,
             model_type="efficient",
@@ -101,6 +102,12 @@ class TestKANModelConfigValidation:
         """num_layers <= 0 raises AssertionError."""
         cfg = KANModelConfig(num_layers=0)
         with pytest.raises(AssertionError, match="num_layers must be strictly positive"):
+            cfg.validate()
+
+    def test_validate_raises_for_non_positive_input_dim(self):
+        """input_dim <= 0 raises AssertionError."""
+        cfg = KANModelConfig(input_dim=0)
+        with pytest.raises(AssertionError, match="input_dim must be strictly positive"):
             cfg.validate()
 
     def test_validate_raises_for_non_positive_grid_size(self):
@@ -133,7 +140,7 @@ class TestBuildModel:
 
     def test_build_model_returns_kan_for_kan_config(self):
         """KANModelConfig dispatches to KANModel."""
-        cfg = KANModelConfig(hidden_dim=16, num_layers=2, output_heads={"u": 1})
+        cfg = KANModelConfig(hidden_dim=16, num_layers=2, output_heads={"u": 1}, input_dim=1)
         model = build_model(cfg)
         assert isinstance(model._module, KANModel)
 

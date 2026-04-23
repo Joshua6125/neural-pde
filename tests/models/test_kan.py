@@ -25,13 +25,14 @@ pytestmark = pytest.mark.models
 
 
 class TestKANInstantiation:
-    """Test KANModel object construction behavior."""
+    """Test KANModel object construction behaviour."""
 
     def test_instantiate_with_defaults(self):
         """KANModel can be created with default optional parameters."""
-        model = KANModel(hidden_dim=16, num_layers=2, output_heads={"u": 1})
+        model = KANModel(hidden_dim=16, num_layers=2, output_heads={"u": 1}, input_dim=1)
         assert model.hidden_dim == 16
         assert model.num_layers == 2
+        assert model.input_dim == 1
         assert model.grid_size == 5
         assert model.degree == 3
         assert model.model_type == "efficient"
@@ -43,6 +44,7 @@ class TestKANInstantiation:
             hidden_dim=32,
             num_layers=3,
             output_heads={"u": 1, "p": 2},
+            input_dim=12,
             grid_size=7,
             degree=4,
             model_type="cheby",
@@ -50,6 +52,7 @@ class TestKANInstantiation:
         )
         assert model.grid_size == 7
         assert model.degree == 4
+        assert model.input_dim == 12
         assert model.model_type == "cheby"
         assert model.seed == 11
 
@@ -59,31 +62,37 @@ class TestKANValidationErrors:
 
     def test_raises_for_non_positive_hidden_dim(self, rng_key, sample_1d_input):
         """hidden_dim <= 0 raises ValueError."""
-        model = KANModel(hidden_dim=0, num_layers=1, output_heads={"u": 1})
+        model = KANModel(hidden_dim=0, num_layers=1, output_heads={"u": 1}, input_dim=1)
         with pytest.raises(ValueError, match="hidden_dim must be strictly positive"):
             model.init(rng_key, sample_1d_input)
 
     def test_raises_for_non_positive_num_layers(self, rng_key, sample_1d_input):
         """num_layers <= 0 raises ValueError."""
-        model = KANModel(hidden_dim=8, num_layers=0, output_heads={"u": 1})
+        model = KANModel(hidden_dim=8, num_layers=0, output_heads={"u": 1}, input_dim=1)
         with pytest.raises(ValueError, match="num_layers must be strictly positive"):
+            model.init(rng_key, sample_1d_input)
+
+    def test_raises_for_non_positive_input_dim(self, rng_key, sample_1d_input):
+        """num_layers <= 0 raises ValueError."""
+        model = KANModel(hidden_dim=8, num_layers=1, output_heads={"u": 1}, input_dim=-10)
+        with pytest.raises(ValueError, match="input_dim must be strictly positive"):
             model.init(rng_key, sample_1d_input)
 
     def test_raises_for_empty_output_heads(self, rng_key, sample_1d_input):
         """Empty output_heads raises ValueError."""
-        model = KANModel(hidden_dim=8, num_layers=1, output_heads={})
+        model = KANModel(hidden_dim=8, num_layers=1, output_heads={}, input_dim=1)
         with pytest.raises(ValueError, match="output_heads must be non-empty"):
             model.init(rng_key, sample_1d_input)
 
     def test_raises_for_empty_head_name(self, rng_key, sample_1d_input):
         """Empty output head name raises ValueError."""
-        model = KANModel(hidden_dim=8, num_layers=1, output_heads={"": 1})
+        model = KANModel(hidden_dim=8, num_layers=1, output_heads={"": 1}, input_dim=1)
         with pytest.raises(ValueError, match="output head names must be non-empty"):
             model.init(rng_key, sample_1d_input)
 
     def test_raises_for_non_positive_head_dim(self, rng_key, sample_1d_input):
         """Output head dim <= 0 raises ValueError."""
-        model = KANModel(hidden_dim=8, num_layers=1, output_heads={"u": 0})
+        model = KANModel(hidden_dim=8, num_layers=1, output_heads={"u": 0}, input_dim=1)
         with pytest.raises(
             ValueError,
             match="each output head dimension must be strictly positive",
@@ -96,6 +105,7 @@ class TestKANValidationErrors:
             hidden_dim=8,
             num_layers=1,
             output_heads={"u": 1},
+            input_dim=1,
             model_type="does-not-exist",
         )
         with pytest.raises(ValueError, match="Unknown model_type"):
@@ -103,11 +113,11 @@ class TestKANValidationErrors:
 
 
 class TestKANApplyInterface:
-    """Test KANModel apply output contract behavior."""
+    """Test KANModel apply output contract behaviour."""
 
     def test_apply_returns_all_output_heads(self, rng_key, sample_2d_input):
         """apply returns exactly the declared head keys."""
-        model = KANModel(hidden_dim=8, num_layers=2, output_heads={"u": 1, "p": 2})
+        model = KANModel(hidden_dim=8, num_layers=2, output_heads={"u": 1, "p": 2}, input_dim=2)
         params = model.init(rng_key, sample_2d_input)
 
         output = cast(dict[str, jnp.ndarray], model.apply(params, sample_2d_input))
@@ -115,7 +125,7 @@ class TestKANApplyInterface:
 
     def test_apply_shapes_follow_declared_head_dims(self, rng_key, sample_2d_input):
         """Each output head has shape (batch, declared_dim)."""
-        model = KANModel(hidden_dim=8, num_layers=2, output_heads={"u": 1, "p": 2})
+        model = KANModel(hidden_dim=8, num_layers=2, output_heads={"u": 1, "p": 2}, input_dim=2)
         params = model.init(rng_key, sample_2d_input)
 
         output = cast(dict[str, jnp.ndarray], model.apply(params, sample_2d_input))
@@ -124,7 +134,7 @@ class TestKANApplyInterface:
 
     def test_apply_outputs_are_finite(self, rng_key, sample_2d_input):
         """KAN outputs are finite for normal finite batched inputs."""
-        model = KANModel(hidden_dim=8, num_layers=2, output_heads={"u": 1})
+        model = KANModel(hidden_dim=8, num_layers=2, output_heads={"u": 1}, input_dim=2)
         params = model.init(rng_key, sample_2d_input)
 
         output = cast(dict[str, jnp.ndarray], model.apply(params, sample_2d_input))
@@ -140,6 +150,7 @@ class TestKANApplyInterface:
             hidden_dim=8,
             num_layers=1,
             output_heads={"u": 1},
+            input_dim=1,
             model_type=model_type,
         )
         params = model.init(rng_key, sample_1d_input)
