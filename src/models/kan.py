@@ -37,13 +37,15 @@ class KANModel(nn.Module):
             if dim <= 0:
                 raise ValueError("each output head dimension must be strictly positive")
 
-        input_dim = x.shape[-1]
+        was_unbatched = x.ndim == 1
+        x_in = x[None, :] if was_unbatched else x
+
+        input_dim = x_in.shape[-1]
         total_out_dim = sum(self.output_heads.values())
         layer_dims = [input_dim] + [self.hidden_dim] * self.num_layers + [total_out_dim]
 
         layer_type, required_parameters = self._kan_hparams()
 
-        # jaxKAN is NNX-based; bridge it into a Linen submodule.
         kan = nnx.bridge.to_linen(
             KAN,
             layer_dims,
@@ -53,15 +55,19 @@ class KANModel(nn.Module):
             skip_rng=True,
             name="kan_backbone",
         )
-        y = kan(x)
+        y = kan(x_in)
+        outputs = self._split_output_heads(y)
 
-        return self._split_output_heads(y)
+        if was_unbatched:
+            return {name: value[0] for name, value in outputs.items()}
+        return outputs
+
 
     def _split_output_heads(self, y: jnp.ndarray) -> dict[str, jnp.ndarray]:
         outputs: dict[str, jnp.ndarray] = {}
         start = 0
         for name, dim in self.output_heads.items():
-            outputs[name] = y[:, start : start + dim]
+            outputs[name] = y[..., start : start + dim]
             start += dim
         return outputs
 
