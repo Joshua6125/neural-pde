@@ -41,6 +41,5 @@ class gPINN(TrainingMethod):
             ic_weight=self.config.ic_weight,
             bc_weight=self.config.bc_weight,
             residual_grad_weight=self.config.residual_grad_weight,
-            solution_grad_weight=self.config.solution_grad_weight,
         )
         return loss.loss_functions()

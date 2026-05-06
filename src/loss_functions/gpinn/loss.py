@@ -25,9 +25,8 @@ class gPINNLoss(Loss):
         u0: float | Callable[[jnp.ndarray], jnp.ndarray] = 0.0,
         ut0: float | Callable[[jnp.ndarray], jnp.ndarray] = 0.0,
         ic_weight: float = 1.0,
-        bc_weight: float = 1.0,
-        residual_grad_weight: float = 0.0,
-        solution_grad_weight: float = 0.0,
+        bc_weight: float = 10.0,
+        residual_grad_weight: float = 1e-2,
     ):
         self.u_model = u_model
         self.c = c
@@ -37,7 +36,6 @@ class gPINNLoss(Loss):
         self.ic_weight = ic_weight
         self.bc_weight = bc_weight
         self.residual_grad_weight = residual_grad_weight
-        self.solution_grad_weight = solution_grad_weight
 
         self._c_fn = c if callable(c) else self._constant_function(c)
         self._f_fn = f if callable(f) else self._constant_function(f)
@@ -72,22 +70,14 @@ class gPINNLoss(Loss):
         R = self._residual_scalar(x)
         res_sq = R ** 2
 
-        # Gradient of residual (w.r.t. t and spatial coords). Prefer spatial-only
-        # penalty to reduce cost — take full gradient but sum spatial components.
+        # Gradient of residual
         grad_R = jax.grad(self._residual_scalar)(x)
-        # drop time-component (index 0) and take spatial part
         grad_R_spatial = grad_R[1:]
         grad_R_norm_sq = jnp.sum(grad_R_spatial ** 2)
-
-        # Gradient of solution u: penalise spatial gradient magnitude if requested
-        grad_u = jax.grad(self._u)(x)
-        grad_u_spatial = grad_u[1:]
-        grad_u_norm_sq = jnp.sum(grad_u_spatial ** 2)
 
         return (
             res_sq
             + self.residual_grad_weight * grad_R_norm_sq
-            + self.solution_grad_weight * grad_u_norm_sq
         )
 
     def loss_interior(self, x_interior: jnp.ndarray) -> jnp.ndarray:

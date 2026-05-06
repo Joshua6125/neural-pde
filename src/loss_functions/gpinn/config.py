@@ -25,4 +25,3 @@ class gPINNConfig(AlgorithmConfig):
     ic_weight: float = 1.0
     bc_weight: float = 1.0
     residual_grad_weight: float = 0.0
-    solution_grad_weight: float = 0.0
