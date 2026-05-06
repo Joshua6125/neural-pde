@@ -84,7 +84,7 @@ def _evaluate_combination(
     model = build_model(combination.model_config)
     batch_points = jnp.asarray(test_points)
 
-    if combination.method == "pinn":
+    if combination.method == "pinn" or combination.method == "gpinn":
         outputs = cast(dict[str, jnp.ndarray], model.apply(params, batch_points))
         u_pred = np.asarray(outputs["u"]).reshape(-1)
 
@@ -109,6 +109,7 @@ def _evaluate_combination(
             "v": v_pred,
             "sigma": sigma_pred,
         }
+
 
     raise ValueError(f"Unsupported method for evaluation: {combination.method}")
 

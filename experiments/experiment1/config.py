@@ -1,5 +1,4 @@
 import jax.numpy as jnp
-import optax
 
 from dataclasses import dataclass, field
 from typing import Iterable
@@ -11,6 +10,7 @@ from src.models import (
 from src.loss_functions import (
     PINNConfig,
     SLSConfig,
+    gPINNConfig,
     AlgorithmConfig
 )
 from src.integration import MonteCarloConfig
@@ -22,7 +22,7 @@ class ProblemConfig:
     L: float = 1.0
     T: float = 1.0
     c: float = 1.0
-    methods: list[str] = field(default_factory=lambda: ["pinn", "sls"])
+    methods: list[str] = field(default_factory=lambda: ["pinn", "sls", "gpinn"])
     models: list[str] = field(default_factory=lambda: ["mlp", "kan"])
     hidden_dim: int = 32
     num_layers: int = 3
@@ -105,6 +105,29 @@ def get_sls_model_config(
     raise ValueError("Requested model type must be mlp or kan.")
 
 
+def get_gpinn_model_config(
+    problem_config: ProblemConfig,
+    model_type: str = "mlp",
+) -> AnyModelConfig:
+    pinn_model = get_pinn_model_config(problem_config, model_type=model_type)
+    if model_type == "mlp":
+        return MLPModelConfig(
+            hidden_dim=pinn_model.hidden_dim,
+            num_layers=pinn_model.num_layers,
+            output_heads={"u": 1}
+        )
+    if model_type == "kan":
+        if not isinstance(pinn_model, KANModelConfig): raise ValueError
+        return KANModelConfig(
+            hidden_dim=pinn_model.hidden_dim,
+            num_layers=pinn_model.num_layers,
+            output_heads={"u": 1},
+            input_dim=pinn_model.input_dim,
+        )
+
+    raise ValueError("Requested model type must be mlp or kan.")
+
+
 def get_pinn_config(
     problem_config: ProblemConfig,
     model_type: str = "mlp",
@@ -121,7 +144,7 @@ def get_pinn_config(
             jnp.array(v[0]), jnp.array(v[1]), problem_config
         ),
         c=problem_config.c,
-        ic_weight=10.0,
+        ic_weight=1.0,
         bc_weight=100.0,
     )
 
@@ -148,6 +171,28 @@ def get_sls_config(
     )
 
 
+def get_gpinn_config(
+    problem_config: ProblemConfig,
+    model_type: str = "mlp",
+) -> gPINNConfig:
+    return gPINNConfig(
+        model=get_gpinn_model_config(problem_config, model_type=model_type),
+        f=lambda v: source_function(
+            jnp.array(v[0]), jnp.array(v[1]), problem_config
+        ),
+        u0=lambda v: analytical_solution(
+            jnp.array(v[0]), jnp.array(v[1]), problem_config
+        ),
+        ut0=lambda v: analytical_solution_t(
+            jnp.array(v[0]), jnp.array(v[1]), problem_config
+        ),
+        c=problem_config.c,
+        ic_weight=1.0,
+        bc_weight=100.0,
+        residual_grad_weight=1e-2,
+    )
+
+
 def get_experiment_combination(
     problem_config: ProblemConfig,
     method: str,
@@ -156,9 +201,6 @@ def get_experiment_combination(
     method_name = _canonical_name(method)
     model_name = _canonical_name(model)
 
-    _ensure_supported("method", [method_name], {"pinn", "sls"})
-    _ensure_supported("model", [model_name], {"mlp", "kan"})
-
     label = f"{method_name.upper()}-{model_name.upper()}"
     if method_name == "pinn":
         model_cfg = get_pinn_model_config(problem_config, model_type=model_name)
@@ -166,6 +208,9 @@ def get_experiment_combination(
     elif method_name == "sls":
         model_cfg = get_sls_model_config(problem_config, model_type=model_name)
         algorithm_cfg = get_sls_config(problem_config, model_type=model_name)
+    elif method_name == "gpinn":
+        model_cfg = get_gpinn_model_config(problem_config, model_type=model_name)
+        algorithm_cfg = get_gpinn_config(problem_config, model_type=model_name)
     else:
         raise ValueError(f"Unsupported method: {method_name}")
 
@@ -179,7 +224,7 @@ def get_experiment_combination(
 
 
 def build_experiment_combinations(problem_config: ProblemConfig) -> list[ExperimentCombination]:
-    supported_methods = {"pinn", "sls"}
+    supported_methods = {"pinn", "sls", "gpinn"}
     supported_models = {"mlp", "kan"}
 
     selected_methods = _ensure_supported("method", problem_config.methods, supported_methods)
