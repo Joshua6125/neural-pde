@@ -3,6 +3,7 @@ from typing import Any, Literal
 
 import jax
 import optax
+from optax import Schedule
 
 
 @dataclass(frozen=True)
@@ -13,7 +14,7 @@ class TrainConfig:
     ----------
     epochs : int
         Number of optimisation steps.
-    learning_rate : float
+    learning_rate : optax.Schedule
         Optimiser learning rate.
     optimiser : str
         Optimiser name: 'adam' or 'sgd'.
@@ -29,7 +30,7 @@ class TrainConfig:
     """
 
     epochs: int = 1000
-    learning_rate: float = 1e-3
+    learning_rate: Schedule = optax.constant_schedule(1e-3)
     optimiser: Literal["adam", "adamw", "sgd"] = "adamw"
     seed: int = 0
     integration_seed: int | None = None
@@ -38,7 +39,8 @@ class TrainConfig:
 
     def validate(self) -> None:
         assert self.epochs > 0, "epochs must be strictly positive"
-        assert self.learning_rate > 0.0, "learning_rate must be strictly positive"
+        # NOTE: Need to check if scheduler automatically checks if learning rate is valid.
+        # assert self.learning_rate > 0.0, "learning_rate must be strictly positive"
         assert self.log_every > 0, "log_every must be strictly positive"
         if self.integration_seed is not None:
             assert self.integration_seed >= 0, "integration_seed must be non-negative"
@@ -71,7 +73,7 @@ class TrainState:
 
 
 def get_optimiser(config: TrainConfig) -> optax.GradientTransformation:
-    """Factory function for choosing optimization method."""
+    """Factory function for choosing optimisation method."""
     config.validate()
     if config.optimiser == "adam":
         return optax.adam(config.learning_rate)

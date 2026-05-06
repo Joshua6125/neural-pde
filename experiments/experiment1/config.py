@@ -1,4 +1,5 @@
 import jax.numpy as jnp
+import optax
 
 from dataclasses import dataclass, field
 from typing import Iterable
@@ -213,8 +214,8 @@ def get_integration_config(
 
 def get_training_config() -> TrainConfig:
     return TrainConfig(
-        epochs=1000,
-        learning_rate=1e-4,
+        epochs=100,
+        learning_rate=optax.constant_schedule(1e-4),
         optimiser="adamw",
         use_jit=True,
         seed=42,
