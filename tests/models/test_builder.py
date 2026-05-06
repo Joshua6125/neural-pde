@@ -17,9 +17,9 @@ def _require_jaxkan() -> None:
 _require_jaxkan()
 
 from src.models import (
-    NeuralNet,
+    MLP,
     KANModel,
-    NeuralNetModelConfig,
+    MLPModelConfig,
     KANModelConfig,
     build_model,
 )
@@ -28,41 +28,41 @@ from src.models import (
 pytestmark = pytest.mark.models
 
 
-class TestNeuralNetModelConfigValidation:
-    """Test NeuralNetModelConfig.validate behaviour."""
+class TestMLPModelConfigValidation:
+    """Test MLPModelConfig.validate behaviour."""
 
     def test_validate_succeeds_for_valid_config(self):
-        """A valid NeuralNetModelConfig validates without raising."""
-        cfg = NeuralNetModelConfig(hidden_dim=32, num_layers=2, output_heads={"u": 1})
+        """A valid MLPModelConfig validates without raising."""
+        cfg = MLPModelConfig(hidden_dim=32, num_layers=2, output_heads={"u": 1})
         cfg.validate()
 
     def test_validate_raises_for_non_positive_hidden_dim(self):
         """hidden_dim <= 0 raises AssertionError."""
-        cfg = NeuralNetModelConfig(hidden_dim=0, num_layers=2)
+        cfg = MLPModelConfig(hidden_dim=0, num_layers=2)
         with pytest.raises(AssertionError, match="hidden_dim must be strictly positive"):
             cfg.validate()
 
     def test_validate_raises_for_non_positive_num_layers(self):
         """num_layers <= 0 raises AssertionError."""
-        cfg = NeuralNetModelConfig(hidden_dim=8, num_layers=0)
+        cfg = MLPModelConfig(hidden_dim=8, num_layers=0)
         with pytest.raises(AssertionError, match="num_layers must be strictly positive"):
             cfg.validate()
 
     def test_validate_raises_for_empty_output_heads(self):
         """Empty output_heads raises AssertionError."""
-        cfg = NeuralNetModelConfig(hidden_dim=8, num_layers=1, output_heads={})
+        cfg = MLPModelConfig(hidden_dim=8, num_layers=1, output_heads={})
         with pytest.raises(AssertionError, match="output_heads"):
             cfg.validate()
 
     def test_validate_raises_for_empty_head_name(self):
         """Empty output head name raises AssertionError."""
-        cfg = NeuralNetModelConfig(hidden_dim=8, num_layers=1, output_heads={"": 1})
+        cfg = MLPModelConfig(hidden_dim=8, num_layers=1, output_heads={"": 1})
         with pytest.raises(AssertionError, match="output head names must be non-empty"):
             cfg.validate()
 
     def test_validate_raises_for_non_positive_head_dim(self):
         """Output head dim <= 0 raises AssertionError."""
-        cfg = NeuralNetModelConfig(hidden_dim=8, num_layers=1, output_heads={"u": 0})
+        cfg = MLPModelConfig(hidden_dim=8, num_layers=1, output_heads={"u": 0})
         with pytest.raises(
             AssertionError,
             match="each output head dimension must be strictly positive",
@@ -71,7 +71,7 @@ class TestNeuralNetModelConfigValidation:
 
     def test_config_is_frozen(self):
         """Frozen dataclass prevents mutation of fields."""
-        cfg = NeuralNetModelConfig()
+        cfg = MLPModelConfig()
         with pytest.raises((AttributeError, Exception)):
             cfg.hidden_dim = 99  # type: ignore[misc]
 
@@ -132,11 +132,11 @@ class TestKANModelConfigValidation:
 class TestBuildModel:
     """Test build_model dispatch and error handling."""
 
-    def test_build_model_returns_neuralnet_for_neuralnet_config(self):
-        """NeuralNetModelConfig dispatches to NeuralNet."""
-        cfg = NeuralNetModelConfig(hidden_dim=16, num_layers=2, output_heads={"u": 1})
+    def test_build_model_returns_mlp_for_mlp_config(self):
+        """MLPModelConfig dispatches to MLP."""
+        cfg = MLPModelConfig(hidden_dim=16, num_layers=2, output_heads={"u": 1})
         model = build_model(cfg)
-        assert isinstance(model._module, NeuralNet)
+        assert isinstance(model._module, MLP)
 
     def test_build_model_returns_kan_for_kan_config(self):
         """KANModelConfig dispatches to KANModel."""
@@ -146,7 +146,7 @@ class TestBuildModel:
 
     def test_build_model_validates_config_before_building(self):
         """Invalid config fields raise via validate during build_model."""
-        cfg = NeuralNetModelConfig(hidden_dim=0)
+        cfg = MLPModelConfig(hidden_dim=0)
         with pytest.raises(AssertionError, match="hidden_dim must be strictly positive"):
             build_model(cfg)
 

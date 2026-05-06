@@ -9,7 +9,7 @@ import jax.numpy as jnp
 
 from typing import Any
 
-from src.models import NeuralNetModelConfig
+from src.models import MLPModelConfig
 
 
 # ============================================================================
@@ -313,9 +313,9 @@ def sls_config_with_boundary(callable_v_boundary_linear):
 
 
 @pytest.fixture
-def neuralnet_model_config():
-    """Reusable NeuralNetModelConfig for SLSConfig tests."""
-    return NeuralNetModelConfig(
+def mlp_model_config():
+    """Reusable MLPModelConfig for SLSConfig tests."""
+    return MLPModelConfig(
         hidden_dim=8,
         num_layers=2,
         output_heads={"v": 1, "sigma": 1},

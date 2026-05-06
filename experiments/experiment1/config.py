@@ -4,7 +4,7 @@ import optax
 from dataclasses import dataclass, field
 from typing import Iterable
 from src.models import (
-    NeuralNetModelConfig,
+    MLPModelConfig,
     KANModelConfig,
     AnyModelConfig,
 )
@@ -23,7 +23,7 @@ class ProblemConfig:
     T: float = 1.0
     c: float = 1.0
     methods: list[str] = field(default_factory=lambda: ["pinn", "sls"])
-    models: list[str] = field(default_factory=lambda: ["neural", "kan"])
+    models: list[str] = field(default_factory=lambda: ["mlp", "kan"])
     hidden_dim: int = 32
     num_layers: int = 3
 
@@ -62,11 +62,11 @@ def _ensure_supported(kind: str, requested: Iterable[str], supported: set[str]) 
 
 def get_pinn_model_config(
     problem_config: ProblemConfig,
-    model_type: str = "neural",
+    model_type: str = "mlp",
 ) -> AnyModelConfig:
     model_type = _canonical_name(model_type)
-    if model_type == "neural":
-        return NeuralNetModelConfig(
+    if model_type == "mlp":
+        return MLPModelConfig(
             hidden_dim=problem_config.hidden_dim,
             num_layers=problem_config.num_layers,
             output_heads={"u": 1},
@@ -79,16 +79,16 @@ def get_pinn_model_config(
             input_dim=2
         )
 
-    raise ValueError("Requested model type must be neural or kan.")
+    raise ValueError("Requested model type must be mlp or kan.")
 
 
 def get_sls_model_config(
     problem_config: ProblemConfig,
-    model_type: str = "neural",
+    model_type: str = "mlp",
 ) -> AnyModelConfig:
     pinn_model = get_pinn_model_config(problem_config, model_type=model_type)
-    if model_type == "neural":
-        return NeuralNetModelConfig(
+    if model_type == "mlp":
+        return MLPModelConfig(
             hidden_dim=pinn_model.hidden_dim,
             num_layers=pinn_model.num_layers,
             output_heads={"v": 1, "sigma": 1},
@@ -102,12 +102,12 @@ def get_sls_model_config(
             input_dim=pinn_model.input_dim,
         )
 
-    raise ValueError("Requested model type must be neural or kan.")
+    raise ValueError("Requested model type must be mlp or kan.")
 
 
 def get_pinn_config(
     problem_config: ProblemConfig,
-    model_type: str = "neural",
+    model_type: str = "mlp",
 ) -> PINNConfig:
     return PINNConfig(
         model=get_pinn_model_config(problem_config, model_type=model_type),
@@ -127,7 +127,7 @@ def get_pinn_config(
 
 def get_sls_config(
     problem_config: ProblemConfig,
-    model_type: str = "neural",
+    model_type: str = "mlp",
 ) -> SLSConfig:
     return SLSConfig(
         model=get_sls_model_config(problem_config, model_type=model_type),
@@ -157,7 +157,7 @@ def get_experiment_combination(
     model_name = _canonical_name(model)
 
     _ensure_supported("method", [method_name], {"pinn", "sls"})
-    _ensure_supported("model", [model_name], {"neural", "kan"})
+    _ensure_supported("model", [model_name], {"mlp", "kan"})
 
     label = f"{method_name.upper()}-{model_name.upper()}"
     if method_name == "pinn":
@@ -180,7 +180,7 @@ def get_experiment_combination(
 
 def build_experiment_combinations(problem_config: ProblemConfig) -> list[ExperimentCombination]:
     supported_methods = {"pinn", "sls"}
-    supported_models = {"neural", "kan"}
+    supported_models = {"mlp", "kan"}
 
     selected_methods = _ensure_supported("method", problem_config.methods, supported_methods)
     selected_models = _ensure_supported("model", problem_config.models, supported_models)

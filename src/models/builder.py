@@ -2,7 +2,7 @@ from dataclasses import dataclass, field, replace
 from typing import Literal, TypeAlias, Mapping, Protocol, Any, cast
 from typing_extensions import runtime_checkable
 
-from .neuralnet import NeuralNet
+from .mlp import MLP
 from .kan import KANModel
 
 import jax
@@ -10,7 +10,7 @@ import jax.numpy as jnp
 import flax.linen as nn
 
 
-# AnyBuiltModel: TypeAlias = NeuralNet | KANModel
+# AnyBuiltModel: TypeAlias = MLP | KANModel
 
 
 @runtime_checkable
@@ -47,10 +47,10 @@ class BaseModelConfig:
 
 
 @dataclass(frozen=True)
-class NeuralNetModelConfig(BaseModelConfig):
+class MLPModelConfig(BaseModelConfig):
     """Configuration for the built-in fully connected model."""
 
-    kind: Literal["neuralnet"] = "neuralnet"
+    kind: Literal["mlp"] = "mlp"
     hidden_dim: int = 64
     num_layers: int = 4
 
@@ -84,15 +84,15 @@ class KANModelConfig(BaseModelConfig):
         assert self.input_dim > 0, "input_dim must be strictly positive"
 
 
-AnyModelConfig: TypeAlias = NeuralNetModelConfig | KANModelConfig
+AnyModelConfig: TypeAlias = MLPModelConfig | KANModelConfig
 
 
 def build_model(cfg: AnyModelConfig) -> BuiltModelAdapter:
     """Build model from declarative model config."""
-    if isinstance(cfg, NeuralNetModelConfig):
+    if isinstance(cfg, MLPModelConfig):
         cfg.validate()
         return BuiltModelAdapter(
-            NeuralNet(
+            MLP(
                 hidden_dim=cfg.hidden_dim,
                 num_layers=cfg.num_layers,
                 output_heads=cfg.output_heads,

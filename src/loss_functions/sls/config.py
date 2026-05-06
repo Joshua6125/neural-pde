@@ -5,7 +5,7 @@ from typing import Callable, Literal
 
 import jax.numpy as jnp
 
-from ...models import AnyModelConfig, NeuralNetModelConfig
+from ...models import AnyModelConfig, MLPModelConfig
 from ..base import AlgorithmConfig
 
 
@@ -16,7 +16,7 @@ class SLSConfig(AlgorithmConfig):
     Combines model architecture and PDE parameters into a single configuration.
     """
     kind: Literal["sls"] = "sls"
-    model: AnyModelConfig = field(default_factory=NeuralNetModelConfig)
+    model: AnyModelConfig = field(default_factory=MLPModelConfig)
     f: float | Callable[[jnp.ndarray], jnp.ndarray] = 0.0
     g: float | Callable[[jnp.ndarray], jnp.ndarray] = 0.0
     v0: float | Callable[[jnp.ndarray], jnp.ndarray] = 0.0

@@ -3,7 +3,7 @@
 import pytest
 
 from src.loss_functions import SLSConfig
-from src.models import NeuralNetModelConfig
+from src.models import MLPModelConfig
 
 
 pytestmark = pytest.mark.SLS
@@ -17,17 +17,17 @@ class TestSLSConfigInstantiation:
         config = sls_config_default
         assert config is not None
         assert config.kind == "sls"
-        assert isinstance(config.model, NeuralNetModelConfig)
+        assert isinstance(config.model, MLPModelConfig)
 
     def test_kind_is_ls(self):
         """kind field is always 'sls'."""
         config = SLSConfig()
         assert config.kind == "sls"
 
-    def test_model_config_present(self, neuralnet_model_config):
+    def test_model_config_present(self, mlp_model_config):
         """model field can be explicitly provided."""
-        config = SLSConfig(model=neuralnet_model_config)
-        assert config.model is neuralnet_model_config
+        config = SLSConfig(model=mlp_model_config)
+        assert config.model is mlp_model_config
 
     def test_callable_sources_are_stored(self, callable_f_zero, callable_g_zero):
         """Source callables are accepted and stored."""
@@ -95,10 +95,10 @@ class TestSLSConfigImmutability:
 class TestSLSConfigMultipleArgs:
     """Test instantiation with multiple SLSConfig arguments."""
 
-    def test_all_fields_specified(self, neuralnet_model_config, callable_f_zero, callable_g_zero, callable_v0_zero, callable_sigma0_zero, callable_v_boundary_zero):
+    def test_all_fields_specified(self, mlp_model_config, callable_f_zero, callable_g_zero, callable_v0_zero, callable_sigma0_zero, callable_v_boundary_zero):
         """All fields can be specified together."""
         config = SLSConfig(
-            model=neuralnet_model_config,
+            model=mlp_model_config,
             f=callable_f_zero,
             g=callable_g_zero,
             v0=callable_v0_zero,
@@ -106,7 +106,7 @@ class TestSLSConfigMultipleArgs:
             v_boundary=callable_v_boundary_zero,
         )
 
-        assert config.model is neuralnet_model_config
+        assert config.model is mlp_model_config
         assert config.f is callable_f_zero
         assert config.g is callable_g_zero
         assert config.v0 is callable_v0_zero
@@ -125,7 +125,7 @@ class TestSLSConfigMultipleArgs:
 
     def test_custom_model_config_is_supported(self):
         """Custom model config instances are supported."""
-        model_config = NeuralNetModelConfig(
+        model_config = MLPModelConfig(
             hidden_dim=16,
             num_layers=3,
             output_heads={"v": 1, "sigma": 1},

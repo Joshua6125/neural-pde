@@ -9,7 +9,7 @@ from jaxkan.models.KAN import KAN
 class KANModel(nn.Module):
     """Linen-compatible wrapper around jaxKAN's NNX KAN model.
 
-    The public behaviour matches ``NeuralNet``:
+    The public behaviour matches ``MLP``:
     - ``model.init(key, x)`` returns Linen variables
     - ``model.apply(variables, x)`` returns ``dict[str, jnp.ndarray]``
     """

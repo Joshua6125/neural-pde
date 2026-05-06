@@ -10,7 +10,7 @@ import pytest
 
 from src.integration import NDCubeIntegration
 from src.loss_functions import SLS, SLSConfig, PINN, PINNConfig
-from src.models import NeuralNetModelConfig, build_model
+from src.models import MLPModelConfig, build_model
 from src.train import TrainConfig, TrainingMethod
 
 
@@ -182,7 +182,7 @@ def callback_recorder():
 def real_pinn_method():
     """Real PINN method with a lightweight neural network model."""
     cfg = PINNConfig(
-        model=NeuralNetModelConfig(hidden_dim=8, num_layers=2, output_heads={"u": 1}),
+        model=MLPModelConfig(hidden_dim=8, num_layers=2, output_heads={"u": 1}),
         c=1.0,
         f=0.0,
         u0=0.0,
@@ -198,7 +198,7 @@ def real_pinn_method():
 def real_sls_method():
     """Real SLS method with a lightweight neural network model."""
     cfg = SLSConfig(
-        model=NeuralNetModelConfig(hidden_dim=8, num_layers=2, output_heads={"v": 1, "sigma": 1}),
+        model=MLPModelConfig(hidden_dim=8, num_layers=2, output_heads={"v": 1, "sigma": 1}),
         f=0.0,
         g=0.0,
         v0=0.0,

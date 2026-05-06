@@ -4,7 +4,7 @@ import flax.linen as nn
 import jax.numpy as jnp
 
 
-class NeuralNet(nn.Module):
+class MLP(nn.Module):
     """Simple fully-connected network used across methods.
 
     Parameters
