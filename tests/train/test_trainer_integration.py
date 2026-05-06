@@ -18,7 +18,7 @@ class TestTrainerWithRealPINN:
         integrator = get_integrator(
             QuadratureConfig(dim=2, x_min=0.0, x_max=1.0, degree=4, adaptive_integration=False)
         )
-        cfg = TrainConfig(epochs=2, learning_rate=1e-3, optimiser="adam", seed=0, log_every=1, use_jit=False)
+        cfg = TrainConfig(epochs=2, learning_rate=optax.constant_schedule(1e-3), optimiser="adam", seed=0, log_every=1, use_jit=False)
         optimiser = optax.adam(cfg.learning_rate)
 
         trainer = Trainer(method=real_pinn_method, integrator=integrator, optimiser=optimiser, train_cfg=cfg)
@@ -29,24 +29,24 @@ class TestTrainerWithRealPINN:
         assert all(jnp.isfinite(jnp.asarray(metric.total_loss)) for metric in history)
 
 
-class TestTrainerWithRealLS:
-    """Trainer integration checks with real LS method."""
+class TestTrainerWithRealSLS:
+    """Trainer integration checks with real SLS method."""
 
-    def test_fit_runs_with_quadrature_integrator(self, real_ls_method, sample_input_vector_2d):
+    def test_fit_runs_with_quadrature_integrator(self, real_sls_method, sample_input_vector_2d):
         integrator = get_integrator(
             QuadratureConfig(dim=2, x_min=0.0, x_max=1.0, degree=3, adaptive_integration=False)
         )
-        cfg = TrainConfig(epochs=2, learning_rate=1e-3, optimiser="adamw", seed=1, log_every=1, use_jit=False)
+        cfg = TrainConfig(epochs=2, learning_rate=optax.constant_schedule(1e-3), optimiser="adamw", seed=1, log_every=1, use_jit=False)
         optimiser = optax.adamw(cfg.learning_rate)
 
-        trainer = Trainer(method=real_ls_method, integrator=integrator, optimiser=optimiser, train_cfg=cfg)
+        trainer = Trainer(method=real_sls_method, integrator=integrator, optimiser=optimiser, train_cfg=cfg)
         state, history = trainer.fit(sample_input=sample_input_vector_2d)
 
         assert state.step == cfg.epochs
         assert len(history) == cfg.epochs
         assert all(jnp.isfinite(jnp.asarray(metric.interior_loss)) for metric in history)
 
-    def test_fit_runs_with_monte_carlo_integrator_and_advances_key(self, real_ls_method, sample_input_vector_2d):
+    def test_fit_runs_with_monte_carlo_integrator_and_advances_key(self, real_sls_method, sample_input_vector_2d):
         integrator = get_integrator(
             MonteCarloConfig(
                 dim=2,
@@ -59,7 +59,7 @@ class TestTrainerWithRealLS:
         )
         cfg = TrainConfig(
             epochs=2,
-            learning_rate=1e-3,
+            learning_rate=optax.constant_schedule(1e-3),
             optimiser="sgd",
             seed=11,
             integration_seed=29,
@@ -67,7 +67,7 @@ class TestTrainerWithRealLS:
             use_jit=False,
         )
         trainer = Trainer(
-            method=real_ls_method,
+            method=real_sls_method,
             integrator=integrator,
             optimiser=optax.sgd(cfg.learning_rate),
             train_cfg=cfg,
@@ -99,7 +99,7 @@ class TestTrainerIntegrationHistorySemantics:
         )
         cfg = TrainConfig(
             epochs=epochs,
-            learning_rate=5e-4,
+            learning_rate=optax.constant_schedule(5e-4),
             optimiser="adam",
             seed=0,
             log_every=log_every,

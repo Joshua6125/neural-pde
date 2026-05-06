@@ -1,16 +1,16 @@
-"""Tests for LSLoss (loss computation)."""
+"""Tests for SLSLoss (loss computation)."""
 
 import jax.numpy as jnp
 import pytest
 
-from src.loss_functions import LSLoss
+from src.loss_functions import SLSLoss
 
 
-pytestmark = pytest.mark.LS
+pytestmark = pytest.mark.SLS
 
 
-class TestLSLossInitialisation:
-    """Test LSLoss initialisation."""
+class TestSLSLossInitialisation:
+    """Test SLSLoss initialisation."""
 
     def test_init_with_required_args(self):
         """Can initialise with required args: v_model and sigma_model."""
@@ -20,7 +20,7 @@ class TestLSLossInitialisation:
         def sigma_fn(x):
             return x[1:]
 
-        loss = LSLoss(v_model=v_fn, sigma_model=sigma_fn)
+        loss = SLSLoss(v_model=v_fn, sigma_model=sigma_fn)
         assert loss.v_model is v_fn
         assert loss.sigma_model is sigma_fn
 
@@ -32,7 +32,7 @@ class TestLSLossInitialisation:
         def sigma_fn(x):
             return x[1:]
 
-        loss = LSLoss(v_model=v_fn, sigma_model=sigma_fn, f=callable_f_zero, g=callable_g_zero)
+        loss = SLSLoss(v_model=v_fn, sigma_model=sigma_fn, f=callable_f_zero, g=callable_g_zero)
         assert loss.f is callable_f_zero
         assert loss.g is callable_g_zero
 
@@ -44,7 +44,7 @@ class TestLSLossInitialisation:
         def sigma_fn(x):
             return x[1:]
 
-        loss = LSLoss(v_model=v_fn, sigma_model=sigma_fn, v0=callable_v0_zero, sigma0=callable_sigma0_zero)
+        loss = SLSLoss(v_model=v_fn, sigma_model=sigma_fn, v0=callable_v0_zero, sigma0=callable_sigma0_zero)
         assert loss.v0 is callable_v0_zero
         assert loss.sigma0 is callable_sigma0_zero
 
@@ -56,7 +56,7 @@ class TestLSLossInitialisation:
         def sigma_fn(x):
             return x[1:]
 
-        loss = LSLoss(v_model=v_fn, sigma_model=sigma_fn, v_boundary=callable_v_boundary_zero)
+        loss = SLSLoss(v_model=v_fn, sigma_model=sigma_fn, v_boundary=callable_v_boundary_zero)
         assert loss.v_boundary is callable_v_boundary_zero
 
     def test_init_prints_warning_when_boundary_set(self, callable_v_boundary_zero, capsys):
@@ -67,12 +67,12 @@ class TestLSLossInitialisation:
         def sigma_fn(x):
             return x[1:]
 
-        LSLoss(v_model=v_fn, sigma_model=sigma_fn, v_boundary=callable_v_boundary_zero)
+        SLSLoss(v_model=v_fn, sigma_model=sigma_fn, v_boundary=callable_v_boundary_zero)
         captured = capsys.readouterr()
         assert "WARNING" in captured.out
 
 
-class TestLSLossVMethod:
+class TestSLSLossVMethod:
     """Test _v method (velocity field output)."""
 
     def test_v_returns_scalar(self):
@@ -83,7 +83,7 @@ class TestLSLossVMethod:
         def sigma_fn(x):
             return x[1:]
 
-        loss = LSLoss(v_model=v_fn, sigma_model=sigma_fn)
+        loss = SLSLoss(v_model=v_fn, sigma_model=sigma_fn)
         result = loss._v(jnp.array([0.5, 0.25]))
         assert jnp.asarray(result).shape == ()
 
@@ -95,12 +95,12 @@ class TestLSLossVMethod:
         def sigma_fn(x):
             return x[1:]
 
-        loss = LSLoss(v_model=v_fn, sigma_model=sigma_fn)
+        loss = SLSLoss(v_model=v_fn, sigma_model=sigma_fn)
         result = loss._v(jnp.array([0.5, 0.25]))
         assert jnp.asarray(result).shape == ()
 
 
-class TestLSLossSigmaMethod:
+class TestSLSLossSigmaMethod:
     """Test _sigma method (stress/flux output)."""
 
     def test_sigma_flattens_vector_output(self):
@@ -111,7 +111,7 @@ class TestLSLossSigmaMethod:
         def sigma_fn(x):
             return jnp.asarray([[x[1]]])
 
-        loss = LSLoss(v_model=v_fn, sigma_model=sigma_fn)
+        loss = SLSLoss(v_model=v_fn, sigma_model=sigma_fn)
         result = loss._sigma(jnp.array([0.5, 0.25]))
         assert result.shape == (1,)
 
@@ -123,12 +123,12 @@ class TestLSLossSigmaMethod:
         def sigma_fn(x):
             return jnp.asarray([x[1], x[1] / 2.0])
 
-        loss = LSLoss(v_model=v_fn, sigma_model=sigma_fn)
+        loss = SLSLoss(v_model=v_fn, sigma_model=sigma_fn)
         result = loss._sigma(jnp.array([0.5, 0.25, 0.75]))
         assert result.shape == (2,)
 
 
-class TestLSLossInteriorResidual:
+class TestSLSLossInteriorResidual:
     """Test _interior_residual (first-order acoustic system residual)."""
 
     def test_interior_residual_zero_for_exact_1d_solution(self):
@@ -139,7 +139,7 @@ class TestLSLossInteriorResidual:
         def sigma_fn(x):
             return jnp.asarray([x[1]])
 
-        loss = LSLoss(v_model=v_fn, sigma_model=sigma_fn, f=0.0, )
+        loss = SLSLoss(v_model=v_fn, sigma_model=sigma_fn, f=0.0, )
         residual = loss._interior_residual(jnp.array([0.5, 0.25]))
         assert jnp.allclose(residual, 0.0, atol=1e-8)
 
@@ -151,7 +151,7 @@ class TestLSLossInteriorResidual:
         def sigma_fn(x):
             return jnp.asarray([x[1] / 2.0, x[2] / 2.0])
 
-        loss = LSLoss(v_model=v_fn, sigma_model=sigma_fn)
+        loss = SLSLoss(v_model=v_fn, sigma_model=sigma_fn)
         residual = loss._interior_residual(jnp.array([0.5, 0.25, 0.75]))
         assert jnp.allclose(residual, 0.0, atol=1e-8)
 
@@ -169,7 +169,7 @@ class TestLSLossInteriorResidual:
         def g_fn(x: jnp.ndarray) -> jnp.ndarray:
             return jnp.asarray(1.0)
 
-        loss = LSLoss(v_model=v_fn, sigma_model=sigma_fn, f=f_fn, g=g_fn)
+        loss = SLSLoss(v_model=v_fn, sigma_model=sigma_fn, f=f_fn, g=g_fn)
         residual = loss._interior_residual(jnp.array([0.5, 0.25]))
         assert jnp.allclose(residual, 2.0, atol=1e-8)
 
@@ -181,7 +181,7 @@ class TestLSLossInteriorResidual:
         def sigma_fn(x):
             return jnp.asarray(0.0)
 
-        loss = LSLoss(v_model=v_fn, sigma_model=sigma_fn, f=0.0, g=0.0)
+        loss = SLSLoss(v_model=v_fn, sigma_model=sigma_fn, f=0.0, g=0.0)
         residual = loss._interior_residual(jnp.array([0.5, 0.25]))
         assert jnp.allclose(residual, 0.0, atol=1e-8)
 
@@ -193,7 +193,7 @@ class TestLSLossInteriorResidual:
         def sigma_fn(x):
             return jnp.asarray([x[1]])
 
-        loss = LSLoss(v_model=v_fn, sigma_model=sigma_fn)
+        loss = SLSLoss(v_model=v_fn, sigma_model=sigma_fn)
         points = jnp.array([
             [0.2, 0.1],
             [0.5, 0.3],
@@ -204,7 +204,7 @@ class TestLSLossInteriorResidual:
         assert jnp.allclose(residuals, 0.0, atol=1e-8)
 
 
-class TestLSLossICResidual:
+class TestSLSLossICResidual:
     """Test _ic_residual (initial condition residual)."""
 
     def test_ic_residual_zero_when_conditions_match(self, callable_v0_linear, callable_sigma0_linear):
@@ -215,7 +215,7 @@ class TestLSLossICResidual:
         def sigma_fn(x):
             return jnp.asarray([x[1]])
 
-        loss = LSLoss(v_model=v_fn, sigma_model=sigma_fn, v0=callable_v0_linear, sigma0=callable_sigma0_linear)
+        loss = SLSLoss(v_model=v_fn, sigma_model=sigma_fn, v0=callable_v0_linear, sigma0=callable_sigma0_linear)
         residual = loss._ic_residual(jnp.array([0.0, 0.5]))
         assert jnp.allclose(residual, 0.0, atol=1e-8)
 
@@ -227,7 +227,7 @@ class TestLSLossICResidual:
         def sigma_fn(x):
             return jnp.asarray([x[1]])
 
-        loss = LSLoss(v_model=v_fn, sigma_model=sigma_fn)
+        loss = SLSLoss(v_model=v_fn, sigma_model=sigma_fn)
         residual = loss._ic_residual(jnp.array([0.0, 0.5]))
         assert jnp.allclose(residual, 0.5, atol=1e-8)
 
@@ -239,7 +239,7 @@ class TestLSLossICResidual:
         def sigma_fn(x):
             return jnp.asarray(1.0)
 
-        loss = LSLoss(v_model=v_fn, sigma_model=sigma_fn, v0=callable_v0_zero)
+        loss = SLSLoss(v_model=v_fn, sigma_model=sigma_fn, v0=callable_v0_zero)
         residual = loss._ic_residual(jnp.array([0.0, 0.5]))
         assert jnp.allclose(residual, 2.0, atol=1e-8)
 
@@ -251,12 +251,12 @@ class TestLSLossICResidual:
         def sigma_fn(x):
             return jnp.asarray(1.0)
 
-        loss = LSLoss(v_model=v_fn, sigma_model=sigma_fn, sigma0=callable_sigma0_zero)
+        loss = SLSLoss(v_model=v_fn, sigma_model=sigma_fn, sigma0=callable_sigma0_zero)
         residual = loss._ic_residual(jnp.array([0.0, 0.5]))
         assert jnp.allclose(residual, 2.0, atol=1e-8)
 
 
-class TestLSLossSpatialBCResidual:
+class TestSLSLossSpatialBCResidual:
     """Test _spatial_bc_residual (Dirichlet boundary residual)."""
 
     def test_spatial_bc_residual_returns_zero_without_boundary_callable(self):
@@ -267,7 +267,7 @@ class TestLSLossSpatialBCResidual:
         def sigma_fn(x):
             return jnp.asarray(0.0)
 
-        loss = LSLoss(v_model=v_fn, sigma_model=sigma_fn)
+        loss = SLSLoss(v_model=v_fn, sigma_model=sigma_fn)
         residual = loss._spatial_bc_residual(jnp.array([0.2, 0.0]))
         print(residual)
         assert jnp.allclose(residual, 4.0, atol=1e-8)
@@ -280,12 +280,12 @@ class TestLSLossSpatialBCResidual:
         def sigma_fn(x):
             return jnp.asarray(0.0)
 
-        loss = LSLoss(v_model=v_fn, sigma_model=sigma_fn, v_boundary=callable_v_boundary_zero)
+        loss = SLSLoss(v_model=v_fn, sigma_model=sigma_fn, v_boundary=callable_v_boundary_zero)
         residual = loss._spatial_bc_residual(jnp.array([0.2, 0.0]))
         assert jnp.allclose(residual, 4.0, atol=1e-8)
 
 
-class TestLSLossBoundaryLoss:
+class TestSLSLossBoundaryLoss:
     """Test loss_boundary (IC vs BC routing)."""
 
     def test_boundary_loss_routes_ic_points(self, callable_v0_linear, callable_sigma0_linear):
@@ -296,7 +296,7 @@ class TestLSLossBoundaryLoss:
         def sigma_fn(x):
             return jnp.asarray([x[1]])
 
-        loss = LSLoss(v_model=v_fn, sigma_model=sigma_fn, v0=callable_v0_linear, sigma0=callable_sigma0_linear)
+        loss = SLSLoss(v_model=v_fn, sigma_model=sigma_fn, v0=callable_v0_linear, sigma0=callable_sigma0_linear)
         points = jnp.array([[0.0, 0.5]])
         normals = jnp.array([[-1.0, 0.0]])
         residuals = loss.loss_boundary(points, normals)
@@ -311,7 +311,7 @@ class TestLSLossBoundaryLoss:
         def sigma_fn(x):
             return jnp.asarray(0.0)
 
-        loss = LSLoss(v_model=v_fn, sigma_model=sigma_fn, v_boundary=callable_v_boundary_zero)
+        loss = SLSLoss(v_model=v_fn, sigma_model=sigma_fn, v_boundary=callable_v_boundary_zero)
         points = jnp.array([[0.2, 0.0]])
         normals = jnp.array([[0.0, 1.0]])
         residuals = loss.loss_boundary(points, normals)
@@ -326,7 +326,7 @@ class TestLSLossBoundaryLoss:
         def sigma_fn(x):
             return jnp.asarray(0.0)
 
-        loss = LSLoss(v_model=v_fn, sigma_model=sigma_fn)
+        loss = SLSLoss(v_model=v_fn, sigma_model=sigma_fn)
         points = jnp.array([[0.5, 0.5]])
         normals = jnp.array([[1.0, 0.0]])
         residuals = loss.loss_boundary(points, normals)
@@ -340,7 +340,7 @@ class TestLSLossBoundaryLoss:
         def sigma_fn(x):
             return jnp.asarray([x[1]])
 
-        loss = LSLoss(
+        loss = SLSLoss(
             v_model=v_fn,
             sigma_model=sigma_fn,
             v0=callable_v0_linear,
@@ -364,7 +364,7 @@ class TestLSLossBoundaryLoss:
         assert jnp.allclose(residuals[2], 0.0, atol=1e-8)
 
 
-class TestLSLossInterface:
+class TestSLSLossInterface:
     """Test loss_functions() interface."""
 
     def test_loss_functions_returns_tuple(self):
@@ -375,7 +375,7 @@ class TestLSLossInterface:
         def sigma_fn(x):
             return x[1:]
 
-        loss = LSLoss(v_model=v_fn, sigma_model=sigma_fn)
+        loss = SLSLoss(v_model=v_fn, sigma_model=sigma_fn)
         result = loss.loss_functions()
         assert isinstance(result, tuple)
         assert len(result) == 2
@@ -388,7 +388,7 @@ class TestLSLossInterface:
         def sigma_fn(x):
             return x[1:]
 
-        loss = LSLoss(v_model=v_fn, sigma_model=sigma_fn)
+        loss = SLSLoss(v_model=v_fn, sigma_model=sigma_fn)
         interior_loss_fn, boundary_loss_fn = loss.loss_functions()
         assert callable(interior_loss_fn)
         assert callable(boundary_loss_fn)
@@ -401,13 +401,13 @@ class TestLSLossInterface:
         def sigma_fn(x):
             return x[1:]
 
-        loss = LSLoss(v_model=v_fn, sigma_model=sigma_fn)
+        loss = SLSLoss(v_model=v_fn, sigma_model=sigma_fn)
         interior_loss_fn, boundary_loss_fn = loss.loss_functions()
-        assert interior_loss_fn.__func__ is LSLoss.loss_interior
-        assert boundary_loss_fn.__func__ is LSLoss.loss_boundary
+        assert interior_loss_fn.__func__ is SLSLoss.loss_interior
+        assert boundary_loss_fn.__func__ is SLSLoss.loss_boundary
 
 
-class TestLSLossDimensionHandling:
+class TestSLSLossDimensionHandling:
     """Test dimension handling for 1D and 2D spatial cases."""
 
     def test_1d_spatial_interior_point(self):
@@ -418,7 +418,7 @@ class TestLSLossDimensionHandling:
         def sigma_fn(x):
             return jnp.asarray([x[1]])
 
-        loss = LSLoss(v_model=v_fn, sigma_model=sigma_fn)
+        loss = SLSLoss(v_model=v_fn, sigma_model=sigma_fn)
         residual = loss._interior_residual(jnp.array([0.5, 0.25]))
         assert jnp.allclose(residual, 0.0, atol=1e-8)
 
@@ -430,6 +430,6 @@ class TestLSLossDimensionHandling:
         def sigma_fn(x):
             return jnp.asarray([x[1] / 2.0, x[2] / 2.0])
 
-        loss = LSLoss(v_model=v_fn, sigma_model=sigma_fn)
+        loss = SLSLoss(v_model=v_fn, sigma_model=sigma_fn)
         residual = loss._interior_residual(jnp.array([0.5, 0.25, 0.75]))
         assert jnp.allclose(residual, 0.0, atol=1e-8)

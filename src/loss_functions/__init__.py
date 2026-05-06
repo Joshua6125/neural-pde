@@ -10,13 +10,13 @@ from typing import TypeAlias
 
 from .base import AlgorithmConfig, Loss
 from .pinn import PINN, PINNConfig, PINNLoss
-from .ls import LS, LSConfig, LSLoss
+from .sls import SLS, SLSConfig, SLSLoss
 
 from ..models import BuiltModelProtocol
 
 
-AlgorithmConfigType: TypeAlias = PINNConfig | LSConfig
-LossAlgorithm: TypeAlias = PINN | LS
+AlgorithmConfigType: TypeAlias = PINNConfig | SLSConfig
+LossAlgorithm: TypeAlias = PINN | SLS
 
 
 def build_algorithm(config: AlgorithmConfig, model: BuiltModelProtocol) -> LossAlgorithm:
@@ -28,7 +28,7 @@ def build_algorithm(config: AlgorithmConfig, model: BuiltModelProtocol) -> LossA
     Parameters
     ----------
     config : AlgorithmConfig
-        Algorithm configuration (PINNConfig, LSConfig, etc.)
+        Algorithm configuration (PINNConfig, SLSConfig, etc.)
     model : BuiltModelProtocol
         Already-built neural network model from build_model()
 
@@ -44,8 +44,8 @@ def build_algorithm(config: AlgorithmConfig, model: BuiltModelProtocol) -> LossA
     """
     if isinstance(config, PINNConfig):
         return PINN(model=model, config=config)
-    elif isinstance(config, LSConfig):
-        return LS(model=model, config=config)
+    elif isinstance(config, SLSConfig):
+        return SLS(model=model, config=config)
     else:
         raise ValueError(f"Unknown algorithm config type: {type(config).__name__}")
 
@@ -58,10 +58,10 @@ __all__ = [
     "PINN",
     "PINNConfig",
     "PINNLoss",
-    # LS
-    "LS",
-    "LSConfig",
-    "LSLoss",
+    # SLS
+    "SLS",
+    "SLSConfig",
+    "SLSLoss",
     # Factory
     "build_algorithm",
     # Type alias

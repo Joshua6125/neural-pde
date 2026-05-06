@@ -2,7 +2,7 @@
 
 Test modules:
     - test_PINN: PINN loss tests
-    - test_LS: Least Squares loss tests
+    - test_SLS: Least Squares loss tests
 
 Run with:
     pytest tests/losses/

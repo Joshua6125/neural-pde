@@ -110,7 +110,7 @@ def plot_convergence(
 
     plt.xlabel("Epoch", fontsize=12)
     plt.ylabel("Loss", fontsize=12)
-    plt.title("Training Convergence: PINN vs LS", fontsize=14)
+    plt.title("Training Convergence: PINN vs SLS", fontsize=14)
     plt.grid(True, alpha=0.3)
     plt.legend(fontsize=10)
     plt.yscale("log")
@@ -244,7 +244,7 @@ def reconstruct_u_from_v(
     test_points: np.ndarray,
     v_pred: np.ndarray,
 ) -> np.ndarray:
-    """Reconstruct displacement u(t,x) from LS-predicted v = ∂u/∂t.
+    """Reconstruct displacement u(t,x) from SLS-predicted v = ∂u/∂t.
 
     Uses cumulative trapezoidal integration in time at fixed x, with u(0,x)=0.
     """

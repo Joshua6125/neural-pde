@@ -30,7 +30,7 @@ def run_training(
     Parameters
     ----------
     algorithm_cfg : AlgorithmConfig
-        Algorithm configuration (PINNConfig, LSConfig, etc.)
+        Algorithm configuration (PINNConfig, SLSConfig, etc.)
         Bundles model architecture and PDE parameters.
     integration_cfg : IntegrationConfig
         Integration configuration (quadrature, Monte Carlo, etc.)

@@ -5,17 +5,17 @@ import jax.numpy as jnp
 
 from ...models import BuiltModelProtocol
 from ...train import TrainingMethod
-from .loss import LSLoss
-from .config import LSConfig
+from .loss import SLSLoss
+from .config import SLSConfig
 
 
-class LS(TrainingMethod):
+class SLS(TrainingMethod):
     """Least-Squares training algorithm."""
 
     def __init__(
         self,
         model: BuiltModelProtocol,
-        config: LSConfig,
+        config: SLSConfig,
     ):
         self.model = model
         self.config = config
@@ -27,20 +27,20 @@ class LS(TrainingMethod):
         # Validate model output structure
         outputs = self.model.apply(params, sample_input)
         if not isinstance(outputs, dict):
-            raise ValueError("LS model must return dict with 'v' and 'sigma' keys")
+            raise ValueError("SLS model must return dict with 'v' and 'sigma' keys")
         if "v" not in outputs or "sigma" not in outputs:
-            raise ValueError("LS model must return dict with 'v' and 'sigma' keys")
+            raise ValueError("SLS model must return dict with 'v' and 'sigma' keys")
 
         v_sample = outputs["v"]
         sigma_sample = outputs["sigma"]
 
         if jnp.asarray(v_sample).reshape(-1).shape[0] != 1:
-            raise ValueError("LS model 'v' output must be scalar")
+            raise ValueError("SLS model 'v' output must be scalar")
 
         expected_sigma_dim = max(sample_input.shape[-1] - 1, 1)
         if jnp.asarray(sigma_sample).reshape(-1).shape[0] != expected_sigma_dim:
             raise ValueError(
-                f"LS model 'sigma' must output {expected_sigma_dim} values for input shape "
+                f"SLS model 'sigma' must output {expected_sigma_dim} values for input shape "
                 f"{tuple(sample_input.shape)}"
             )
 
@@ -48,16 +48,16 @@ class LS(TrainingMethod):
 
     def loss_functions(self, params):
         """Create loss functions for current parameters."""
-        def ls_apply(x: jnp.ndarray) -> dict[str, jnp.ndarray]:
+        def sls_apply(x: jnp.ndarray) -> dict[str, jnp.ndarray]:
             return self.model.apply(params, x)
 
         def v_apply(x: jnp.ndarray) -> jnp.ndarray:
-            return ls_apply(x)["v"]
+            return sls_apply(x)["v"]
 
         def sigma_apply(x: jnp.ndarray) -> jnp.ndarray:
-            return ls_apply(x)["sigma"]
+            return sls_apply(x)["sigma"]
 
-        loss = LSLoss(
+        loss = SLSLoss(
             v_model=v_apply,
             sigma_model=sigma_apply,
             f=self.config.f,

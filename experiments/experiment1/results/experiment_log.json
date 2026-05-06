@@ -6,7 +6,7 @@
     "wave_speed": 1.0,
     "methods": [
       "pinn",
-      "ls"
+      "sls"
     ],
     "models": [
       "neural",
@@ -25,13 +25,13 @@
       "model": "kan"
     },
     {
-      "label": "LS-NEURAL",
-      "method": "ls",
+      "label": "SLS-NEURAL",
+      "method": "sls",
       "model": "neural"
     },
     {
-      "label": "LS-KAN",
-      "method": "ls",
+      "label": "SLS-KAN",
+      "method": "sls",
       "model": "kan"
     }
   ],
@@ -43,8 +43,8 @@
     "combinations_elapsed_time_seconds": {
       "PINN-NEURAL": 220.99458169937134,
       "PINN-KAN": 586.8948910236359,
-      "LS-NEURAL": 170.297016620636,
-      "LS-KAN": 331.66270327568054
+      "SLS-NEURAL": 170.297016620636,
+      "SLS-KAN": 331.66270327568054
     }
   },
   "integration": {
@@ -82,7 +82,7 @@
         "best_loss": 0.00015385178267024457,
         "best_loss_epoch": 99201
       },
-      "LS-NEURAL": {
+      "SLS-NEURAL": {
         "l2_error": 0.0010295193269143853,
         "max_error": 0.002265453338623047,
         "mean_abs_error": 0.000793627854833121,
@@ -96,7 +96,7 @@
         "best_loss": 4.4280233851168305e-05,
         "best_loss_epoch": 98251
       },
-      "LS-KAN": {
+      "SLS-KAN": {
         "l2_error": 0.0009939789540923066,
         "max_error": 0.0021572113037109375,
         "mean_abs_error": 0.0007735493379074109,
@@ -117,8 +117,8 @@
     "loss_decreasing": {
       "PINN-NEURAL": true,
       "PINN-KAN": true,
-      "LS-NEURAL": true,
-      "LS-KAN": true
+      "SLS-NEURAL": true,
+      "SLS-KAN": true
     }
   },
   "output_files": [
@@ -130,7 +130,7 @@
     "results/artifacts/training_history.pkl",
     "results/artifacts/pinn_neural_params.msgpack",
     "results/artifacts/pinn_kan_params.msgpack",
-    "results/artifacts/ls_neural_params.msgpack",
-    "results/artifacts/ls_kan_params.msgpack"
+    "results/artifacts/sls_neural_params.msgpack",
+    "results/artifacts/sls_kan_params.msgpack"
   ]
 }

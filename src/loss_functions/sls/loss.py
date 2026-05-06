@@ -8,7 +8,7 @@ import jax.numpy as jnp
 from ..base import Loss
 
 
-class LSLoss(Loss):
+class SLSLoss(Loss):
     """Least-squares loss for the first-order acoustic wave system.
 
     Points x have shape [d+1] with x[0] = t (time) and x[1:] spatial.
@@ -47,7 +47,7 @@ class LSLoss(Loss):
         self.sigma0 = sigma0
         self.v_boundary = v_boundary
         if not self.v_boundary == 0.0:
-            print("WARNING: LS formulation is only proven for Dirichlet boundary conditions")
+            print("WARNING: SLS formulation is only proven for Dirichlet boundary conditions")
 
         self._f_fn = f if callable(f) else self._constant_function(f)
         self._g_fn = g if callable(g) else self._constant_function(g)

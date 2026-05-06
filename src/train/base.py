@@ -14,7 +14,7 @@ class TrainingMethod(ABC):
     - Initialize model parameters
     - Create loss functions for a given set of parameters
 
-    This interface is implemented by all algorithms (PINN, LS, etc.)
+    This interface is implemented by all algorithms (PINN, SLS, etc.)
     """
 
     @abstractmethod

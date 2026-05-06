@@ -1,4 +1,4 @@
-"""Pytest fixtures for LS module tests.
+"""Pytest fixtures for SLS module tests.
 
 Provides mock models, callable fixtures, and test data points.
 """
@@ -16,8 +16,8 @@ from src.models import NeuralNetModelConfig
 # MOCK NEURAL NETWORK MODELS
 # ============================================================================
 
-class MockLSModelValid:
-    """Mock LS model with a valid output contract."""
+class MockSLSModelValid:
+    """Mock SLS model with a valid output contract."""
 
     def init(self, rng_key: jax.Array, x: jnp.ndarray) -> Any:
         return {"dummy": 0}
@@ -30,8 +30,8 @@ class MockLSModelValid:
         }
 
 
-class MockLSModelVectorV:
-    """Mock LS model with vector-shaped v output of length 1."""
+class MockSLSModelVectorV:
+    """Mock SLS model with vector-shaped v output of length 1."""
 
     def init(self, rng_key: jax.Array, x: jnp.ndarray) -> Any:
         return {"dummy": 0}
@@ -44,8 +44,8 @@ class MockLSModelVectorV:
         }
 
 
-class MockLSModelNotDict:
-    """Mock LS model returning a non-dict output."""
+class MockSLSModelNotDict:
+    """Mock SLS model returning a non-dict output."""
 
     def init(self, rng_key: jax.Array, x: jnp.ndarray) -> Any:
         return {"dummy": 0}
@@ -54,8 +54,8 @@ class MockLSModelNotDict:
         return jnp.asarray([x[0], x[0]])
 
 
-class MockLSModelMissingV:
-    """Mock LS model missing the v output."""
+class MockSLSModelMissingV:
+    """Mock SLS model missing the v output."""
 
     def init(self, rng_key: jax.Array, x: jnp.ndarray) -> Any:
         return {"dummy": 0}
@@ -65,8 +65,8 @@ class MockLSModelMissingV:
         return {"sigma": x[1:] / spatial_dim}
 
 
-class MockLSModelMissingSigma:
-    """Mock LS model missing the sigma output."""
+class MockSLSModelMissingSigma:
+    """Mock SLS model missing the sigma output."""
 
     def init(self, rng_key: jax.Array, x: jnp.ndarray) -> Any:
         return {"dummy": 0}
@@ -75,8 +75,8 @@ class MockLSModelMissingSigma:
         return {"v": jnp.asarray(x[0])}
 
 
-class MockLSModelBadVShape:
-    """Mock LS model with invalid v output shape."""
+class MockSLSModelBadVShape:
+    """Mock SLS model with invalid v output shape."""
 
     def init(self, rng_key: jax.Array, x: jnp.ndarray) -> Any:
         return {"dummy": 0}
@@ -89,8 +89,8 @@ class MockLSModelBadVShape:
         }
 
 
-class MockLSModelBadSigmaShape:
-    """Mock LS model with invalid sigma output shape for 2D input."""
+class MockSLSModelBadSigmaShape:
+    """Mock SLS model with invalid sigma output shape for 2D input."""
 
     def init(self, rng_key: jax.Array, x: jnp.ndarray) -> Any:
         return {"dummy": 0}
@@ -104,44 +104,44 @@ class MockLSModelBadSigmaShape:
 
 @pytest.fixture
 def mock_model_valid():
-    """Mock LS model with valid scalar v and vector sigma outputs."""
-    return MockLSModelValid()
+    """Mock SLS model with valid scalar v and vector sigma outputs."""
+    return MockSLSModelValid()
 
 
 @pytest.fixture
 def mock_model_vector_v():
-    """Mock LS model with v output shaped as length-1 vector."""
-    return MockLSModelVectorV()
+    """Mock SLS model with v output shaped as length-1 vector."""
+    return MockSLSModelVectorV()
 
 
 @pytest.fixture
 def mock_model_not_dict():
-    """Mock LS model returning a non-dict output."""
-    return MockLSModelNotDict()
+    """Mock SLS model returning a non-dict output."""
+    return MockSLSModelNotDict()
 
 
 @pytest.fixture
 def mock_model_missing_v():
-    """Mock LS model missing the v key."""
-    return MockLSModelMissingV()
+    """Mock SLS model missing the v key."""
+    return MockSLSModelMissingV()
 
 
 @pytest.fixture
 def mock_model_missing_sigma():
-    """Mock LS model missing the sigma key."""
-    return MockLSModelMissingSigma()
+    """Mock SLS model missing the sigma key."""
+    return MockSLSModelMissingSigma()
 
 
 @pytest.fixture
 def mock_model_bad_v_shape():
-    """Mock LS model with invalid v output shape."""
-    return MockLSModelBadVShape()
+    """Mock SLS model with invalid v output shape."""
+    return MockSLSModelBadVShape()
 
 
 @pytest.fixture
 def mock_model_bad_sigma_shape():
-    """Mock LS model with invalid sigma output shape for 2D input."""
-    return MockLSModelBadSigmaShape()
+    """Mock SLS model with invalid sigma output shape for 2D input."""
+    return MockSLSModelBadSigmaShape()
 
 
 # ============================================================================
@@ -289,32 +289,32 @@ def boundary_exterior_points_2d():
 # ============================================================================
 
 @pytest.fixture
-def ls_config_default():
-    """Default LSConfig instance."""
-    from src.loss_functions import LSConfig
+def sls_config_default():
+    """Default SLSConfig instance."""
+    from src.loss_functions import SLSConfig
 
-    return LSConfig()
-
-
-@pytest.fixture
-def ls_config_with_sources(callable_f_zero, callable_g_zero):
-    """LSConfig with zero source terms."""
-    from src.loss_functions import LSConfig
-
-    return LSConfig(f=callable_f_zero, g=callable_g_zero)
+    return SLSConfig()
 
 
 @pytest.fixture
-def ls_config_with_boundary(callable_v_boundary_linear):
-    """LSConfig with a boundary velocity condition."""
-    from src.loss_functions import LSConfig
+def sls_config_with_sources(callable_f_zero, callable_g_zero):
+    """SLSConfig with zero source terms."""
+    from src.loss_functions import SLSConfig
 
-    return LSConfig(v_boundary=callable_v_boundary_linear)
+    return SLSConfig(f=callable_f_zero, g=callable_g_zero)
+
+
+@pytest.fixture
+def sls_config_with_boundary(callable_v_boundary_linear):
+    """SLSConfig with a boundary velocity condition."""
+    from src.loss_functions import SLSConfig
+
+    return SLSConfig(v_boundary=callable_v_boundary_linear)
 
 
 @pytest.fixture
 def neuralnet_model_config():
-    """Reusable NeuralNetModelConfig for LSConfig tests."""
+    """Reusable NeuralNetModelConfig for SLSConfig tests."""
     return NeuralNetModelConfig(
         hidden_dim=8,
         num_layers=2,
@@ -324,5 +324,5 @@ def neuralnet_model_config():
 
 @pytest.fixture
 def rng_key():
-    """Deterministic PRNG key for LS tests."""
+    """Deterministic PRNG key for SLS tests."""
     return jax.random.PRNGKey(42)

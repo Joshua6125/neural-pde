@@ -9,7 +9,7 @@ import optax
 import pytest
 
 from src.integration import NDCubeIntegration
-from src.loss_functions import LS, LSConfig, PINN, PINNConfig
+from src.loss_functions import SLS, SLSConfig, PINN, PINNConfig
 from src.models import NeuralNetModelConfig, build_model
 from src.train import TrainConfig, TrainingMethod
 
@@ -102,7 +102,7 @@ def train_cfg_default():
     """Default deterministic training configuration for unit tests."""
     return TrainConfig(
         epochs=5,
-        learning_rate=1e-2,
+        learning_rate=optax.constant_schedule(1e-2),
         optimiser="adam",
         seed=7,
         log_every=1,
@@ -115,7 +115,7 @@ def train_cfg_with_integration_seed():
     """Training config with explicit integration seed override."""
     return TrainConfig(
         epochs=5,
-        learning_rate=1e-2,
+        learning_rate=optax.constant_schedule(1e-2),
         optimiser="adam",
         seed=7,
         integration_seed=99,
@@ -129,7 +129,7 @@ def train_cfg_short_jit():
     """Short run config with JIT enabled."""
     return TrainConfig(
         epochs=2,
-        learning_rate=1e-2,
+        learning_rate=optax.constant_schedule(1e-2),
         optimiser="adamw",
         seed=3,
         log_every=1,
@@ -195,9 +195,9 @@ def real_pinn_method():
 
 
 @pytest.fixture
-def real_ls_method():
-    """Real LS method with a lightweight neural network model."""
-    cfg = LSConfig(
+def real_sls_method():
+    """Real SLS method with a lightweight neural network model."""
+    cfg = SLSConfig(
         model=NeuralNetModelConfig(hidden_dim=8, num_layers=2, output_heads={"v": 1, "sigma": 1}),
         f=0.0,
         g=0.0,
@@ -206,4 +206,4 @@ def real_ls_method():
         v_boundary=0.0,
     )
     model = build_model(cfg.model)
-    return LS(model=model, config=cfg)
+    return SLS(model=model, config=cfg)

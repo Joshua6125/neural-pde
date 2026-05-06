@@ -1,4 +1,4 @@
-"""Test suite for ls-wave-ml.
+"""Test suite for neural-pde.
 
 Test modules:
     - integration: Tests for quadrature and Monte Carlo integration methods

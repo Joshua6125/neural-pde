@@ -10,7 +10,7 @@ from src.models import (
 )
 from src.loss_functions import (
     PINNConfig,
-    LSConfig,
+    SLSConfig,
     AlgorithmConfig
 )
 from src.integration import MonteCarloConfig
@@ -22,7 +22,7 @@ class ProblemConfig:
     L: float = 1.0
     T: float = 1.0
     c: float = 1.0
-    methods: list[str] = field(default_factory=lambda: ["pinn", "ls"])
+    methods: list[str] = field(default_factory=lambda: ["pinn", "sls"])
     models: list[str] = field(default_factory=lambda: ["neural", "kan"])
     hidden_dim: int = 32
     num_layers: int = 3
@@ -82,7 +82,7 @@ def get_pinn_model_config(
     raise ValueError("Requested model type must be neural or kan.")
 
 
-def get_ls_model_config(
+def get_sls_model_config(
     problem_config: ProblemConfig,
     model_type: str = "neural",
 ) -> AnyModelConfig:
@@ -125,12 +125,12 @@ def get_pinn_config(
         bc_weight=100.0,
     )
 
-def get_ls_config(
+def get_sls_config(
     problem_config: ProblemConfig,
     model_type: str = "neural",
-) -> LSConfig:
-    return LSConfig(
-        model=get_ls_model_config(problem_config, model_type=model_type),
+) -> SLSConfig:
+    return SLSConfig(
+        model=get_sls_model_config(problem_config, model_type=model_type),
         f=lambda v: source_function(
             jnp.array(v[0]), jnp.array(v[1]), problem_config
         ),
@@ -156,16 +156,16 @@ def get_experiment_combination(
     method_name = _canonical_name(method)
     model_name = _canonical_name(model)
 
-    _ensure_supported("method", [method_name], {"pinn", "ls"})
+    _ensure_supported("method", [method_name], {"pinn", "sls"})
     _ensure_supported("model", [model_name], {"neural", "kan"})
 
     label = f"{method_name.upper()}-{model_name.upper()}"
     if method_name == "pinn":
         model_cfg = get_pinn_model_config(problem_config, model_type=model_name)
         algorithm_cfg = get_pinn_config(problem_config, model_type=model_name)
-    elif method_name == "ls":
-        model_cfg = get_ls_model_config(problem_config, model_type=model_name)
-        algorithm_cfg = get_ls_config(problem_config, model_type=model_name)
+    elif method_name == "sls":
+        model_cfg = get_sls_model_config(problem_config, model_type=model_name)
+        algorithm_cfg = get_sls_config(problem_config, model_type=model_name)
     else:
         raise ValueError(f"Unsupported method: {method_name}")
 
@@ -179,7 +179,7 @@ def get_experiment_combination(
 
 
 def build_experiment_combinations(problem_config: ProblemConfig) -> list[ExperimentCombination]:
-    supported_methods = {"pinn", "ls"}
+    supported_methods = {"pinn", "sls"}
     supported_models = {"neural", "kan"}
 
     selected_methods = _ensure_supported("method", problem_config.methods, supported_methods)
@@ -304,6 +304,6 @@ def zero_vector_source(
     x: jnp.ndarray,
     config: ProblemConfig,
 ) -> jnp.ndarray:
-    """Vector source g for LS first-order system (zero for this IVP)."""
+    """Vector source g for SLS first-order system (zero for this IVP)."""
     _ = (t, x, config)
     return jnp.zeros((1,))

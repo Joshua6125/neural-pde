@@ -1,1 +1,1 @@
-"""Experiments module for testing the ls-wave-ml framework."""
+"""Experiments module for testing the neural-pde framework."""

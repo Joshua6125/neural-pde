@@ -100,7 +100,7 @@ def _evaluate_combination(
             "sigma": np.asarray(grad_u[:, 1]),
         }
 
-    if combination.method == "ls":
+    if combination.method == "sls":
         outputs = cast(dict[str, jnp.ndarray], model.apply(params, batch_points))
         v_pred = np.asarray(outputs["v"]).reshape(-1)
         sigma_pred = np.asarray(outputs["sigma"]).reshape(-1)

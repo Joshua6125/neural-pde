@@ -10,12 +10,12 @@ from ..base import AlgorithmConfig
 
 
 @dataclass(frozen=True)
-class LSConfig(AlgorithmConfig):
+class SLSConfig(AlgorithmConfig):
     """Configuration for Least-Squares algorithm.
 
     Combines model architecture and PDE parameters into a single configuration.
     """
-    kind: Literal["ls"] = "ls"
+    kind: Literal["sls"] = "sls"
     model: AnyModelConfig = field(default_factory=NeuralNetModelConfig)
     f: float | Callable[[jnp.ndarray], jnp.ndarray] = 0.0
     g: float | Callable[[jnp.ndarray], jnp.ndarray] = 0.0
