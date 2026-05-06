@@ -6,6 +6,10 @@ data
 *.zip
 *.stats
 
+# This is not clean, but good enough for now.
+profiling.py
+
+
 
 # Byte-compiled / optimized / DLL files
 __pycache__/
