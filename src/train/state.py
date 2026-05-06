@@ -30,7 +30,12 @@ class TrainConfig:
     """
 
     epochs: int = 1000
-    learning_rate: Schedule = optax.constant_schedule(1e-3)
+    learning_rate: Schedule = optax.exponential_decay(
+        init_value=1e-4,
+        transition_steps=1000,
+        decay_rate=0.95,
+        staircase=True
+    ) # NOTE: Might use optax.cosine_decay_schedule(init_value=1e-4, decay_steps=50000, alpha=0.01) instead.
     optimiser: Literal["adam", "adamw", "sgd"] = "adamw"
     seed: int = 0
     integration_seed: int | None = None

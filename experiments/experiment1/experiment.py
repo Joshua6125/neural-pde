@@ -339,7 +339,7 @@ def run_experiment(force_recompute_ref: bool = False) -> dict:
         ],
         "training": {
             "epochs": train_config.epochs,
-            "learning_rate": train_config.learning_rate,
+            # "learning_rate": train_config.learning_rate, # TODO: Should figure out a way to log this as well.
             "optimiser": train_config.optimiser,
             "elapsed_time_seconds": float(elapsed),
             "combinations_elapsed_time_seconds": elapsed_by_label,

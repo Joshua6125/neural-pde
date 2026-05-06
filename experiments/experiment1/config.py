@@ -215,7 +215,7 @@ def get_integration_config(
 def get_training_config() -> TrainConfig:
     return TrainConfig(
         epochs=100,
-        learning_rate=optax.constant_schedule(1e-4),
+        #learning_rate=optax.constant_schedule(1e-4),
         optimiser="adamw",
         use_jit=True,
         seed=42,

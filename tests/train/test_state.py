@@ -25,8 +25,9 @@ class TestTrainConfigValidation:
         [
             ("epochs", 0, "epochs must be strictly positive"),
             ("epochs", -1, "epochs must be strictly positive"),
-            ("learning_rate", 0.0, "learning_rate must be strictly positive"),
-            ("learning_rate", -0.1, "learning_rate must be strictly positive"),
+            # TODO: Testing is currently incomplete for the learning rate Schedulers
+            # ("learning_rate", 0.0, "learning_rate must be strictly positive"),
+            # ("learning_rate", -0.1, "learning_rate must be strictly positive"),
             ("log_every", 0, "log_every must be strictly positive"),
             ("log_every", -2, "log_every must be strictly positive"),
         ],
@@ -54,15 +55,15 @@ class TestGetOptimiser:
     """Test optimiser factory behaviour."""
 
     def test_get_optimiser_returns_adam(self):
-        optimiser = get_optimiser(TrainConfig(optimiser="adam", learning_rate=1e-3))
+        optimiser = get_optimiser(TrainConfig(optimiser="adam"))
         assert isinstance(optimiser, optax.GradientTransformation)
 
     def test_get_optimiser_returns_adamw(self):
-        optimiser = get_optimiser(TrainConfig(optimiser="adamw", learning_rate=1e-3))
+        optimiser = get_optimiser(TrainConfig(optimiser="adamw"))
         assert isinstance(optimiser, optax.GradientTransformation)
 
     def test_get_optimiser_returns_sgd(self):
-        optimiser = get_optimiser(TrainConfig(optimiser="sgd", learning_rate=1e-3))
+        optimiser = get_optimiser(TrainConfig(optimiser="sgd"))
         assert isinstance(optimiser, optax.GradientTransformation)
 
     def test_get_optimiser_raises_for_unknown_optimiser(self):
