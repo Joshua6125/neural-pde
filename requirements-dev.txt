@@ -1,5 +1,6 @@
 absl-py==2.4.0
 aiofiles==25.1.0
+argopt==0.9.1
 astroid==4.0.4
 black==26.3.0
 chex==0.1.91
@@ -15,6 +16,7 @@ flake8==7.3.0
 flax==0.12.3
 fonttools==4.61.1
 fsspec==2026.1.0
+git-fame==3.1.1
 humanize==4.15.0
 importlib_resources==6.5.2
 iniconfig==2.3.0
@@ -65,9 +67,13 @@ rich==14.3.2
 scipy==1.17.0
 simplejson==3.20.2
 six==1.17.0
+snakeviz==2.2.2
+tabulate==0.10.0
 tensorstore==0.1.80
 tomlkit==0.14.0
 toolz==1.1.0
+tornado==6.5.5
+tqdm==4.67.3
 treescope==0.1.10
 typing-inspect==0.9.0
 typing_extensions==4.15.0
