@@ -1,0 +1,180 @@
+{
+  "timestamp": "2026-05-06T23:52:19.782845",
+  "problem": {
+    "type": "1D Wave Equation",
+    "domain": "[0, 1.0] x [-1.0, 1.0]",
+    "wave_speed": 1.0,
+    "methods": [
+      "pinn",
+      "sls",
+      "gpinn"
+    ],
+    "models": [
+      "mlp",
+      "kan"
+    ]
+  },
+  "combinations": [
+    {
+      "label": "PINN-MLP",
+      "method": "pinn",
+      "model": "mlp"
+    },
+    {
+      "label": "PINN-KAN",
+      "method": "pinn",
+      "model": "kan"
+    },
+    {
+      "label": "SLS-MLP",
+      "method": "sls",
+      "model": "mlp"
+    },
+    {
+      "label": "SLS-KAN",
+      "method": "sls",
+      "model": "kan"
+    },
+    {
+      "label": "GPINN-MLP",
+      "method": "gpinn",
+      "model": "mlp"
+    },
+    {
+      "label": "GPINN-KAN",
+      "method": "gpinn",
+      "model": "kan"
+    }
+  ],
+  "training": {
+    "epochs": 100000,
+    "optimiser": "adamw",
+    "elapsed_time_seconds": 851.3737373352051,
+    "combinations_elapsed_time_seconds": {
+      "PINN-MLP": 98.13726568222046,
+      "PINN-KAN": 157.55888891220093,
+      "SLS-MLP": 79.85040521621704,
+      "SLS-KAN": 94.94758558273315,
+      "GPINN-MLP": 154.26544308662415,
+      "GPINN-KAN": 266.60382628440857
+    }
+  },
+  "integration": {
+    "method": "monte_carlo",
+    "dimension": 2
+  },
+  "evaluation": {
+    "n_test_points": 1600,
+    "combinations": {
+      "PINN-MLP": {
+        "l2_error": 0.035875358368341305,
+        "max_error": 0.08288202434778214,
+        "mean_abs_error": 0.028819770692499233,
+        "v_l2_error": 0.16934925317764282,
+        "v_max_error": 0.3773174285888672,
+        "v_mean_abs_error": 0.13705262541770935,
+        "sigma_l2_error": 0.17357312142848969,
+        "sigma_max_error": 0.6170352101325989,
+        "sigma_mean_abs_error": 0.13804136216640472,
+        "final_loss": 0.015822961926460266,
+        "best_loss": 0.014798014424741268,
+        "best_loss_epoch": 98700
+      },
+      "PINN-KAN": {
+        "l2_error": 0.001271944901377135,
+        "max_error": 0.004019963555037975,
+        "mean_abs_error": 0.0010449750814182867,
+        "v_l2_error": 0.011246828362345695,
+        "v_max_error": 0.10198826342821121,
+        "v_mean_abs_error": 0.009163456968963146,
+        "sigma_l2_error": 0.011659673415124416,
+        "sigma_max_error": 0.11133932322263718,
+        "sigma_mean_abs_error": 0.0095229996368289,
+        "final_loss": 0.0003386150347068906,
+        "best_loss": 0.000322699430398643,
+        "best_loss_epoch": 98750
+      },
+      "SLS-MLP": {
+        "l2_error": 0.0013003592338950046,
+        "max_error": 0.003597557544708252,
+        "mean_abs_error": 0.0008875669453517088,
+        "v_l2_error": 0.003099359106272459,
+        "v_max_error": 0.01980006694793701,
+        "v_mean_abs_error": 0.002461428986862302,
+        "sigma_l2_error": 0.0030866367742419243,
+        "sigma_max_error": 0.023981917649507523,
+        "sigma_mean_abs_error": 0.002443788107484579,
+        "final_loss": 0.0003130389377474785,
+        "best_loss": 0.0002718743053264916,
+        "best_loss_epoch": 91750
+      },
+      "SLS-KAN": {
+        "l2_error": 0.0011289851466806558,
+        "max_error": 0.0024580955505371094,
+        "mean_abs_error": 0.0008840324573572045,
+        "v_l2_error": 0.0010227900929749012,
+        "v_max_error": 0.0047943079844117165,
+        "v_mean_abs_error": 0.0008459441596642137,
+        "sigma_l2_error": 0.00106463220436126,
+        "sigma_max_error": 0.0038080918602645397,
+        "sigma_mean_abs_error": 0.0008799037896096706,
+        "final_loss": 5.5932825489435345e-05,
+        "best_loss": 4.9529990064911544e-05,
+        "best_loss_epoch": 98750
+      },
+      "GPINN-MLP": {
+        "l2_error": 0.027987636428190233,
+        "max_error": 0.0690135732293129,
+        "mean_abs_error": 0.022453914102516945,
+        "v_l2_error": 0.13230346143245697,
+        "v_max_error": 0.3010536730289459,
+        "v_mean_abs_error": 0.10760940611362457,
+        "sigma_l2_error": 0.13548611104488373,
+        "sigma_max_error": 0.5373914837837219,
+        "sigma_mean_abs_error": 0.10708222538232803,
+        "final_loss": 0.012583933770656586,
+        "best_loss": 0.01150230597704649,
+        "best_loss_epoch": 98700
+      },
+      "GPINN-KAN": {
+        "l2_error": 0.0013938387888361237,
+        "max_error": 0.0048623597249388695,
+        "mean_abs_error": 0.0010854531139800271,
+        "v_l2_error": 0.0112231420353055,
+        "v_max_error": 0.06531842052936554,
+        "v_mean_abs_error": 0.008689673617482185,
+        "sigma_l2_error": 0.011673812754452229,
+        "sigma_max_error": 0.07364840805530548,
+        "sigma_mean_abs_error": 0.009119058959186077,
+        "final_loss": 0.0003158198669552803,
+        "best_loss": 0.00029205952887423337,
+        "best_loss_epoch": 99400
+      }
+    }
+  },
+  "convergence": {
+    "converged": true,
+    "loss_decreasing": {
+      "PINN-MLP": true,
+      "PINN-KAN": true,
+      "SLS-MLP": true,
+      "SLS-KAN": true,
+      "GPINN-MLP": true,
+      "GPINN-KAN": true
+    }
+  },
+  "output_files": [
+    "results/convergence_curve.png",
+    "results/solution_snapshots.png",
+    "results/error_map.png",
+    "results/experiment_log.json",
+    "results/artifacts/evaluation_outputs.pkl",
+    "results/artifacts/training_history.pkl",
+    "results/artifacts/pinn_mlp_params.msgpack",
+    "results/artifacts/pinn_kan_params.msgpack",
+    "results/artifacts/sls_mlp_params.msgpack",
+    "results/artifacts/sls_kan_params.msgpack",
+    "results/artifacts/gpinn_mlp_params.msgpack",
+    "results/artifacts/gpinn_kan_params.msgpack"
+  ]
+}

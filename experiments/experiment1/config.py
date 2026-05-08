@@ -189,7 +189,7 @@ def get_gpinn_config(
         c=problem_config.c,
         ic_weight=1.0,
         bc_weight=100.0,
-        residual_grad_weight=1e-2,
+        residual_grad_weight=1e-4,
     )
 
 
