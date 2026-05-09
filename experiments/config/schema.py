@@ -24,7 +24,7 @@ class TrainingConfig:
     learning_rate: float = 1e-3
     seed: int = 42
     batch_size: Optional[int] = None
-    optimizer: str = "adamw"
+    optimiser: str = "adamw"
 
 
 @dataclass
@@ -54,7 +54,7 @@ class ExperimentConfig:
     training: TrainingConfig = field(default_factory=TrainingConfig)
     integration: IntegrationConfig = field(default_factory=IntegrationConfig)
     test_data_params: dict[str, Any] = field(default_factory=dict)  # n_time, n_space, etc.
-    
+
     def validate(self) -> None:
         """Validate configuration consistency."""
         if not self.domain:

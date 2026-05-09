@@ -2,7 +2,7 @@
 # Can be overridden per-experiment in experiment_*.yaml files
 
 name: "default_experiment"
-domain: "wave_equation"
+domain: "simple_wave_equation"
 
 # Problem-specific parameters (domain dependent)
 problem_params:
@@ -15,13 +15,13 @@ training:
   epochs: 100
   learning_rate: 1.0e-3
   seed: 42
-  optimizer: "adamw"
+  optimiser: "adamw"
 
 # Integration strategy for sampling
 integration:
   strategy: "monte_carlo"
   n_interior: 1600
-  n_boundary: 100
+  n_boundary: 1000
   seed: 42
 
 # Test data generation

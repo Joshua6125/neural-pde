@@ -12,7 +12,7 @@ Available domains can be discovered via registry.
 from .base import DomainPlugin
 from .simple_wave_equation import SimpleWaveEquationDomain
 
-__all__ = ["DomainPlugin", "WaveEquationDomain"]
+__all__ = ["DomainPlugin", "SimpleWaveEquationDomain"]
 
 # Registry: maps domain names to classes
 DOMAIN_REGISTRY = {

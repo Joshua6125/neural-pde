@@ -113,7 +113,7 @@ class SimpleWaveEquationDomain(DomainPlugin):
         Supported plot types (key 'plot_type'):
         - 'convergence': Training loss curves
         - 'error_map': Absolute error heatmaps by method
-        - 'solution_snapshot': Solution u(t,x) visualization
+        - 'solution_snapshot': Solution u(t,x) visualisation
         """
         plot_type = data.get("plot_type", "convergence")
 

@@ -3,11 +3,11 @@
 
 experiment_1:
   config_file: experiment_1.yaml
-  domain: wave_equation
+  domain: simple_wave_equation
   description: "Wave equation: compare PINN/SLS/gPINN with MLP/KAN models"
 
 # Template for adding more:
 # my_experiment:
 #   config_file: my_experiment.yaml
-#   domain: wave_equation  # or another domain
+#   domain: simple_wave_equation  # or another domain
 #   description: "Brief description"

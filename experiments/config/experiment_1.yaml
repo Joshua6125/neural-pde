@@ -13,12 +13,12 @@ training:
   epochs: 100
   learning_rate: 1.0e-3
   seed: 42
-  optimizer: "adamw"
+  optimiser: "adamw"
 
 integration:
   strategy: "monte_carlo"
   n_interior: 1600
-  n_boundary: 100
+  n_boundary: 1000
   seed: 42
 
 test_data_params:
