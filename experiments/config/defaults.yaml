@@ -1,0 +1,46 @@
+# Default configuration values for all experiments
+# Can be overridden per-experiment in experiment_*.yaml files
+
+name: "default_experiment"
+domain: "wave_equation"
+
+# Problem-specific parameters (domain dependent)
+problem_params:
+  L: 1.0
+  T: 1.0
+  c: 1.0
+
+# Training configuration
+training:
+  epochs: 100
+  learning_rate: 1.0e-3
+  seed: 42
+  optimizer: "adamw"
+
+# Integration strategy for sampling
+integration:
+  strategy: "monte_carlo"
+  n_interior: 1600
+  n_boundary: 100
+  seed: 42
+
+# Test data generation
+test_data_params:
+  n_time: 20
+  n_space: 80
+  seed: 42
+
+# Methods to compare (loss functions)
+methods:
+  - name: "pinn"
+  - name: "sls"
+  - name: "gpinn"
+
+# Models to compare
+models:
+  - name: "mlp"
+    hidden_dim: 32
+    num_layers: 3
+  - name: "kan"
+    hidden_dim: 32
+    num_layers: 3
