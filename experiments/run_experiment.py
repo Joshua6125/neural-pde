@@ -107,8 +107,8 @@ def main():
         print("\n✓ Configuration valid!")
         print(f"  Name: {config.name}")
         print(f"  Domain: {config.domain}")
-        print(f"  Methods: {[m.get('name') for m in config.methods]}")
-        print(f"  Models: {[m.get('name') for m in config.models]}")
+        print(f"  Methods: {config.method_names()}")
+        print(f"  Models: {config.model_names()}")
         print(f"  Training epochs: {config.training.epochs}")
         sys.exit(0)
 

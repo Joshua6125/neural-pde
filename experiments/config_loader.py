@@ -19,6 +19,8 @@ import optax
 import yaml
 from experiments.config.schema import (
     ExperimentConfig,
+    MethodSpec,
+    ModelSpec,
 )
 
 from src.integration import QuadratureConfig, MonteCarloConfig
@@ -139,8 +141,8 @@ class ConfigLoader:
             name=data.get("name", "unnamed"),
             domain=data.get("domain", ""),
             problem_params=data.get("problem_params", {}),
-            methods=data.get("methods", []),
-            models=data.get("models", []),
+            methods=[MethodSpec.from_mapping(method) for method in data.get("methods", [])],
+            models=[ModelSpec.from_mapping(model) for model in data.get("models", [])],
             training=self._build_training_config(data.get("training", {})),
             integration=self._build_integration_config(data.get("integration", {})),
             test_data_params=data.get("test_data_params", {}),

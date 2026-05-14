@@ -8,8 +8,10 @@ used by the actual training stack.
 
 import sys
 import time
+import json
+from dataclasses import asdict
 from pathlib import Path
-from typing import Any, Dict, Optional, Tuple
+from typing import Any, Dict, Optional, Tuple, cast
 
 import jax.numpy as jnp
 import numpy as np
@@ -24,7 +26,7 @@ from experiments.domains import get_domain
 from experiments.results_manager import ResultsManager, RunManager
 from src.cli import run_training
 from src.integration import MonteCarloConfig
-from src.train import TrainConfig as SourceTrainConfig
+from src.train import TrainConfig as SourceTrainConfig, TrainState, TrainStepMetrics
 
 
 class BaseExperiment:
@@ -67,12 +69,14 @@ class BaseExperiment:
         self._setup()
         test_points, reference_solutions = self._prepare_test_data()
         combinations = self._build_combinations()
-        metrics_by_method = self._train_all(combinations)
+        combination_map = {combo.label: combo for combo in combinations}
+        run_data_by_method = self._train_all(combinations)
+        self._save_training_artifacts(combination_map, run_data_by_method)
         if self.generate_plots:
             self._evaluate_and_visualise(
                 test_points=test_points,
                 reference_solutions=reference_solutions,
-                metrics_by_method=metrics_by_method,
+                metrics_by_method={label: data["metrics"] for label, data in run_data_by_method.items()},
             )
         else:
             print("Step 6: Visualisation skipped (--no-plots)")
@@ -84,8 +88,8 @@ class BaseExperiment:
         print("Step 1: Setup")
         self.config.validate()
         print("  Configuration validated")
-        print(f"  Methods: {[m.get('name', '') for m in self.config.methods]}")
-        print(f"  Models: {[m.get('name', '') for m in self.config.models]}")
+        print(f"  Methods: {self.config.method_names()}")
+        print(f"  Models: {self.config.model_names()}")
         print(f"  Learning rate spec: {self.config.training.learning_rate}")
         print()
 
@@ -122,9 +126,9 @@ class BaseExperiment:
 
         for method in self.config.methods:
             for model in self.config.models:
-                model_cfg, algorithm_cfg = self.domain.build_source_configs(model, method)
+                model_cfg, algorithm_cfg = self.domain.build_source_configs(cast(Any, model), cast(Any, method))
                 combo = ExperimentCombination(
-                    label=f"{method}_{model}",
+                    label=f"{method.name}_{model.name}",
                     model_config=model_cfg,
                     algorithm_config=algorithm_cfg,
                 )
@@ -134,47 +138,115 @@ class BaseExperiment:
         print(f"  Total: {len(combinations)} combinations\n")
         return combinations
 
-    def _train_all(self, combinations: list[ExperimentCombination]) -> Dict[str, list]:
+    def _train_all(self, combinations: list[ExperimentCombination]) -> Dict[str, dict[str, Any]]:
         print("Step 5: Train all combinations")
 
-        metrics_by_method: Dict[str, list] = {}
+        run_data_by_method: Dict[str, dict[str, Any]] = {}
 
         for index, combo in enumerate(combinations, 1):
             print(f"  [{index}/{len(combinations)}] {combo.label}...", end=" ", flush=True)
             start_time = time.time()
 
             try:
-                metrics = self._train_single(combo)
-                metrics_by_method[combo.label] = metrics
+                run_data = self._train_single(combo)
+                run_data_by_method[combo.label] = run_data
                 elapsed = time.time() - start_time
                 print(f"✓ ({elapsed:.1f}s)")
             except Exception as exc:
                 print(f"✗ Failed: {exc}")
 
         print()
-        return metrics_by_method
+        return run_data_by_method
 
-    def _train_single(self, combo: ExperimentCombination) -> list:
+    def _train_single(self, combo: ExperimentCombination) -> dict[str, Any]:
         assert combo.model_config is not None, "Model config not built"
         assert combo.algorithm_config is not None, "Algorithm config not built"
         assert self.config.training is not None, "Train config not built"
         assert self.config.integration is not None, "Integration config not built"
 
-        print(combo.model_config)
-        _, metrics = run_training(
+        full_history: list[TrainStepMetrics] = []
+        best_state: TrainState | None = None
+        best_loss = float("inf")
+
+        def capture_metrics(metrics: TrainStepMetrics, train_state: TrainState) -> None:
+            nonlocal best_state, best_loss
+            full_history.append(metrics)
+            if metrics.total_loss < best_loss:
+                best_loss = metrics.total_loss
+                best_state = train_state
+
+        final_state, logged_metrics = run_training(
             algorithm_cfg=combo.algorithm_config,
             integration_cfg=self.config.integration,
             model_cfg=combo.model_config,
             train_cfg=self.config.training,
             sample_input=self.sample_input,
+            callback=capture_metrics,
         )
-        return metrics
+        if best_state is None:
+            best_state = final_state
+
+        return {
+            "final_state": final_state,
+            "best_state": best_state,
+            "metrics": full_history,
+            "logged_metrics": logged_metrics,
+        }
+
+    def _safe_label(self, label: str) -> str:
+        return "".join(char.lower() if char.isalnum() else "_" for char in label).strip("_")
+
+    def _save_training_artifacts(
+        self,
+        combinations: Dict[str, ExperimentCombination],
+        run_data_by_method: Dict[str, dict[str, Any]],
+    ) -> None:
+        assert self.run_manager is not None, "No run manager found"
+
+        summary: dict[str, Any] = {
+            "run_id": self.run_manager.run_id,
+            "name": self.config.name,
+            "domain": self.config.domain,
+            "combinations": {},
+        }
+
+        for label, run_data in run_data_by_method.items():
+            safe_label = self._safe_label(label)
+            combo = combinations[label]
+            history = run_data["metrics"]
+            final_state = run_data["final_state"]
+            best_state = run_data["best_state"]
+            logged_metrics = run_data["logged_metrics"]
+
+            final_loss = history[-1].total_loss if history else None
+            best_loss = min((metric.total_loss for metric in history), default=None)
+
+            self.run_manager.save_artifact(f"{safe_label}_history_full.pkl", history, format="pickle")
+            self.run_manager.save_artifact(f"{safe_label}_history_logged.pkl", logged_metrics, format="pickle")
+            self.run_manager.save_artifact(f"{safe_label}_final_state.pkl", final_state, format="pickle")
+            self.run_manager.save_artifact(f"{safe_label}_best_state.pkl", best_state, format="pickle")
+
+            summary["combinations"][label] = {
+                "label": label,
+                "model_config": asdict(cast(Any, combo.model_config)),
+                "algorithm_config": asdict(cast(Any, combo.algorithm_config)),
+                "final_loss": final_loss,
+                "best_loss": best_loss,
+                "history_file": f"{safe_label}_history_full.pkl",
+                "logged_history_file": f"{safe_label}_history_logged.pkl",
+                "final_state_file": f"{safe_label}_final_state.pkl",
+                "best_state_file": f"{safe_label}_best_state.pkl",
+            }
+
+        summary_path = self.run_manager.run_dir / "run_summary.json"
+        with open(summary_path, "w") as f:
+            json.dump(summary, f, indent=2, default=str)
 
     def _evaluate_and_visualise(
         self,
         test_points: np.ndarray,
         reference_solutions: np.ndarray,
-        metrics_by_method: Dict[str, list],
+        metrics_by_method: Dict[str, list[TrainStepMetrics]],
     ) -> None:
         print("Step 6: Evaluate and visualise")
 
