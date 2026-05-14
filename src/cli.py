@@ -52,7 +52,7 @@ def run_training(
         Final training state and metrics history
     """
     integrator = get_integrator(integration_cfg)
-    model = build_model(model_cfg)
+    model = build_model(model_cfg, initial_condition_fn=getattr(algorithm_cfg, "u0", None))
     algorithm = build_algorithm(algorithm_cfg, model)
     optimiser = get_optimiser(train_cfg)
 

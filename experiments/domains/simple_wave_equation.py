@@ -20,7 +20,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 
 from src.loss_functions import AlgorithmConfig, FOSLSConfig, PINNConfig, SLSConfig, gPINNConfig
-from src.models import AnyModelConfig, KANModelConfig, MLPModelConfig
+from src.models import AnyModelConfig, KANModelConfig, MLPModelConfig, XNODEConfig
 
 from .base import DomainPlugin
 
@@ -104,6 +104,8 @@ class SimpleWaveEquationDomain(DomainPlugin):
             ConfigCls = MLPModelConfig
         elif model_type == "kan":
             ConfigCls = KANModelConfig
+        elif model_type == "xnode":
+            ConfigCls = XNODEConfig
         else:
             raise ValueError(f"Requested model type {model_type} must be mlp or kan. ")
 
@@ -141,6 +143,7 @@ class SimpleWaveEquationDomain(DomainPlugin):
                 sigma0=lambda v: jnp.array(
                     [self.analytical_solution_x(jnp.array(v[0]), jnp.array(v[1]))]
                 ),
+                u0=lambda v: self.analytical_solution(jnp.array(v[0]), jnp.array(v[1])),
             )
         elif method == "fosls":
             algorithm_cfg = FOSLSConfig(
@@ -152,6 +155,7 @@ class SimpleWaveEquationDomain(DomainPlugin):
                     [self.analytical_solution_x(jnp.array(v[0]), jnp.array(v[1]))]
                 ),
                 ic_weight=float(method_data.get("ic_weight", 1.0)),
+                u0=lambda v: self.analytical_solution(jnp.array(v[0]), jnp.array(v[1])),
             )
         elif method == "gpinn":
             algorithm_cfg = gPINNConfig(

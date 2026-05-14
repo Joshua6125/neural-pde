@@ -22,3 +22,4 @@ class SLSConfig(AlgorithmConfig):
     v0: float | Callable[[jnp.ndarray], jnp.ndarray] = 0.0
     sigma0: float | Callable[[jnp.ndarray], jnp.ndarray] = 0.0
     v_boundary: float | Callable[[jnp.ndarray], jnp.ndarray] = 0.0
+    u0: float | Callable[[jnp.ndarray], jnp.ndarray] = 0.0

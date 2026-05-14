@@ -3,6 +3,8 @@
 import importlib.util
 import warnings
 
+import jax
+import jax.numpy as jnp
 import pytest
 
 
@@ -19,8 +21,10 @@ _require_jaxkan()
 from src.models import (
     MLP,
     KANModel,
+    XNODE,
     MLPModelConfig,
     KANModelConfig,
+    XNODEConfig,
     build_model,
 )
 
@@ -165,3 +169,18 @@ class TestBuildModel:
         assert model._module.hidden_dim == 16
         assert model._module.num_layers == 2
         assert model._module.input_dim == 4
+
+    def test_build_model_returns_xnode_when_initial_condition_is_bound(self):
+        cfg = XNODEConfig(hidden_dim=8, num_layers=2, output_heads={"u": 1})
+
+        def u0_fn(_: jnp.ndarray) -> jnp.ndarray:
+            return jnp.asarray(1.0)
+
+        model = build_model(cfg, initial_condition_fn=u0_fn)
+        assert isinstance(model._module, XNODE)
+
+        sample_input = jnp.asarray([[0.5, 0.0]], dtype=jnp.float32)
+        params = model.init(jax.random.PRNGKey(0), sample_input)
+        outputs = model.apply(params, sample_input)
+
+        assert "u" in outputs

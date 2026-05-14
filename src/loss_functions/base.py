@@ -17,6 +17,7 @@ class AlgorithmConfig:
     to enable polymorphic instantiation.
     """
     kind: str
+    u0: float | Callable[[jnp.ndarray], jnp.ndarray] = 0.0 # Needed for XNODE
 
 
 class Loss:

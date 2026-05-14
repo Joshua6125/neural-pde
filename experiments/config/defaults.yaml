@@ -72,3 +72,6 @@ models:
     hidden_dim: 32
     num_layers: 3
     input_dim: 2
+  - name: "xnode"
+    hidden_dim: 32
+    num_layers: 3

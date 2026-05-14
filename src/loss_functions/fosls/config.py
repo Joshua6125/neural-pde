@@ -20,3 +20,4 @@ class FOSLSConfig(AlgorithmConfig):
     sigma0: float | Callable[[jnp.ndarray], jnp.ndarray] = 0.0
     v_boundary: float | Callable[[jnp.ndarray], jnp.ndarray] = 0.0
     ic_weight: float = 1.0
+    u0: float | Callable[[jnp.ndarray], jnp.ndarray] = 0.0

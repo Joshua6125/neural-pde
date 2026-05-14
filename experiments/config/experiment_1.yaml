@@ -15,3 +15,7 @@ training:
   seed: 42
   optimiser: "adamw"
 
+models:
+  - name: "xnode"
+    hidden_dim: 32
+    num_layers: 3

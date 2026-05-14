@@ -49,11 +49,19 @@ class gPINNLoss(Loss):
     def _u(self, x: jnp.ndarray) -> jnp.ndarray:
         return self.u_model(x).squeeze()
 
+    def _second_partial(self, x: jnp.ndarray, i: int) -> jnp.ndarray:
+        """Returns ∂²u/∂x_i² using one HVP."""
+        grad_u = jax.grad(self._u)
+        e_i = jnp.zeros_like(x).at[i].set(1.0)
+        hvp_i = jax.jvp(grad_u, (x,), (e_i,))[1]  # H @ e_i
+        return hvp_i[i]  # diagonal entry
+
     def _residual_scalar(self, x: jnp.ndarray) -> jnp.ndarray:
-        """Return PDE residual R(x) = u_tt - c^2 Δu - f (not squared)."""
-        H = jax.hessian(self._u)(x)
-        u_tt = H[0, 0]
-        laplacian_u = jnp.trace(H[1:, 1:])
+        """Residual: (u_tt - c^2 Δu - f)^2"""
+        u_tt = self._second_partial(x, 0)
+
+        # exact Laplacian, but without forming the full Hessian
+        laplacian_u = sum(self._second_partial(x, i) for i in range(1, x.shape[0]))
 
         c = self._c_fn(x)
         if jnp.ndim(c) != 0:
@@ -63,7 +71,7 @@ class gPINNLoss(Loss):
         if jnp.ndim(f) != 0:
             raise ValueError("f should be scalar or return scalar type.")
 
-        return u_tt - c**2 * laplacian_u - f
+        return (u_tt - c**2 * laplacian_u - f) ** 2
 
     def _pde_residual(self, x: jnp.ndarray) -> jnp.ndarray:
         """Interior loss combining residual and gradient penalties."""

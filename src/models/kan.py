@@ -5,7 +5,7 @@ import jax.numpy as jnp
 from flax import nnx
 from jaxkan.models.KAN import KAN
 
-
+# TODO: Should rename this to KAN
 class KANModel(nn.Module):
     """Linen-compatible wrapper around jaxKAN's NNX KAN model.
 
