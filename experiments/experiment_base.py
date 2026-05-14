@@ -41,8 +41,6 @@ class BaseExperiment:
         self.domain = get_domain(self.config.domain)(**self.config.problem_params)
         self.results_manager = ResultsManager()
         self.run_manager: Optional[RunManager] = None
-        self.train_config: Optional[SourceTrainConfig] = None
-        self.integration_config: Optional[MonteCarloConfig] = None
         self.generate_plots = True
         self.sample_input = jnp.asarray(self.domain.get_sample_input(), dtype=jnp.float32)
 
@@ -111,12 +109,8 @@ class BaseExperiment:
         print(f"  Test data: {len(test_points)} points")
         print(f"  Saved to: {self.run_manager.artifacts_dir}\n")
 
-        import pickle
-
-        with open(self.run_manager.artifacts_dir / "test_points.pkl", "wb") as f:
-            pickle.dump(test_points, f)
-        with open(self.run_manager.artifacts_dir / "reference_solutions.pkl", "wb") as f:
-            pickle.dump(reference_solutions, f)
+        self.run_manager.save_artifact("test_points.pkl", test_points, format="pickle")
+        self.run_manager.save_artifact("reference_solutions.pkl", reference_solutions, format="pickle")
 
         return test_points, reference_solutions
 

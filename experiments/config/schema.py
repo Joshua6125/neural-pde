@@ -4,7 +4,7 @@ Configuration schema for experiments.
 Uses dataclasses for type safety and validation.
 """
 
-from dataclasses import dataclass, field, asdict, is_dataclass
+from dataclasses import dataclass, field, asdict
 from typing import Any, Mapping
 
 from src.loss_functions import AlgorithmConfig
@@ -96,19 +96,6 @@ class ExperimentConfig:
 
     def model_names(self) -> list[str]:
         return [model.name for model in self.models]
-
-    def to_source_spec(self) -> dict[str, Any]:
-        return {
-            "name": self.name,
-            "domain": self.domain,
-            "problem_params": self.problem_params,
-            "methods": [asdict(method) for method in self.methods],
-            "models": [asdict(model) for model in self.models],
-            "training": asdict(self.training),
-            "integration": asdict(self.integration),
-            "test_data_params": self.test_data_params,
-        }
-
 
 @dataclass
 class ExperimentCombination:

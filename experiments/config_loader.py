@@ -79,8 +79,6 @@ class ConfigLoader:
         if overrides:
             merged = self._apply_overrides(merged, overrides)
 
-        self.old_config = merged
-
         # Convert to dataclass
         config = self._build_config(merged, source_spec=deepcopy(merged))
         config.validate()
