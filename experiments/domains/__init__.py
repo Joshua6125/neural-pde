@@ -16,7 +16,7 @@ __all__ = ["DomainPlugin", "SimpleWaveEquationDomain"]
 
 # Registry: maps domain names to classes
 DOMAIN_REGISTRY = {
-    "wave_equation": SimpleWaveEquationDomain,
+    "simple_wave_equation": SimpleWaveEquationDomain,
 }
 
 

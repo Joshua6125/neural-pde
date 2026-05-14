@@ -2,39 +2,16 @@
 # Inherits from defaults.yaml; only override what's different
 
 name: "experiment_1"
-domain: "wave_equation"
-
-problem_params:
-  L: 1.0
-  T: 1.0
-  c: 1.0
+domain: "simple_wave_equation"
 
 training:
   epochs: 100
-  learning_rate: 1.0e-3
+  learning_rate:
+    kind: exponential_decay
+    init_value: 1.0e-3
+    transition_steps: 1000
+    decay_rate: 0.95
+    staircase: true
   seed: 42
   optimiser: "adamw"
 
-integration:
-  strategy: "monte_carlo"
-  n_interior: 1600
-  n_boundary: 1000
-  seed: 42
-
-test_data_params:
-  n_time: 20
-  n_space: 80
-  seed: 42
-
-methods:
-  - name: "pinn"
-  - name: "sls"
-  - name: "gpinn"
-
-models:
-  - name: "mlp"
-    hidden_dim: 32
-    num_layers: 3
-  - name: "kan"
-    hidden_dim: 32
-    num_layers: 3

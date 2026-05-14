@@ -11,15 +11,16 @@ Usage:
 
 import argparse
 import sys
+from copy import deepcopy
 from pathlib import Path
 
 # Add project root to path
-project_root = Path(__file__).parent.parent.parent
+project_root = Path(__file__).parent.parent
 sys.path.insert(0, str(project_root))
 
-from config_loader import ConfigLoader
-from experiment_base import BaseExperiment
-from registry import get_experiment_config
+from experiments.config_loader import ConfigLoader
+from experiments.experiment_base import BaseExperiment
+from experiments.registry import get_experiment_config
 
 
 def main():
@@ -55,16 +56,25 @@ def main():
         type=str,
         help="Explicit run ID (defaults to timestamp)",
     )
+    parser.add_argument(
+        "--no-plots",
+        action="store_true",
+        help="Skip plot generation during the run",
+    )
 
     args = parser.parse_args()
+
+    config_root = Path(__file__).resolve().parent / "config"
 
     # Determine config source
     if args.experiment:
         print(f"Loading experiment: {args.experiment}")
         config = get_experiment_config(args.experiment)
+        loader = ConfigLoader(str(config_root))
     elif args.config:
-        loader = ConfigLoader("experiments/config")
-        config_file = Path(args.config).name
+        config_path = Path(args.config).expanduser().resolve()
+        loader = ConfigLoader(str(config_path.parent))
+        config_file = config_path.name
         config = loader.load(config_file)
     else:
         print("Error: specify --experiment or --config")
@@ -86,8 +96,9 @@ def main():
                     pass  # Keep as string
             overrides[key] = value
 
-        loader = ConfigLoader("experiments/config")
-        config = loader._build_config(loader._apply_overrides(config.__dict__, overrides))
+            source_spec = deepcopy(config.source_spec)
+            updated_spec = loader._apply_overrides(source_spec, overrides)
+            config = loader._build_config(updated_spec, source_spec=deepcopy(updated_spec))
 
     # Validate
     config.validate()
@@ -96,14 +107,15 @@ def main():
         print("\n✓ Configuration valid!")
         print(f"  Name: {config.name}")
         print(f"  Domain: {config.domain}")
-        print(f"  Methods: {[m.name for m in config.methods]}")
-        print(f"  Models: {[m.name for m in config.models]}")
+        print(f"  Methods: {[m.get('name') for m in config.methods]}")
+        print(f"  Models: {[m.get('name') for m in config.models]}")
         print(f"  Training epochs: {config.training.epochs}")
         sys.exit(0)
 
     # Run experiment
     print("\nRunning experiment...")
     experiment = BaseExperiment(config=config)
+    experiment.generate_plots = not args.no_plots
     experiment.execute(run_id=args.run_id)
     experiment.print_summary()
 

@@ -5,14 +5,18 @@ Defines the interface that all domain-specific implementations must follow.
 """
 
 from abc import ABC, abstractmethod
-from typing import Tuple, Any
+from typing import Any, Tuple
 import numpy as np
+import jax.numpy as jnp
+
+from src.loss_functions import AlgorithmConfig
+from src.models import AnyModelConfig
 
 
 class DomainPlugin(ABC):
     """Abstract base for domain-specific plugins.
 
-    Each problem domain (wave equation, heat equation, etc.) implements:
+    Each problem domain implements:
     1. Analytical solutions for ground truth
     2. Test data generation (points + reference values)
     3. Domain-specific visualisation
@@ -21,7 +25,7 @@ class DomainPlugin(ABC):
     """
 
     @abstractmethod
-    def analytical_solution(self, t: np.ndarray, x: np.ndarray) -> np.ndarray:
+    def analytical_solution(self, t: jnp.ndarray, x: jnp.ndarray) -> jnp.ndarray:
         """Compute analytical solution at (t, x) points.
 
         Args:
@@ -67,6 +71,20 @@ class DomainPlugin(ABC):
                 Common keys: 'test_points', 'predictions', 'reference'
             output_path: Directory to save plots
         """
+        pass
+
+    @abstractmethod
+    def build_source_configs(
+        self,
+        model_data: dict,
+        method_data: dict
+    ) -> tuple[AnyModelConfig, AlgorithmConfig]:
+        """Build source-native model and algorithm configs for a combination."""
+        pass
+
+    @abstractmethod
+    def get_sample_input(self) -> jnp.ndarray:
+        """Return a representative sample input for model initialisation."""
         pass
 
     @property

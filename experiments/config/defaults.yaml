@@ -13,16 +13,26 @@ problem_params:
 # Training configuration
 training:
   epochs: 100
-  learning_rate: 1.0e-3
+  learning_rate:
+    kind: constant
+    value: 1.0e-3
   seed: 42
+  log_every: 50
   optimiser: "adamw"
 
 # Integration strategy for sampling
 integration:
   strategy: "monte_carlo"
-  n_interior: 1600
-  n_boundary: 1000
-  seed: 42
+  dim: 2
+  x_min: 0.0
+  x_max: 1.0
+  monte_carlo:
+    monte_carlo_interior_samples: 1600
+    monte_carlo_boundary_samples: 1000
+    monte_carlo_seed: 42
+  quadrature:
+    degree: 10
+    adaptive_integration: False
 
 # Test data generation
 test_data_params:
@@ -33,8 +43,20 @@ test_data_params:
 # Methods to compare (loss functions)
 methods:
   - name: "pinn"
+    output_heads:
+      u: 1
+    ic_weight: 1.0
+    bc_weights: 100.0
   - name: "sls"
+    output_heads:
+      v: 1
+      sigma: 1
   - name: "gpinn"
+    output_heads:
+      u: 1
+    ic_weight: 1.0
+    bc_weight: 100.0
+    residual_grad_weight: 1e-2
 
 # Models to compare
 models:
@@ -44,3 +66,4 @@ models:
   - name: "kan"
     hidden_dim: 32
     num_layers: 3
+    input_dim: 2

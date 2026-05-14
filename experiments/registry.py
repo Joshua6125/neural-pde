@@ -14,14 +14,15 @@ Usage:
 import yaml
 from pathlib import Path
 from typing import Dict, Tuple
-from config_loader import ConfigLoader
-from config.schema import ExperimentConfig
+
+from experiments.config_loader import ConfigLoader
+from experiments.config.schema import ExperimentConfig
 
 
 class ExperimentRegistry:
     """Registry for pre-defined experiments."""
 
-    def __init__(self, config_dir: str = "experiments/config"):
+    def __init__(self, config_dir: str = "config/"):
         self.config_dir = Path(config_dir)
         self.loader = ConfigLoader(config_dir)
         self._registry: Dict[str, Tuple[str, str]] = {}  # name -> (config_file, domain)
@@ -125,7 +126,7 @@ def get_registry() -> ExperimentRegistry:
     """Get or create global registry."""
     global _registry
     if _registry is None:
-        _registry = ExperimentRegistry("experiments/config")
+        _registry = ExperimentRegistry("config")
     return _registry
 
 

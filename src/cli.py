@@ -5,7 +5,7 @@ from typing import Callable
 import jax.numpy as jnp
 
 from .loss_functions import AlgorithmConfig, build_algorithm
-from .integration import IntegrationConfig, get_integrator
+from .integration import AnyIntegrationConfig, get_integrator
 from .models import AnyModelConfig, build_model
 from .train import (
     TrainConfig,
@@ -18,7 +18,7 @@ from .train import (
 
 def run_training(
         algorithm_cfg: AlgorithmConfig,
-        integration_cfg: IntegrationConfig,
+        integration_cfg: AnyIntegrationConfig,
         model_cfg: AnyModelConfig,
         train_cfg: TrainConfig,
         sample_input: jnp.ndarray | None = None,

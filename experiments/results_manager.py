@@ -9,10 +9,17 @@ Each experiment run gets a timestamped directory with:
 """
 
 import json
+from copy import deepcopy
+from dataclasses import asdict, is_dataclass
 from datetime import datetime
 from pathlib import Path
-from typing import Any, Dict, Optional
+from typing import Any, Dict, Optional, cast
 import subprocess
+from shutil import copy2
+
+
+def _json_default(value: Any) -> Any:
+    return str(value)
 
 
 class RunID:
@@ -25,7 +32,7 @@ class RunID:
         Returns:
             Run ID string
         """
-        return datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
+        return datetime.now().strftime("%Y-%m-%d_%H-%M-%S_%f")
 
     @staticmethod
     def parse(run_id: str) -> Optional[datetime]:
@@ -38,9 +45,12 @@ class RunID:
             datetime object or None if invalid format
         """
         try:
-            return datetime.strptime(run_id, "%Y-%m-%d_%H-%M-%S")
+            return datetime.strptime(run_id, "%Y-%m-%d_%H-%M-%S_%f")
         except ValueError:
-            return None
+            try:
+                return datetime.strptime(run_id, "%Y-%m-%d_%H-%M-%S")
+            except ValueError:
+                return None
 
 
 class ResultsManager:
@@ -64,7 +74,7 @@ class ResultsManager:
 
     def create_run(
         self,
-        config: Dict[str, Any],
+        config: Any,
         domain: str,
         run_id: Optional[str] = None,
     ) -> "RunManager":
@@ -82,24 +92,37 @@ class ResultsManager:
             run_id = RunID.generate()
 
         run_dir = self.results_root / run_id
-        run_dir.mkdir(parents=True, exist_ok=True)
+        if run_dir.exists():
+            raise FileExistsError(f"Run directory already exists: {run_dir}")
+        run_dir.mkdir(parents=True, exist_ok=False)
 
         # Create subdirectories
         (run_dir / "plots").mkdir(exist_ok=True)
         (run_dir / "artifacts").mkdir(exist_ok=True)
+
+        resolved_config, source_spec = self._extract_config_payloads(config)
 
         # Write metadata
         metadata = {
             "run_id": run_id,
             "timestamp": datetime.now().isoformat(),
             "domain": domain,
-            "config": config,
+            "config": resolved_config,
+            "config_spec": source_spec,
             "git_commit": self._get_git_commit(),
         }
 
         metadata_path = run_dir / "metadata.json"
         with open(metadata_path, "w") as f:
-            json.dump(metadata, f, indent=2)
+            json.dump(self._json_safe(metadata), f, indent=2, default=_json_default)
+
+        config_spec_path = run_dir / "config_spec.json"
+        with open(config_spec_path, "w") as f:
+            json.dump(self._json_safe(source_spec), f, indent=2, default=_json_default)
+
+        resolved_config_path = run_dir / "config_resolved.json"
+        with open(resolved_config_path, "w") as f:
+            json.dump(self._json_safe(resolved_config), f, indent=2, default=_json_default)
 
         # Update global index
         self._add_to_index(run_id, metadata)
@@ -151,6 +174,27 @@ class ResultsManager:
         }
         self._write_index(index)
 
+    def _extract_config_payloads(self, config: Any) -> tuple[Dict[str, Any], Dict[str, Any]]:
+        """Return JSON-safe resolved config and original source spec payloads."""
+        if is_dataclass(config):
+            config_dict = asdict(cast(Any, config))
+        elif isinstance(config, dict):
+            config_dict = deepcopy(config)
+        else:
+            raise TypeError(f"Unsupported config type: {type(config)!r}")
+
+        source_spec = config_dict.get("source_spec") or {}
+        if not source_spec and isinstance(config, dict):
+            source_spec = deepcopy(config.get("source_spec", {}))
+
+        resolved_config = self._json_safe(config_dict)
+        if isinstance(resolved_config.get("training"), dict) and isinstance(source_spec, dict):
+            training_spec = source_spec.get("training", {})
+            if isinstance(training_spec, dict) and "learning_rate" in training_spec:
+                resolved_config["training"]["learning_rate"] = self._json_safe(training_spec["learning_rate"])
+
+        return resolved_config, self._json_safe(source_spec)
+
     def _read_index(self) -> Dict[str, Any]:
         """Read runs index."""
         if not self.index_path.exists():
@@ -162,6 +206,21 @@ class ResultsManager:
         """Write runs index."""
         with open(self.index_path, "w") as f:
             json.dump(index, f, indent=2)
+
+    @classmethod
+    def _json_safe(cls, value: Any) -> Any:
+        """Convert dataclasses and nested containers into JSON-safe values."""
+        if is_dataclass(value):
+            return cls._json_safe(asdict(cast(Any, value)))
+        if isinstance(value, dict):
+            return {str(key): cls._json_safe(item) for key, item in value.items()}
+        if isinstance(value, (list, tuple)):
+            return [cls._json_safe(item) for item in value]
+        if isinstance(value, Path):
+            return str(value)
+        if callable(value):
+            return getattr(value, "__name__", repr(value))
+        return value
 
     @staticmethod
     def _get_git_commit() -> Optional[str]:
@@ -211,9 +270,9 @@ class RunManager:
             filename: Short name (e.g., "convergence.png")
             filepath: Actual file path
         """
-        # Plots are typically saved by domain visualisation code
-        # This is mainly for metadata tracking
-        pass
+        output_path = self.plots_dir / filename
+        output_path.parent.mkdir(parents=True, exist_ok=True)
+        copy2(filepath, output_path)
 
     def save_artifact(self, filename: str, data: Any, format: str = "pickle") -> Path:
         """Save raw data/model artifact.
@@ -239,7 +298,8 @@ class RunManager:
         elif format == "msgpack":
             import msgpack
             with open(output_path, "wb") as f:
-                msgpack.packb(data, default=str, f=f)
+                payload = msgpack.packb(data, default=str)
+                f.write(cast(bytes, payload))
         else:
             raise ValueError(f"Unknown format: {format}")
 

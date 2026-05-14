@@ -10,22 +10,25 @@ Usage:
     )
 """
 
-import yaml
+from copy import deepcopy
+from dataclasses import fields
 from pathlib import Path
-from typing import Any, Optional, Dict
-from config.schema import (
+from typing import Any, Optional, Dict, cast
+
+import optax
+import yaml
+from experiments.config.schema import (
     ExperimentConfig,
-    IntegrationConfig,
-    TrainingConfig,
-    ModelConfig,
-    MethodConfig,
 )
+
+from src.integration import QuadratureConfig, MonteCarloConfig
+from src.train import TrainConfig
 
 
 class ConfigLoader:
     """Load and merge experiment configurations."""
 
-    def __init__(self, config_dir: str = "experiments/config"):
+    def __init__(self, config_dir: str = "config"):
         """Initialize loader with config directory.
 
         Args:
@@ -67,18 +70,33 @@ class ConfigLoader:
         with open(experiment_path, "r") as f:
             experiment_yaml = yaml.safe_load(f) or {}
 
-        # Merge: experiment overrides defaults
-        merged = {**defaults, **experiment_yaml}
+        # Merge: experiment overrides defaults, but nested mappings merge deeply.
+        merged = self._deep_merge(defaults, experiment_yaml)
 
         # Apply programmatic overrides
         if overrides:
             merged = self._apply_overrides(merged, overrides)
 
+        self.old_config = merged
+
         # Convert to dataclass
-        config = self._build_config(merged)
+        config = self._build_config(merged, source_spec=deepcopy(merged))
         config.validate()
 
         return config
+
+    @classmethod
+    def _deep_merge(cls, base: dict[str, Any], override: dict[str, Any]) -> dict[str, Any]:
+        """Recursively merge two dictionaries without mutating the inputs."""
+        merged = deepcopy(base)
+
+        for key, value in override.items():
+            if key in merged and isinstance(merged[key], dict) and isinstance(value, dict):
+                merged[key] = cls._deep_merge(merged[key], value)
+            else:
+                merged[key] = deepcopy(value)
+
+        return merged
 
     @staticmethod
     def _apply_overrides(config: dict, overrides: dict) -> dict:
@@ -115,43 +133,107 @@ class ConfigLoader:
 
         return config
 
-    @staticmethod
-    def _build_config(data: dict) -> ExperimentConfig:
+    def _build_config(self, data: dict, source_spec: Optional[dict[str, Any]] = None) -> ExperimentConfig:
         """Build ExperimentConfig from dict."""
         return ExperimentConfig(
             name=data.get("name", "unnamed"),
             domain=data.get("domain", ""),
             problem_params=data.get("problem_params", {}),
-            methods=[
-                MethodConfig(
-                    name=m.get("name", ""),
-                    extra_params={k: v for k, v in m.items() if k != "name"},
-                )
-                for m in data.get("methods", [])
-            ],
-            models=[
-                ModelConfig(
-                    name=m.get("name", ""),
-                    hidden_dim=m.get("hidden_dim", 32),
-                    num_layers=m.get("num_layers", 3),
-                    extra_params={
-                        k: v for k, v in m.items()
-                        if k not in ["name", "hidden_dim", "num_layers"]
-                    },
-                )
-                for m in data.get("models", [])
-            ],
-            training=TrainingConfig(
-                epochs=data.get("training", {}).get("epochs", 100),
-                learning_rate=data.get("training", {}).get("learning_rate", 1e-3),
-                seed=data.get("training", {}).get("seed", 42),
-                optimiser=data.get("training", {}).get("optimizer", "adamw"),
-            ),
-            integration=IntegrationConfig(
-                strategy=data.get("integration", {}).get("strategy", "monte_carlo"),
-                n_interior=data.get("integration", {}).get("n_interior", 1600),
-                n_boundary=data.get("integration", {}).get("n_boundary", 100),
-                seed=data.get("integration", {}).get("seed", 42),
-            ),
+            methods=data.get("methods", []),
+            models=data.get("models", []),
+            training=self._build_training_config(data.get("training", {})),
+            integration=self._build_integration_config(data.get("integration", {})),
             test_data_params=data.get("test_data_params", {}),
+            source_spec=source_spec or {},
         )
+
+    def _field_names(self, cls):
+        return {f.name for f in fields(cls)}
+
+    def _build_integration_config(self, data: dict):
+        integration_type = (
+            data.get("strategy")
+            or data.get("kind")
+            or data.get("integration_method")
+            or "monte_carlo"
+        )
+        specific_data = data.get(integration_type, {})
+        if not isinstance(specific_data, dict):
+            specific_data = {}
+
+        # choose config class and allowed keys
+        if integration_type == "monte_carlo":
+            ConfigCls = MonteCarloConfig
+        elif integration_type == "quadrature":
+            ConfigCls = QuadratureConfig
+        else:
+            raise ValueError(f"Unrecognised integration type: {integration_type!r}")
+
+        allowed = self._field_names(ConfigCls) | {"strategy", "kind", "integration_method", "monte_carlo", "quadrature"}
+        unknown = set(data.keys()) - allowed
+        if unknown:
+            raise AttributeError(f"Unknown attributes in integration config: {unknown!r}")
+
+        config_kwargs = {k: v for k, v in data.items() if k in self._field_names(ConfigCls)}
+        config_kwargs.update({k: v for k, v in specific_data.items() if k in self._field_names(ConfigCls)})
+        return ConfigCls(**config_kwargs)
+
+    def _build_learning_rate_schedule(self, spec: Any) -> optax.Schedule:
+        """Build an optax schedule from a scalar or schedule specification."""
+        if callable(spec):
+            return cast(optax.Schedule, spec)
+
+        if isinstance(spec, (int, float)):
+            return optax.constant_schedule(float(spec))
+
+        if not isinstance(spec, dict):
+            raise TypeError(
+                "learning_rate must be a scalar, callable, or a schedule specification dict"
+            )
+
+        kind = str(spec.get("kind", "constant")).lower()
+
+        if kind == "constant":
+            return optax.constant_schedule(float(spec.get("value", spec.get("init_value", 1e-3))))
+
+        if kind == "exponential_decay":
+            return optax.exponential_decay(
+                init_value=float(spec.get("init_value", 1e-3)),
+                transition_steps=int(spec.get("transition_steps", 1000)),
+                decay_rate=float(spec.get("decay_rate", 0.95)),
+                staircase=bool(spec.get("staircase", True)),
+                end_value=spec.get("end_value"),
+                transition_begin=int(spec.get("transition_begin", 0)),
+            )
+
+        if kind == "cosine_decay":
+            return optax.cosine_decay_schedule(
+                init_value=float(spec.get("init_value", 1e-3)),
+                decay_steps=int(spec.get("decay_steps", 1000)),
+                alpha=float(spec.get("alpha", 0.0)),
+            )
+
+        if kind == "piecewise_constant":
+            boundaries_and_scales = spec.get("boundaries_and_scales")
+            if boundaries_and_scales is None:
+                raise ValueError("piecewise_constant schedule requires 'boundaries_and_scales'")
+            return optax.piecewise_constant_schedule(
+                init_value=float(spec.get("init_value", 1e-3)),
+                boundaries_and_scales=dict(boundaries_and_scales),
+            )
+
+        raise ValueError(f"Unknown learning rate schedule kind: {kind}")
+
+    def _build_training_config(self, data: dict):
+        learning_rate = self._build_learning_rate_schedule(data.get("learning_rate", {}))
+
+        allowed  = self._field_names(TrainConfig)
+        unknown = set(data.keys()) - allowed
+        if unknown:
+            raise AttributeError(f"Unknown attributes in integration config: {unknown!r}")
+
+        config_kwargs = {k: v for k, v in data.items() if k in self._field_names(TrainConfig)}
+        config_kwargs["learning_rate"] = learning_rate
+        return TrainConfig(**config_kwargs)
+
+
