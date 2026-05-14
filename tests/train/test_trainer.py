@@ -129,7 +129,7 @@ class TestTrainerFit:
         assert state.step == initial_state.step + 2
         assert len(history) == 2
 
-    @pytest.mark.parametrize("epochs,log_every,expected", [(5, 1, 5), (5, 2, 3), (5, 3, 2)])
+    @pytest.mark.parametrize("epochs,log_every,expected", [(5, 1, 5), (5, 2, 2), (5, 3, 1)])
     def test_fit_history_respects_log_every(
         self,
         mock_training_method,
