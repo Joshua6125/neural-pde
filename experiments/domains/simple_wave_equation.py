@@ -19,7 +19,7 @@ import jax.numpy as jnp
 import matplotlib.pyplot as plt
 import numpy as np
 
-from src.loss_functions import AlgorithmConfig, PINNConfig, SLSConfig, gPINNConfig
+from src.loss_functions import AlgorithmConfig, FOSLSConfig, PINNConfig, SLSConfig, gPINNConfig
 from src.models import AnyModelConfig, KANModelConfig, MLPModelConfig
 
 from .base import DomainPlugin
@@ -141,6 +141,12 @@ class SimpleWaveEquationDomain(DomainPlugin):
                 sigma0=lambda v: jnp.array(
                     [self.analytical_solution_x(jnp.array(v[0]), jnp.array(v[1]))]
                 ),
+            )
+        elif method == "fosls":
+            algorithm_cfg = FOSLSConfig(
+                model=model_cfg,
+                f=lambda v: self.source_function(jnp.array(v[0]), jnp.array(v[1])),
+                g=0.0,
             )
         elif method == "gpinn":
             algorithm_cfg = gPINNConfig(

@@ -9,6 +9,7 @@ Each algorithm is self-contained and combines:
 from typing import TypeAlias
 
 from .base import AlgorithmConfig, Loss
+from .fosls import FOSLS, FOSLSConfig, FOSLSLoss
 from .pinn import PINN, PINNConfig, PINNLoss
 from .sls import SLS, SLSConfig, SLSLoss
 from .gpinn import gPINN, gPINNConfig, gPINNLoss
@@ -16,8 +17,8 @@ from .gpinn import gPINN, gPINNConfig, gPINNLoss
 from ..models import BuiltModelProtocol
 
 
-AlgorithmConfigType: TypeAlias = PINNConfig | SLSConfig | gPINNConfig
-LossAlgorithm: TypeAlias = PINN | SLS | gPINN
+AlgorithmConfigType: TypeAlias = PINNConfig | SLSConfig | gPINNConfig | FOSLSConfig
+LossAlgorithm: TypeAlias = PINN | SLS | gPINN | FOSLS
 
 
 def build_algorithm(config: AlgorithmConfig, model: BuiltModelProtocol) -> LossAlgorithm:
@@ -49,6 +50,8 @@ def build_algorithm(config: AlgorithmConfig, model: BuiltModelProtocol) -> LossA
         return SLS(model=model, config=config)
     elif isinstance(config, gPINNConfig):
         return gPINN(model=model, config=config)
+    elif isinstance(config, FOSLSConfig):
+        return FOSLS(model=model, config=config)
     else:
         raise ValueError(f"Unknown algorithm config type: {type(config).__name__}")
 
@@ -69,6 +72,10 @@ __all__ = [
     "gPINN",
     "gPINNConfig",
     "gPINNLoss",
+    # FOSLS
+    "FOSLS",
+    "FOSLSConfig",
+    "FOSLSLoss",
     # Factory
     "build_algorithm",
     # Type alias
