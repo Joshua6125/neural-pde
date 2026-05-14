@@ -1,4 +1,5 @@
 """Training execution interface."""
+# TODO: This is not actually a CLI anymore, should modify the name...
 
 from typing import Callable
 

@@ -9,6 +9,7 @@ Each algorithm is self-contained and combines:
 from typing import TypeAlias
 
 from .base import AlgorithmConfig, Loss
+from .drm import DRM, DRMConfig, DRMLoss
 from .pinn import PINN, PINNConfig, PINNLoss
 from .sls import SLS, SLSConfig, SLSLoss
 from .gpinn import gPINN, gPINNConfig, gPINNLoss
@@ -16,8 +17,8 @@ from .gpinn import gPINN, gPINNConfig, gPINNLoss
 from ..models import BuiltModelProtocol
 
 
-AlgorithmConfigType: TypeAlias = PINNConfig | SLSConfig | gPINNConfig
-LossAlgorithm: TypeAlias = PINN | SLS | gPINN
+AlgorithmConfigType: TypeAlias = PINNConfig | SLSConfig | gPINNConfig | DRMConfig
+LossAlgorithm: TypeAlias = PINN | SLS | gPINN | DRM
 
 
 def build_algorithm(config: AlgorithmConfig, model: BuiltModelProtocol) -> LossAlgorithm:
@@ -49,6 +50,8 @@ def build_algorithm(config: AlgorithmConfig, model: BuiltModelProtocol) -> LossA
         return SLS(model=model, config=config)
     elif isinstance(config, gPINNConfig):
         return gPINN(model=model, config=config)
+    elif isinstance(config, DRMConfig):
+        return DRM(model=model, config=config)
     else:
         raise ValueError(f"Unknown algorithm config type: {type(config).__name__}")
 
@@ -61,6 +64,10 @@ __all__ = [
     "PINN",
     "PINNConfig",
     "PINNLoss",
+    # DRM
+    "DRM",
+    "DRMConfig",
+    "DRMLoss",
     # SLS
     "SLS",
     "SLSConfig",
