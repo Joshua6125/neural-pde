@@ -207,7 +207,7 @@ class SimpleWaveEquationDomain(DomainPlugin):
         plt.figure(figsize=(10, 6))
 
         for method_name, metrics in metrics_by_method.items():
-            losses = [m.total_loss for m in metrics]
+            losses = [abs(m.total_loss) for m in metrics]
             epochs = [m.step for m in metrics]
             plt.plot(epochs, losses, linewidth=2, label=f"{method_name} Loss")
 

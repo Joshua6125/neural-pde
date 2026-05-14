@@ -1,1 +1,0 @@
-"""Tests for Deep Ritz Method loss functions."""

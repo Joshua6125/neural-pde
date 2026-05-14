@@ -5,7 +5,7 @@ name: "experiment_1"
 domain: "simple_wave_equation"
 
 training:
-  epochs: 100
+  epochs: 200
   learning_rate:
     kind: exponential_decay
     init_value: 1.0e-3

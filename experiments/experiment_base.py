@@ -138,7 +138,7 @@ class BaseExperiment:
         run_data_by_method: Dict[str, dict[str, Any]] = {}
 
         for index, combo in enumerate(combinations, 1):
-            print(f"  [{index}/{len(combinations)}] {combo.label}...", end=" ", flush=True)
+            print(f"  [{index}/{len(combinations)}] {combo.label}...", flush=True)
             start_time = time.time()
 
             try:

@@ -130,7 +130,7 @@ class Trainer:
                 callback_uses_state = False
 
         history: list[TrainStepMetrics] = []
-        for epoch in range(self.train_cfg.epochs):
+        for epoch in range(1, self.train_cfg.epochs + 1):
             previous_state = state
             params, opt_state, total_loss, interior_loss, boundary_loss, integration_key = self._train_step_fn(
                 state.params,
