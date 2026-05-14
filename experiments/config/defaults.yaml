@@ -57,6 +57,11 @@ methods:
     ic_weight: 1.0
     bc_weight: 100.0
     residual_grad_weight: 1e-2
+  - name: "fosls"
+    output_heads:
+      v: 1
+      sigma: 1
+    ic_weight: 10.0
 
 # Models to compare
 models:

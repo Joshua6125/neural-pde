@@ -16,3 +16,7 @@ class FOSLSConfig(AlgorithmConfig):
     model: AnyModelConfig = field(default_factory=MLPModelConfig)
     f: float | Callable[[jnp.ndarray], jnp.ndarray] = 0.0
     g: float | Callable[[jnp.ndarray], jnp.ndarray] = 0.0
+    v0: float | Callable[[jnp.ndarray], jnp.ndarray] = 0.0
+    sigma0: float | Callable[[jnp.ndarray], jnp.ndarray] = 0.0
+    v_boundary: float | Callable[[jnp.ndarray], jnp.ndarray] = 0.0
+    ic_weight: float = 1.0

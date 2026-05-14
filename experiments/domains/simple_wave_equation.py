@@ -146,7 +146,12 @@ class SimpleWaveEquationDomain(DomainPlugin):
             algorithm_cfg = FOSLSConfig(
                 model=model_cfg,
                 f=lambda v: self.source_function(jnp.array(v[0]), jnp.array(v[1])),
-                g=0.0,
+                g=lambda v: self.zero_vector_source(jnp.array(v[0]), jnp.array(v[1])),
+                v0=lambda v: self.analytical_solution_t(jnp.array(v[0]), jnp.array(v[1])),
+                sigma0=lambda v: jnp.array(
+                    [self.analytical_solution_x(jnp.array(v[0]), jnp.array(v[1]))]
+                ),
+                ic_weight=float(method_data.get("ic_weight", 1.0)),
             )
         elif method == "gpinn":
             algorithm_cfg = gPINNConfig(
