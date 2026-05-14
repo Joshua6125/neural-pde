@@ -11,7 +11,8 @@ from __future__ import annotations
 
 import os
 from typing import Any, Tuple
-from dataclasses import fields
+from dataclasses import asdict, fields, is_dataclass
+from typing import cast
 
 import jax
 import jax.numpy as jnp
@@ -84,13 +85,20 @@ class SimpleWaveEquationDomain(DomainPlugin):
     def _canonical_name(self, name: str) -> str:
         return name.strip().lower()
 
+    def _mapping(self, data: Any) -> dict[str, Any]:
+        if is_dataclass(data):
+            return asdict(cast(Any, data))
+        return dict(data)
+
     def _field_names(self, cls):
         return {f.name for f in fields(cls)}
 
-    def _build_model_config(self, model_data: dict, method_data: dict) -> AnyModelConfig:
+    def _build_model_config(self, model_data: Any, method_data: Any) -> AnyModelConfig:
+        model_data = self._mapping(model_data)
+        method_data = self._mapping(method_data)
         model_type = self._canonical_name(model_data.get("name", "mlp"))
 
-        common_keys = {"name", "hidden_dim", "num_layers"}
+        common_keys = {"name", "hidden_dim", "num_layers", "input_dim", "extra_params"}
 
         if model_type == "mlp":
             ConfigCls = MLPModelConfig
@@ -104,13 +112,13 @@ class SimpleWaveEquationDomain(DomainPlugin):
         if unknown:
             raise AttributeError(f"Unknown attributes in integration config: {unknown!r}")
 
-        print(method_data)
         config_kwargs = {k: v for k, v in model_data.items() if k in self._field_names(ConfigCls)}
         config_kwargs["output_heads"] = method_data.get("output_heads", {})
-        print(config_kwargs)
         return ConfigCls(**config_kwargs)
 
-    def build_source_configs(self, model_data: dict, method_data: dict) -> tuple[AnyModelConfig, AlgorithmConfig]:
+    def build_source_configs(self, model_data: Any, method_data: Any) -> tuple[AnyModelConfig, AlgorithmConfig]:
+        model_data = self._mapping(model_data)
+        method_data = self._mapping(method_data)
         method = self._canonical_name(method_data.get("name", ""))
         model_cfg = self._build_model_config(model_data, method_data)
 
@@ -121,8 +129,8 @@ class SimpleWaveEquationDomain(DomainPlugin):
                 u0=lambda v: self.analytical_solution(jnp.array(v[0]), jnp.array(v[1])),
                 ut0=lambda v: self.analytical_solution_t(jnp.array(v[0]), jnp.array(v[1])),
                 c=self.c,
-                ic_weight=method_data.get("ic_weight", 1.0),
-                bc_weight=method_data.get("bc_weight", 100.0),
+                ic_weight=float(method_data.get("ic_weight", 1.0)),
+                bc_weight=float(method_data.get("bc_weight", method_data.get("bc_weights", 100.0))),
             )
         elif method == "sls":
             algorithm_cfg = SLSConfig(
@@ -141,9 +149,9 @@ class SimpleWaveEquationDomain(DomainPlugin):
                 u0=lambda v: self.analytical_solution(jnp.array(v[0]), jnp.array(v[1])),
                 ut0=lambda v: self.analytical_solution_t(jnp.array(v[0]), jnp.array(v[1])),
                 c=self.c,
-                ic_weight=method_data.get("ic_weight", 1.0),
-                bc_weight=method_data.get("bc_weight", 100.0),
-                residual_grad_weight=method_data.get("residual_grad_weight", 1e-2),
+                ic_weight=float(method_data.get("ic_weight", 1.0)),
+                bc_weight=float(method_data.get("bc_weight", method_data.get("bc_weights", 100.0))),
+                residual_grad_weight=float(method_data.get("residual_grad_weight", 1e-2)),
             )
         else:
             raise ValueError(f"Unsupported method: {method}")

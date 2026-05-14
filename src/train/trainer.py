@@ -1,3 +1,4 @@
+import inspect
 from dataclasses import dataclass
 from typing import Any, Callable
 
@@ -101,7 +102,7 @@ class Trainer:
             self,
             sample_input: jnp.ndarray | None = None,
             state: TrainState | None = None,
-            callback: Callable[[TrainStepMetrics], None] | None = None,
+            callback: Callable[..., None] | None = None,
         ) -> tuple[TrainState, list[TrainStepMetrics]]:
         """Run training for the configured number of epochs.
 
@@ -111,7 +112,7 @@ class Trainer:
             Required if ``state`` is not provided. Used for model initialisation.
         state : TrainState | None
             Existing state for continuing training.
-        callback : Callable[[TrainStepMetrics], None] | None
+        callback : Callable[..., None] | None
             Optional callback invoked each epoch.
         """
         if state is None and sample_input is None:
@@ -121,8 +122,16 @@ class Trainer:
             assert sample_input is not None
             state = self.init_state(sample_input)
 
+        callback_uses_state = False
+        if callback is not None:
+            try:
+                callback_uses_state = len(inspect.signature(callback).parameters) >= 2
+            except (TypeError, ValueError):
+                callback_uses_state = False
+
         history: list[TrainStepMetrics] = []
         for epoch in range(self.train_cfg.epochs):
+            previous_state = state
             params, opt_state, total_loss, interior_loss, boundary_loss, integration_key = self._train_step_fn(
                 state.params,
                 state.opt_state,
@@ -155,6 +164,9 @@ class Trainer:
 
             if callback is not None:
                 assert metrics is not None
-                callback(metrics)
+                if callback_uses_state:
+                    callback(metrics, previous_state)
+                else:
+                    callback(metrics)
 
         return state, history

@@ -23,7 +23,7 @@ def run_training(
         train_cfg: TrainConfig,
         sample_input: jnp.ndarray | None = None,
         state: TrainState | None = None,
-        callback: Callable[[TrainStepMetrics], None] | None = None,
+        callback: Callable[..., None] | None = None,
     ) -> tuple[TrainState, list[TrainStepMetrics]]:
     """Execute training with algorithm.
 
