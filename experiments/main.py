@@ -1,3 +1,11 @@
+"""
+Main entry point for running experiments
+
+example usage:
+python main.py --config-name experiment1 training.learning_rate.init_value=1e-4
+"""
+
+
 import sys
 from pathlib import Path
 

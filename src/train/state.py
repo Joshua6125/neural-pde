@@ -36,7 +36,7 @@ class TrainConfig:
         decay_rate=0.95,
         staircase=True
     ) # NOTE: Might use optax.cosine_decay_schedule(init_value=1e-4, decay_steps=50000, alpha=0.01) instead.
-    optimiser: Literal["adam", "adamw", "sgd"] = "adamw"
+    optimiser: str = "adamw"
     seed: int = 0
     integration_seed: int | None = None
     log_every: int = 100
