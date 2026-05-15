@@ -32,17 +32,19 @@ class XNODE(nn.Module):
     num_layers: int
     output_heads: Mapping[str, int]
     t_max: float = 1.0
+    controller_rtol: float = 1e-6
+    controller_atol: float = 1e-7
     solver: diffrax.AbstractSolver = diffrax.Tsit5()
 
     def setup(self):
-        # N_init: Maps the PDE initial condition to the hidden state h(0) [cite: 241, 411]
+        # Maps the PDE initial condition to the hidden state h(0)
         self.n_init = MLP(
             hidden_dim=self.hidden_dim,
             num_layers=self.num_layers,
             output_heads={'h0': self.hidden_dim}
         )
 
-        # N_vec: Computes dh/dt [cite: 237]
+        # Computes dh/dt
         self.n_vec = XNODEVectorField(
             hidden_dim=self.hidden_dim,
             num_layers=self.num_layers
@@ -65,7 +67,7 @@ class XNODE(nn.Module):
         h0 = self.n_init(u0_x)['h0']
         _ = self.n_vec(0.0, h0, xs)
 
-        # 2. Define the pure vector field function for Diffrax
+        # Define the pure vector field function for Diffrax
         def vf(t, y, args):
             return self.n_vec(t, y, args)
 
@@ -77,16 +79,20 @@ class XNODE(nn.Module):
             t0=0.0,
             t1=t,
             dt0=None,
-            stepsize_controller=diffrax.PIDController(rtol=1e-3, atol=1e-3),
+            stepsize_controller=diffrax.PIDController(
+                rtol=self.controller_rtol,
+                atol=self.controller_atol
+            ),
             y0=h0,
             args=xs,
             saveat=diffrax.SaveAt(t1=True),
             adjoint=diffrax.DirectAdjoint(),
         )
 
+        assert sol.ys, "solution should exist"
+
         h_t = sol.ys[0]
 
-        # 4. Apply the linear output layer L_theta [cite: 237, 411]
         return {
             name: nn.Dense(dim, name=name)(h_t)
             for name, dim in self.output_heads.items()

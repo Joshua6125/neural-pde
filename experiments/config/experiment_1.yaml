@@ -5,7 +5,7 @@ name: "experiment_1"
 domain: "simple_wave_equation"
 
 training:
-  epochs: 200
+  epochs: 5
   learning_rate:
     kind: exponential_decay
     init_value: 1.0e-3
@@ -13,6 +13,7 @@ training:
     decay_rate: 0.95
     staircase: true
   seed: 42
+  log_every: 1
   optimiser: "adamw"
 
 methods:
@@ -22,6 +23,13 @@ methods:
       sigma: 1
 
 models:
-  - name: "xnode"
+  - name: "mlp"
     hidden_dim: 32
     num_layers: 3
+  - name: "kan"
+    hidden_dim: 32
+    num_layers: 3
+    input_dim: 2
+  - name: "xnode"
+    hidden_dim: 32
+    num_layers: 1
