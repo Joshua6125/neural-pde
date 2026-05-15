@@ -1,7 +1,7 @@
 from typing import Callable, cast
 from omegaconf import DictConfig
 
-from src.loss_functions import PINNConfig, gPINNConfig, SLSConfig, FOSLSConfig
+from src.loss_functions import PINNConfig, gPINNConfig, SLSConfig, FOSLSConfig, AlgorithmConfig
 from src.models import MLPModelConfig, KANModelConfig, AnyModelConfig
 from src.train import TrainConfig
 from src.integration import MonteCarloConfig, QuadratureConfig, AnyIntegrationConfig
@@ -109,21 +109,32 @@ def build_kan_config(
     )
 
 
+def build_model_config(
+    spec: DictConfig,
+    output_heads: dict[str, int],
+) -> AnyModelConfig:
+
+    kind = spec.get("name", None)
+
+    if kind == "mlp":
+        return build_mlp_config(spec, output_heads)
+    if kind == "kan":
+        return build_kan_config(spec, output_heads)
+
+    raise ValueError(f"Unknown model type: {kind}")
+
+
 def build_pinn_config(
     spec: DictConfig,
     model: AnyModelConfig,
-    c: float | Callable[[jnp.ndarray], jnp.ndarray] = 1.0,
-    f: float | Callable[[jnp.ndarray], jnp.ndarray] = 0.0,
-    u0: float | Callable[[jnp.ndarray], jnp.ndarray] = 0.0,
-    ut0: float | Callable[[jnp.ndarray], jnp.ndarray] = 0.0,
+    wave_functions: dict,
 ) -> PINNConfig:
-
     return PINNConfig(
         model=model,
-        c=c,
-        f=f,
-        u0=u0,
-        ut0=ut0,
+        c=wave_functions.get("c", 1.0),
+        f=wave_functions.get("f", 0.0),
+        u0=wave_functions.get("u0", 0.0),
+        ut0=wave_functions.get("ut0", 0.0),
         ic_weight=float(spec.get("ic_weight", 1.0)),
         bc_weight=float(spec.get("bc_weight", 1.0)),
     )
@@ -132,17 +143,14 @@ def build_pinn_config(
 def build_gpinn_config(
     spec: DictConfig,
     model: AnyModelConfig,
-    c: float | Callable[[jnp.ndarray], jnp.ndarray] = 1.0,
-    f: float | Callable[[jnp.ndarray], jnp.ndarray] = 0.0,
-    u0: float | Callable[[jnp.ndarray], jnp.ndarray] = 0.0,
-    ut0: float | Callable[[jnp.ndarray], jnp.ndarray] = 0.0,
+    wave_functions: dict,
 ) -> gPINNConfig:
     return gPINNConfig(
         model=model,
-        c=c,
-        f=f,
-        u0=u0,
-        ut0=ut0,
+        c=wave_functions.get("c", 1.0),
+        f=wave_functions.get("f", 0.0),
+        u0=wave_functions.get("u0", 0.0),
+        ut0=wave_functions.get("ut0", 0.0),
         ic_weight=float(spec.get("ic_weight", 1.0)),
         bc_weight=float(spec.get("bc_weight", 1.0)),
         residual_grad_weight=float(spec.get("residual_grad_weight", 1e-2))
@@ -150,47 +158,57 @@ def build_gpinn_config(
 
 
 def build_sls_config(
-    spec: DictConfig,
     model: AnyModelConfig,
-    f: float | Callable[[jnp.ndarray], jnp.ndarray] = 0.0,
-    g: float | Callable[[jnp.ndarray], jnp.ndarray] = 0.0,
-    v0: float | Callable[[jnp.ndarray], jnp.ndarray] = 0.0,
-    sigma0: float | Callable[[jnp.ndarray], jnp.ndarray] = 0.0,
-    v_boundary: float | Callable[[jnp.ndarray], jnp.ndarray] = 0.0,
+    wave_functions: dict,
 ) -> SLSConfig:
     return SLSConfig(
         model=model,
-        f=f,
-        g=g,
-        v0=v0,
-        sigma0=sigma0,
-        v_boundary=v_boundary,
+        f=wave_functions.get("f", 0.0),
+        g=wave_functions.get("g", 0.0),
+        v0=wave_functions.get("v0", 0.0),
+        sigma0=wave_functions.get("sigma0", 0.0),
+        v_boundary=wave_functions.get("v_boundary", 0.0)
     )
 
 
 def build_fosls_config(
     spec: DictConfig,
     model: AnyModelConfig,
-    f: float | Callable[[jnp.ndarray], jnp.ndarray] = 0.0,
-    g: float | Callable[[jnp.ndarray], jnp.ndarray] = 0.0,
-    v0: float | Callable[[jnp.ndarray], jnp.ndarray] = 0.0,
-    sigma0: float | Callable[[jnp.ndarray], jnp.ndarray] = 0.0,
-    v_boundary: float | Callable[[jnp.ndarray], jnp.ndarray] = 0.0,
+    wave_functions: dict,
 ) -> FOSLSConfig:
     return FOSLSConfig(
         model=model,
-        f=f,
-        g=g,
-        v0=v0,
-        sigma0=sigma0,
-        v_boundary=v_boundary,
+        f=wave_functions.get("f", 0.0),
+        g=wave_functions.get("g", 0.0),
+        v0=wave_functions.get("v0", 0.0),
+        sigma0=wave_functions.get("sigma0", 0.0),
+        v_boundary=wave_functions.get("v_boundary", 0.0),
         ic_weight=float(spec.get("ic_weight", 1.0)),
     )
 
 
+def build_method_config(
+    data: DictConfig,
+    model: AnyModelConfig,
+    wave_functions: dict
+) -> AlgorithmConfig:
+    kind = data.get("name", None)
+
+    if kind == "pinn":
+        return build_pinn_config(data, model, wave_functions)
+    if kind == "gpinn":
+        return build_gpinn_config(data, model, wave_functions)
+    if kind == "sls":
+        return build_sls_config(model, wave_functions)
+    if kind == "fosls":
+        return build_fosls_config(data, model, wave_functions)
+
+    raise ValueError(f"Unknown method type: {kind}")
+
+
 def build_trainer_config(
     spec: DictConfig,
-    learning_rate: optax.Schedule | None,
+    learning_rate: optax.Schedule | None = None,
 ) -> TrainConfig:
 
     lr = learning_rate if not learning_rate is None else build_learning_rate_schedule(spec.get("learning_rate", {}))
