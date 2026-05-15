@@ -3,7 +3,6 @@ script_name: experiment1
 iterations: 5
 
 problem_params:
-  L: 1.0
   T: 1.0
   c: 1.0
 

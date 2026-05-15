@@ -8,6 +8,7 @@ from src.integration import MonteCarloConfig, QuadratureConfig, AnyIntegrationCo
 
 import optax
 import jax.numpy as jnp
+import jax
 
 
 def build_integration_config(data: DictConfig) -> AnyIntegrationConfig:
@@ -222,3 +223,28 @@ def build_trainer_config(
         log_every=int(spec.get("log_every", 50)),
         use_jit=bool(spec.get("use_jit", True))
     )
+
+
+def make_first_order_model(model_apply, method_kind: str):
+    """
+    Wraps the standard model_apply to always return the first-order vector
+    representation: (v, sigma) using autodiff if it's a second-order model (e.g. PINN).
+    If it's already a first-order model (SLS/FOSLS), it leaves it alone.
+    """
+    if method_kind in ["sls", "fosls"]:
+        # output is already dict with v and sigma
+        def wrapped_apply(params, t, x):
+            out = model_apply(params, jnp.array([t, x]))
+            return jnp.concatenate([out["v"], out["sigma"]], axis=-1)
+        return wrapped_apply
+
+    # For PINN/gPINN: model_apply returns dict with u, we need v = u_t, sigma = u_x
+    def u_fn(params, t, x):
+        return model_apply(params, jnp.array([t, x]))["u"][0]
+
+    def wrapped_apply(params, t, x):
+        v = jax.grad(u_fn, argnums=1)(params, t, x)
+        sigma = jax.grad(u_fn, argnums=2)(params, t, x)
+        return jnp.array([v, sigma])
+
+    return wrapped_apply

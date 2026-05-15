@@ -39,9 +39,11 @@ class ProblemDefinition:
             The overridden experiment configuration.
         """
 
-        self.L = float(cfg.problem_params.get("L", 1.0))
+        self.x_min = float(cfg.integration.get("x_min", 0.0))
+        self.x_max = float(cfg.integration.get("x_max", 1.0))
         self.T = float(cfg.problem_params.get("T", 1.0))
         self.c = float(cfg.problem_params.get("c", 1.0))
+        self.cfg = cfg
 
     def analytical_solution(self, t: jnp.ndarray, x: jnp.ndarray) -> jnp.ndarray:
         """Compute the manufactured analytical solution."""
@@ -49,7 +51,7 @@ class ProblemDefinition:
         x_array = jnp.asarray(x)
 
         t_term = jnp.sin(jnp.pi * t_array / self.T)
-        x_term = jnp.sin(jnp.pi * (x_array + self.L) / (2 * self.L))
+        x_term = jnp.sin(jnp.pi * (x_array - self.x_min) / (self.x_max - self.x_min))
         result = t_term * x_term
 
         return jnp.where(jnp.isclose(t_array / self.T, 1.0, atol=1e-10), 0.0, result)
@@ -58,20 +60,20 @@ class ProblemDefinition:
         """Time derivative of the manufactured analytical solution."""
         return (
             jnp.pi / self.T
-        ) * jnp.cos(jnp.pi * t / self.T) * jnp.sin(jnp.pi * (x + self.L) / (2 * self.L))
+        ) * jnp.cos(jnp.pi * t / self.T) * jnp.sin(jnp.pi * (x - self.x_min) / (self.x_max - self.x_min))
 
     def analytical_solution_x(self, t: jnp.ndarray, x: jnp.ndarray) -> jnp.ndarray:
         """Spatial derivative of the manufactured analytical solution."""
         return (
             jnp.sin(jnp.pi * t / self.T)
-            * jnp.cos(jnp.pi * (x + self.L) / (2 * self.L))
-            * (jnp.pi / (2 * self.L))
+            * jnp.cos(jnp.pi * (x - self.x_min) / (self.x_max - self.x_min))
+            * (jnp.pi / (self.x_max - self.x_min))
         )
 
     def source_function(self, t: jnp.ndarray, x: jnp.ndarray) -> jnp.ndarray:
         """Closed-form source term for the manufactured PDE."""
         u = self.analytical_solution(t, x)
-        coeff = -jnp.pi**2 / self.T**2 + self.c**2 * jnp.pi**2 / (4 * self.L**2)
+        coeff = -jnp.pi**2 / self.T**2 + self.c**2 * jnp.pi**2 / (self.x_max - self.x_min)**2
         return coeff * u
 
     def zero_vector_source(self, t: jnp.ndarray, x: jnp.ndarray) -> jnp.ndarray:
@@ -278,6 +280,91 @@ class DataProcessor:
         print(f"Loss plot saved to {plot_path}")
 
 
+    def plot_fosls_error(self):
+        import matplotlib.pyplot as plt
+        import jax
+        from src.models import build_model
+        from utils import make_first_order_model, build_model_config
+
+        if not os.path.exists(self.models_dir):
+            print("No models directory found. Cannot plot FOSLS error.")
+            return
+
+        # Time and space discretization
+        t_vals = np.linspace(0, self.problem.T, 50)
+        x_vals = np.linspace(self.problem.x_min, self.problem.x_max, 50)
+        dt = t_vals[1] - t_vals[0]
+        dx = x_vals[1] - x_vals[0]
+
+        plt.figure(figsize=(10, 6))
+
+        methods = self.problem.cfg.get("methods", [])
+        models = self.problem.cfg.get("models", [])
+        combinations = []
+        for method in methods:
+            for model in models:
+                combinations.append((model, method))
+
+        for (model_cfg, method_cfg) in combinations:
+            heads = method_cfg.get("output_heads", "")
+            model_obj_cfg = build_model_config(model_cfg, heads)
+            model_obj = build_model(model_obj_cfg)
+            name = f"{model_cfg.name}-{method_cfg.name}"
+
+            model_files = glob(os.path.join(self.models_dir, f"{name}_iter*.pkl"))
+            if not model_files:
+                continue
+
+            first_order_apply = make_first_order_model(model_obj.apply, method_cfg.name)
+            batched_apply = jax.jit(jax.vmap(first_order_apply, in_axes=(None, None, 0)))
+
+            errors_per_iter = []
+            for m_file in model_files:
+                with open(m_file, "rb") as f:
+                    params = pickle.load(f)
+
+                iter_errors_over_time = []
+                for t in t_vals:
+                    # Analytical solution terms
+                    true_v = self.problem.analytical_solution_t(t, x_vals)
+                    true_sigma = self.problem.analytical_solution_x(t, x_vals)
+                    true_vector = jnp.stack([true_v, true_sigma], axis=-1)
+
+                    # Model prediction (v, sigma)
+                    pred_vector = batched_apply(params, t, x_vals)
+
+                    # L2 norm over space at current time point t
+                    sq_diff = jnp.sum((pred_vector - true_vector)**2, axis=-1)
+                    l2_norm = jnp.sqrt(jnp.sum(sq_diff) * dx)
+                    iter_errors_over_time.append(l2_norm)
+
+                errors_per_iter.append(iter_errors_over_time)
+
+            if not errors_per_iter:
+                continue
+
+            errors_per_iter = np.array(errors_per_iter)
+            median_error = np.median(errors_per_iter, axis=0)
+            low_error = np.percentile(errors_per_iter, 25, axis=0)
+            high_error = np.percentile(errors_per_iter, 75, axis=0)
+
+            line = plt.plot(t_vals, median_error, label=name)[0]
+            plt.fill_between(t_vals, low_error, high_error, color=line.get_color(), alpha=0.3)
+
+        plt.xlabel("Time (t)")
+        plt.ylabel("Avg L2 FOSLS Error Norm over x")
+        plt.title("Error Plot over Space-Time")
+        plt.legend()
+        plt.grid(True)
+
+        plots_dir = os.path.join(self.results_dir, "plots")
+        os.makedirs(plots_dir, exist_ok=True)
+        plot_path = os.path.join(plots_dir, "space_time_error_plot.png")
+        plt.savefig(plot_path)
+        plt.close()
+        print(f"Error plot saved to {plot_path}")
+
+
 def run(
     cfg: DictConfig,
     output_dir: str,
@@ -316,6 +403,7 @@ def run(
         print("[PHASE 2] Processing Data and Generating Plots...")
         processor = DataProcessor(problem, output_dir)
         processor.plot_loss()
+        processor.plot_fosls_error()
         print("[PHASE 2] Complete.\n")
 
     print("Experiment pipeline finished successfully.")
