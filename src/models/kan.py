@@ -39,7 +39,7 @@ class KANModel(nn.Module):
             raise ValueError("input_dim must be strictly positive")
 
     def _layer_dims(self) -> list[int]:
-        total_out_dim = sum(self.output_heads.values())
+        total_out_dim = sum(dim for _, dim in sorted(self.output_heads.items()))
         return [self.input_dim] + [self.hidden_dim] * self.num_layers + [total_out_dim]
 
     def setup(self):
@@ -74,7 +74,7 @@ class KANModel(nn.Module):
     def _split_output_heads(self, y: jnp.ndarray) -> dict[str, jnp.ndarray]:
         outputs: dict[str, jnp.ndarray] = {}
         start = 0
-        for name, dim in self.output_heads.items():
+        for name, dim in sorted(self.output_heads.items()):
             outputs[name] = y[..., start : start + dim]
             start += dim
         return outputs

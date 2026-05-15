@@ -41,7 +41,7 @@ class BaseModelConfig:
     def validate(self) -> None:
         assert self.output_heads,   "output_heads must not be non-empty"
         assert len(self.output_heads) > 0, "output_heads must be non-empty when provided"
-        for name, dim in self.output_heads.items():
+        for name, dim in sorted(self.output_heads.items()):
             assert name, "output head names must be non-empty"
             assert dim > 0, "each output head dimension must be strictly positive"
 

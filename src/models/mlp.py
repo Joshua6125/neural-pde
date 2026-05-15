@@ -29,5 +29,5 @@ class MLP(nn.Module):
 
         return {
             name: nn.Dense(dim, name=name)(h)
-            for name, dim in self.output_heads.items()
+            for name, dim in sorted(self.output_heads.items())
         }
