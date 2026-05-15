@@ -1,5 +1,7 @@
 script_name: experiment1
 
+iterations: 5
+
 problem_params:
   L: 1.0
   T: 1.0
@@ -13,7 +15,7 @@ training:
     transition_steps: 1000
     decay_rate: 0.95
     staircase: true
-  seed: 42
+  seed: 0
   log_every: 5
   optimiser: "adamw"
 
@@ -36,6 +38,10 @@ models:
   - name: "mlp"
     hidden_dim: 32
     num_layers: 3
+  # - name: "kan"
+  #   hidden_dim: 32
+  #   num_layers: 2
+  #   input_dim: 2
 
 methods:
   - name: "pinn"
@@ -47,12 +53,12 @@ methods:
     output_heads:
       v: 1
       sigma: 1
-  - name: "gpinn"
-    output_heads:
-      u: 1
-    ic_weight: 1.0
-    bc_weight: 100.0
-    residual_grad_weight: 1e-2
+  # - name: "gpinn"
+  #   output_heads:
+  #     u: 1
+  #   ic_weight: 1.0
+  #   bc_weight: 100.0
+  #   residual_grad_weight: 1e-2
   - name: "fosls"
     output_heads:
       v: 1

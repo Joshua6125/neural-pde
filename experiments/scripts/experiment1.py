@@ -6,6 +6,7 @@ In particular, all loss functions are compared to one another with MLP.
 
 from glob import glob
 from itertools import product
+from collections import defaultdict
 from omegaconf import DictConfig
 from utils import (
     build_model_config,
@@ -19,10 +20,12 @@ from src.loss_functions import AlgorithmConfig
 
 
 import jax.numpy as jnp
+import numpy as np
 
 import time
 import os
 import pickle
+import dataclasses
 
 
 class ProblemDefinition:
@@ -116,7 +119,7 @@ class RunTraining:
             "ut0": self.ut0,
             "c": self.c,
         }
-        self.results: dict = {}
+        self.results: dict = defaultdict(list)
 
     def _generate_combinations(self) -> list[tuple[AnyModelConfig, AlgorithmConfig]]:
         """Generate combination of all configs"""
@@ -136,7 +139,12 @@ class RunTraining:
 
         return pairs
 
-    def train_all(self):
+    def train_multiple(self, iterations: int):
+        """Train all model-method combinations for multiple iterations"""
+        for i in range(iterations):
+            self.train_all(iteration=i)
+
+    def train_all(self, iteration: int = 0):
         """Train all model-method combinations"""
         sample_input = self.problem.get_sample_input()
 
@@ -144,12 +152,24 @@ class RunTraining:
         integrator_config = build_integration_config(integrator_data)
 
         trainer_data = self.cfg.get("training")
-        trainer_config = build_trainer_config(trainer_data)
+        base_trainer_config = build_trainer_config(trainer_data)
+
+        # Adjust seed based on iteration
+        trainer_config = dataclasses.replace(
+            base_trainer_config,
+            seed=base_trainer_config.seed + iteration
+        )
 
         pairs = self._generate_combinations()
+        total_runs = len(pairs)
 
-        for model, method in pairs:
-            print(f"Starting training: {model.kind}-{method.kind}")
+        print(f"--- Starting Training Phase (Iteration {iteration+1}) ---")
+        print(f"Total configurations to train: {total_runs}")
+        init_lr = self.cfg.get("training", {}).get("learning_rate", {}).get("init_value", "Unknown")
+        print(f"Epochs: {trainer_config.epochs}, Initial LR: {init_lr}, Seed: {trainer_config.seed}\n")
+
+        for i, (model, method) in enumerate(pairs, 1):
+            print(f"[{i}/{total_runs}] Training configuration: Model={model.kind}, Method={method.kind}")
 
             start_time = time.time()
             try:
@@ -161,14 +181,15 @@ class RunTraining:
                     sample_input
                 )
                 elapsed_time = time.time() - start_time
-                self.results[f"{model.kind}-{method.kind}"] = {
+                self.results[f"{model.kind}-{method.kind}"].append({
                     "state": final_state,
                     "metrics": logged_metrics
-                }
+                })
 
-                print(f"  Success! {elapsed_time:.1f}s\n")
+                final_loss = logged_metrics[-1].total_loss if logged_metrics else "N/A"
+                print(f"  -> Success! Time: {elapsed_time:.1f}s, Final Loss: {final_loss}\n")
             except Exception as exc:
-                print(f"  Failed: {exc}")
+                print(f"  -> Failed: {exc}\n")
 
     def save_data(self, output_dir: str):
         """
@@ -182,14 +203,15 @@ class RunTraining:
         os.makedirs(models_dir, exist_ok=True)
         os.makedirs(logs_dir, exist_ok=True)
 
-        for name, data in self.results.items():
-            # Save final state params
-            with open(os.path.join(models_dir, f"{name}.pkl"), "wb") as f:
-                pickle.dump(data["state"].params, f)
+        for name, data_list in self.results.items():
+            for i, data in enumerate(data_list):
+                # Save final state params
+                with open(os.path.join(models_dir, f"{name}_iter{i}.pkl"), "wb") as f:
+                    pickle.dump(data["state"].params, f)
 
-            # Save metrics
-            with open(os.path.join(logs_dir, f"{name}.pkl"), "wb") as f:
-                pickle.dump(data["metrics"], f)
+                # Save metrics
+                with open(os.path.join(logs_dir, f"{name}_iter{i}.pkl"), "wb") as f:
+                    pickle.dump(data["metrics"], f)
 
         print(f"Saved artifacts to {output_dir}")
 
@@ -203,12 +225,18 @@ class DataProcessor:
         self.logs_dir = os.path.join(results_dir, "logs")
         self.models_dir = os.path.join(results_dir, "models")
 
-        self.metrics_data = {}
+        self.metrics_data = defaultdict(list)
         if os.path.exists(self.logs_dir):
+            loaded_count = 0
             for log_file in glob(os.path.join(self.logs_dir, "*.pkl")):
                 name = os.path.basename(log_file).replace(".pkl", "")
+                base_name = name.rsplit("_iter", 1)[0]
                 with open(log_file, "rb") as f:
-                    self.metrics_data[name] = pickle.load(f)
+                    self.metrics_data[base_name].append(pickle.load(f))
+                loaded_count += 1
+            print(f"Loaded {loaded_count} metric logs from {self.logs_dir}")
+        else:
+            print(f"Warning: Logs directory not found at {self.logs_dir}")
 
     def plot_loss(self):
         import matplotlib.pyplot as plt
@@ -218,10 +246,22 @@ class DataProcessor:
             return
 
         plt.figure(figsize=(10, 6))
-        for name, metrics in self.metrics_data.items():
-            steps = [m.step for m in metrics]
-            losses = [m.total_loss for m in metrics]
-            plt.plot(steps, losses, label=name)
+        for name, metrics_list in self.metrics_data.items():
+            if not metrics_list:
+                continue
+
+            steps = [m.step for m in metrics_list[0]]
+            all_losses = []
+            for metrics in metrics_list:
+                all_losses.append([m.total_loss for m in metrics])
+
+            all_losses = np.array(all_losses)
+            median_loss = np.median(all_losses, axis=0)
+            low_loss = np.percentile(all_losses, 25, axis=0)
+            high_loss = np.percentile(all_losses, 75, axis=0)
+
+            line = plt.plot(steps, median_loss, label=name)[0]
+            plt.fill_between(steps, low_loss, high_loss, color=line.get_color(), alpha=0.3)
 
         plt.yscale("log")
         plt.xlabel("Steps")
@@ -230,7 +270,9 @@ class DataProcessor:
         plt.legend()
         plt.grid(True)
 
-        plot_path = os.path.join(self.results_dir, "loss_plot.png")
+        plots_dir = os.path.join(self.results_dir, "plots")
+        os.makedirs(plots_dir, exist_ok=True)
+        plot_path = os.path.join(plots_dir, "loss_plot.png")
         plt.savefig(plot_path)
         plt.close()
         print(f"Loss plot saved to {plot_path}")
@@ -258,14 +300,22 @@ def run(
     """
     problem = ProblemDefinition(cfg)
 
-    if generate_data:
-        trainer = RunTraining(problem, cfg)
-        trainer.train_all()
-        trainer.save_data(output_dir)
+    print("\n==========================================")
+    print(f"   Executing Experiment 1 Pipeline")
+    print("==========================================\n")
 
+    if generate_data:
+        iterations = cfg.get("iterations", 1)
+        print(f"[PHASE 1] Generating Data and Training Models ({iterations} iterations)...")
+        trainer = RunTraining(problem, cfg)
+        trainer.train_multiple(iterations)
+        trainer.save_data(output_dir)
+        print("[PHASE 1] Complete.\n")
 
     if make_plots:
+        print("[PHASE 2] Processing Data and Generating Plots...")
         processor = DataProcessor(problem, output_dir)
         processor.plot_loss()
+        print("[PHASE 2] Complete.\n")
 
-        # Make plots and do analysis here
+    print("Experiment pipeline finished successfully.")
