@@ -80,10 +80,10 @@ class XNODE(nn.Module):
             stepsize_controller=diffrax.PIDController(rtol=1e-3, atol=1e-3),
             y0=h0,
             args=xs,
+            saveat=diffrax.SaveAt(t1=True),
             adjoint=diffrax.DirectAdjoint(),
         )
 
-        # Extract the hidden state at t_eval
         h_t = sol.ys[0]
 
         # 4. Apply the linear output layer L_theta [cite: 237, 411]

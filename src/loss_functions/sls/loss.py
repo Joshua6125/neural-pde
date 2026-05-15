@@ -78,7 +78,7 @@ class SLSLoss(Loss):
         div_sigma = jnp.trace(J_sigma[:, 1:])
 
         f = self._f_fn(x)
-        if jnp.ndim(f) != 0:
+        if not jnp.ndim(f) == 0:
             raise ValueError("f should be scalar or return scalar type.")
 
         g = self._g_fn(x)
@@ -102,7 +102,7 @@ class SLSLoss(Loss):
         sigma_val = self._sigma(x)
 
         v0_val = self._v0_fn(x)
-        if jnp.ndim(v0_val) != 0:
+        if not jnp.ndim(v0_val) == 0:
             raise ValueError("v0 should be scalar or return scalar type.")
 
         sigma0_val = self._sigma0_fn(x)
@@ -120,7 +120,7 @@ class SLSLoss(Loss):
 
         v_val = self._v(x)
         v_boundary_val = self._v_boundary_fn(x) if self._v_boundary_fn is not None else 0.0
-        if jnp.ndim(v_boundary_val) != 0:
+        if not jnp.ndim(v_boundary_val) == 0:
             raise ValueError("v_boundary should be scalar or return scalar type.")
 
         return (v_val - v_boundary_val) ** 2
