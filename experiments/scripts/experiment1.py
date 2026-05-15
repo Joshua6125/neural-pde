@@ -4,6 +4,7 @@ The purpose of this experiment is to compar pairs of loss functions and neural a
 In particular, all loss functions are compared to one another with MLP.
 """
 
+from glob import glob
 from itertools import product
 from omegaconf import DictConfig
 from utils import (
@@ -21,6 +22,7 @@ import jax.numpy as jnp
 
 import time
 import os
+import pickle
 
 
 class ProblemDefinition:
@@ -95,14 +97,14 @@ class RunTraining:
         self.problem = problem
 
         # Define the simple wave equation lambdas
-        self.f = lambda v: self.problem.source_function(jnp.array(v[0]), jnp.array(v[1])),
+        self.f = lambda v: self.problem.source_function(jnp.array(v[0]), jnp.array(v[1]))
         self.g = lambda v: self.problem.zero_vector_source(jnp.array(v[0]), jnp.array(v[1]))
-        self.v0 = lambda v: self.problem.analytical_solution_t(jnp.array(v[0]), jnp.array(v[1])),
+        self.v0 = lambda v: self.problem.analytical_solution_t(jnp.array(v[0]), jnp.array(v[1]))
         self.sigma0 = lambda v: jnp.array(
             [self.problem.analytical_solution_x(jnp.array(v[0]), jnp.array(v[1]))]
-        ),
-        self.u0 = lambda v: self.problem.analytical_solution(jnp.array(v[0]), jnp.array(v[1])),
-        self.ut0 = lambda v: self.problem.analytical_solution_t(jnp.array(v[0]), jnp.array(v[1])),
+        )
+        self.u0 = lambda v: self.problem.analytical_solution(jnp.array(v[0]), jnp.array(v[1]))
+        self.ut0 = lambda v: self.problem.analytical_solution_t(jnp.array(v[0]), jnp.array(v[1]))
         self.c = float(cfg.problem_params.get("c", 1.0))
 
         self.wave_functions = {
@@ -114,6 +116,7 @@ class RunTraining:
             "ut0": self.ut0,
             "c": self.c,
         }
+        self.results: dict = {}
 
     def _generate_combinations(self) -> list[tuple[AnyModelConfig, AlgorithmConfig]]:
         """Generate combination of all configs"""
@@ -158,10 +161,14 @@ class RunTraining:
                     sample_input
                 )
                 elapsed_time = time.time() - start_time
+                self.results[f"{model.kind}-{method.kind}"] = {
+                    "state": final_state,
+                    "metrics": logged_metrics
+                }
 
-                print(f"Success! {elapsed_time:.1f}s")
+                print(f"  Success! {elapsed_time:.1f}s\n")
             except Exception as exc:
-                print(f"Failed: {exc}")
+                print(f"  Failed: {exc}")
 
     def save_data(self, output_dir: str):
         """
@@ -170,20 +177,63 @@ class RunTraining:
         output_dir : str
             The path where all results/artifacts should be stored.
         """
+        models_dir = os.path.join(output_dir, "models")
+        logs_dir = os.path.join(output_dir, "logs")
+        os.makedirs(models_dir, exist_ok=True)
+        os.makedirs(logs_dir, exist_ok=True)
 
-        # Should save generated artifacts here, i.e. the models and training logs
+        for name, data in self.results.items():
+            # Save final state params
+            with open(os.path.join(models_dir, f"{name}.pkl"), "wb") as f:
+                pickle.dump(data["state"].params, f)
 
-        artifact_path = os.path.join(output_dir, "artifacts/")
+            # Save metrics
+            with open(os.path.join(logs_dir, f"{name}.pkl"), "wb") as f:
+                pickle.dump(data["metrics"], f)
 
-        print(f"Saved artifact to {artifact_path}")
+        print(f"Saved artifacts to {output_dir}")
 
 
 
 class DataProcessor:
     def __init__(self, problem: ProblemDefinition, results_dir: str):
         """"""
+        self.problem = problem
+        self.results_dir = results_dir
+        self.logs_dir = os.path.join(results_dir, "logs")
+        self.models_dir = os.path.join(results_dir, "models")
 
-        # Should read the config and such from the results_dir here and save them as properties
+        self.metrics_data = {}
+        if os.path.exists(self.logs_dir):
+            for log_file in glob(os.path.join(self.logs_dir, "*.pkl")):
+                name = os.path.basename(log_file).replace(".pkl", "")
+                with open(log_file, "rb") as f:
+                    self.metrics_data[name] = pickle.load(f)
+
+    def plot_loss(self):
+        import matplotlib.pyplot as plt
+
+        if not self.metrics_data:
+            print("No metrics data found. Cannot plot loss.")
+            return
+
+        plt.figure(figsize=(10, 6))
+        for name, metrics in self.metrics_data.items():
+            steps = [m.step for m in metrics]
+            losses = [m.total_loss for m in metrics]
+            plt.plot(steps, losses, label=name)
+
+        plt.yscale("log")
+        plt.xlabel("Steps")
+        plt.ylabel("Loss")
+        plt.title("Training Loss")
+        plt.legend()
+        plt.grid(True)
+
+        plot_path = os.path.join(self.results_dir, "loss_plot.png")
+        plt.savefig(plot_path)
+        plt.close()
+        print(f"Loss plot saved to {plot_path}")
 
 
 def run(
@@ -216,5 +266,6 @@ def run(
 
     if make_plots:
         processor = DataProcessor(problem, output_dir)
+        processor.plot_loss()
 
         # Make plots and do analysis here
