@@ -37,19 +37,6 @@ class TestTrainConfigValidation:
         with pytest.raises(AssertionError, match=message):
             cfg.validate()
 
-    def test_validate_accepts_none_integration_seed(self):
-        cfg = TrainConfig(integration_seed=None)
-        cfg.validate()
-
-    def test_validate_accepts_zero_integration_seed(self):
-        cfg = TrainConfig(integration_seed=0)
-        cfg.validate()
-
-    def test_validate_raises_for_negative_integration_seed(self):
-        cfg = TrainConfig(integration_seed=-1)
-        with pytest.raises(AssertionError, match="integration_seed must be non-negative"):
-            cfg.validate()
-
 
 class TestGetOptimiser:
     """Test optimiser factory behaviour."""

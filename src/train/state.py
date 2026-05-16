@@ -38,7 +38,6 @@ class TrainConfig:
     ) # NOTE: Might use optax.cosine_decay_schedule(init_value=1e-4, decay_steps=50000, alpha=0.01) instead.
     optimiser: str = "adamw"
     seed: int = 0
-    integration_seed: int | None = None
     log_every: int = 100
     use_jit: bool = True
 
@@ -47,8 +46,6 @@ class TrainConfig:
         # NOTE: Need to check if scheduler automatically checks if learning rate is valid.
         # assert self.learning_rate > 0.0, "learning_rate must be strictly positive"
         assert self.log_every > 0, "log_every must be strictly positive"
-        if self.integration_seed is not None:
-            assert self.integration_seed >= 0, "integration_seed must be non-negative"
 
 
 @dataclass(frozen=True)

@@ -50,16 +50,11 @@ class Trainer:
         root_key, init_key, derived_integration_key = jr.split(root_key, 3)
         params = self.method.init_params(init_key, sample_input)
         opt_state = self.optimiser.init(params)
-        integration_key = (
-            jr.PRNGKey(self.train_cfg.integration_seed)
-            if self.train_cfg.integration_seed is not None
-            else derived_integration_key
-        )
         return TrainState(
             step=0,
             params=params,
             opt_state=opt_state,
-            integration_key=integration_key,
+            integration_key=derived_integration_key,
         )
 
     def _loss_with_aux(

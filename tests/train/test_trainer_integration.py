@@ -61,7 +61,6 @@ class TestTrainerWithRealSLS:
             learning_rate=optax.constant_schedule(1e-3),
             optimiser="sgd",
             seed=11,
-            integration_seed=29,
             log_every=1,
             use_jit=False,
         )

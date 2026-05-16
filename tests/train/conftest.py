@@ -111,20 +111,6 @@ def train_cfg_default():
 
 
 @pytest.fixture
-def train_cfg_with_integration_seed():
-    """Training config with explicit integration seed override."""
-    return TrainConfig(
-        epochs=5,
-        learning_rate=optax.constant_schedule(1e-2),
-        optimiser="adam",
-        seed=7,
-        integration_seed=99,
-        log_every=1,
-        use_jit=False,
-    )
-
-
-@pytest.fixture
 def train_cfg_short_jit():
     """Short run config with JIT enabled."""
     return TrainConfig(

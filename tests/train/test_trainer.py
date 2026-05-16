@@ -34,24 +34,6 @@ class TestTrainerInitialisation:
 
         assert jnp.allclose(state_1.params["w"], state_2.params["w"])
 
-    def test_init_state_uses_explicit_integration_seed_when_provided(
-        self,
-        mock_training_method,
-        deterministic_integrator,
-        optimiser_adam,
-        train_cfg_with_integration_seed,
-        sample_input_vector_2d,
-    ):
-        trainer = Trainer(
-            method=mock_training_method,
-            integrator=deterministic_integrator,
-            optimiser=optimiser_adam,
-            train_cfg=train_cfg_with_integration_seed,
-        )
-
-        state = trainer.init_state(sample_input_vector_2d)
-        assert jnp.array_equal(state.integration_key, jax.random.PRNGKey(99))
-
     def test_constructor_raises_when_train_config_is_invalid(
         self,
         mock_training_method,
