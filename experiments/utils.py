@@ -243,8 +243,8 @@ def make_first_order_model(model_apply, method_kind: str):
         return model_apply(params, jnp.array([t, x]))["u"][0]
 
     def wrapped_apply(params, t, x):
-        v = jax.grad(u_fn, argnums=1)(params, t, x)
-        sigma = jax.grad(u_fn, argnums=2)(params, t, x)
+        v = jax.grad(u_fn, argnums=1)(params, t, x) # Differentiate t
+        sigma = jax.grad(u_fn, argnums=2)(params, t, x) # Differentiate x
         return jnp.array([v, sigma])
 
     return wrapped_apply

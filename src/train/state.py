@@ -59,6 +59,7 @@ class TrainState:
     params: Any
     opt_state: optax.OptState
     integration_key: jax.Array
+    total_training_time: float = 0.0
 
     def apply_gradients(
             self,

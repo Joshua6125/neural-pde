@@ -2,6 +2,7 @@ import inspect
 from dataclasses import dataclass
 from typing import Any, Callable
 
+import time
 import jax
 import jax.numpy as jnp
 import jax.random as jr
@@ -20,6 +21,7 @@ class TrainStepMetrics:
     total_loss: float
     interior_loss: float
     boundary_loss: float
+    training_time: float
 
 
 class Trainer:
@@ -129,6 +131,9 @@ class Trainer:
             except (TypeError, ValueError):
                 callback_uses_state = False
 
+        # Account for previous training time
+        start_time = time.time() - state.total_training_time
+
         history: list[TrainStepMetrics] = []
         for epoch in range(1, self.train_cfg.epochs + 1):
             previous_state = state
@@ -143,6 +148,7 @@ class Trainer:
                 params=params,
                 opt_state=opt_state,
                 integration_key=integration_key,
+                total_training_time=time.time() - start_time
             )
 
             # We only want to convert floats if we want to log
@@ -155,6 +161,7 @@ class Trainer:
                     total_loss=float(total_loss),
                     interior_loss=float(interior_loss),
                     boundary_loss=float(boundary_loss),
+                    training_time=state.total_training_time,
                 )
 
             if should_log:

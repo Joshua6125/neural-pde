@@ -1,28 +1,28 @@
+# ----------------
 # Ensure the following lines are always part of the config
 # ----------------
 script_name: experiment1
 generate_data: true
 make_plots: true
-# ----------------
 
 # ----------------
 # Problem parameters
 # ----------------
-iterations: 5
+iterations: 1
 
 problem_params:
   T: 1.0
   c: 1.0
 
 training:
-  epochs: 100000
+  epochs: 100
   learning_rate:
     kind: exponential_decay
     init_value: 1.0e-4
     transition_steps: 1000
     decay_rate: 0.95
     staircase: true
-  seed: 100
+  seed: 42
   log_every: 5
   optimiser: "adamw"
 
@@ -37,18 +37,18 @@ integration:
     monte_carlo_seed: 42
 
 test_data_params:
-  n_time: 20
-  n_space: 80
+  n_time: 100
+  n_space: 500
   seed: 42
 
 models:
   - name: "mlp"
     hidden_dim: 64
     num_layers: 5
-  - name: "kan"
-    hidden_dim: 64
-    num_layers: 5
-    input_dim: 2
+  # - name: "kan"
+  #   hidden_dim: 64
+  #   num_layers: 5
+  #   input_dim: 2
 
 methods:
   - name: "pinn"
@@ -66,11 +66,11 @@ methods:
   #   ic_weight: 1.0
   #   bc_weight: 100.0
   #   residual_grad_weight: 1e-2
-  - name: "fosls"
-    output_heads:
-      v: 1
-      sigma: 1
-    ic_weight: 10.0
+  # - name: "fosls"
+  #   output_heads:
+  #     v: 1
+  #     sigma: 1
+  #   ic_weight: 10.0
 
 # ----------------
 # Data analysis parameters
@@ -79,8 +79,10 @@ methods:
 plot_loss:
   show_error: False
   error_low: 0 # percent
-  error_high: 100 # percent
-  size_windowed_average: 100 # In epochs
+  error_high: 25 # percent
+  size_windowed_average: 75 # In epochs
 
-plot_space_time_error:
-  
+plot_real_space_time_error:
+  show_error: True
+  error_low: 25 # percent
+  error_high: 75 # percent

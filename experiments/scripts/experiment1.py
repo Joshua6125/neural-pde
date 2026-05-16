@@ -13,11 +13,11 @@ from utils import (
     build_method_config,
     build_integration_config,
     build_trainer_config,
+    make_first_order_model
 )
 from src.trainer import run_training
-from src.models import AnyModelConfig
+from src.models import AnyModelConfig, build_model
 from src.loss_functions import AlgorithmConfig
-
 
 import jax.numpy as jnp
 import numpy as np
@@ -26,6 +26,7 @@ import time
 import os
 import pickle
 import dataclasses
+import jax
 
 
 class ProblemDefinition:
@@ -289,16 +290,18 @@ class DataProcessor:
         plt.close()
         print(f"Loss plot saved to {plot_path}")
 
-
-    def plot_fosls_error(self):
+    def plot_sls_error(self):
         import matplotlib.pyplot as plt
-        import jax
-        from src.models import build_model
-        from utils import make_first_order_model, build_model_config
 
         if not os.path.exists(self.models_dir):
             print("No models directory found. Cannot plot SLS error.")
             return
+
+        plot_loss_config = self.problem.cfg.get("plot_real_space_time_error", {})
+
+        show_error = bool(plot_loss_config.get("show_error", True))
+        error_low = min(100, max(0, int(plot_loss_config.get("error_low", 0))))
+        error_high = min(100, max(0, int(plot_loss_config.get("error_high", 100))))
 
         # Time and space discretization
         t_vals = np.linspace(0, self.problem.T, 50)
@@ -355,11 +358,12 @@ class DataProcessor:
 
             errors_per_iter = np.array(errors_per_iter)
             median_error = np.median(errors_per_iter, axis=0)
-            low_error = np.percentile(errors_per_iter, 25, axis=0)
-            high_error = np.percentile(errors_per_iter, 75, axis=0)
-
             line = plt.plot(t_vals, median_error, label=name)[0]
-            plt.fill_between(t_vals, low_error, high_error, color=line.get_color(), alpha=0.3)
+
+            if show_error:
+                low_error = np.percentile(errors_per_iter, error_low, axis=0)
+                high_error = np.percentile(errors_per_iter, error_high, axis=0)
+                plt.fill_between(t_vals, low_error, high_error, color=line.get_color(), alpha=0.3)
 
         plt.xlabel("Time (t)")
         plt.ylabel("Avg log L2 SLS Error Norm over x")
@@ -414,7 +418,7 @@ def run(
         print("[PHASE 2] Processing Data and Generating Plots...")
         processor = DataProcessor(problem, output_dir)
         processor.plot_loss()
-        processor.plot_fosls_error()
+        processor.plot_sls_error()
         print("[PHASE 2] Complete.\n")
 
     print("Experiment pipeline finished successfully.")
