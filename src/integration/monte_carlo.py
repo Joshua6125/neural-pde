@@ -24,33 +24,29 @@ class MonteCarloIntegration(NDCubeIntegration):
         self.boundary_samples = config.boundary_samples
         self.x_min = config.x_min
         self.x_max = config.x_max
-        self.seed = config.monte_carlo_seed
-
-        if self.seed:
-            self._fallback_key = jr.PRNGKey(self.seed)
 
         self.volume = (self.x_max - self.x_min) ** self.dim
         self.face_area = (self.x_max - self.x_min) ** (self.dim - 1)
 
-    def _sample_interior(self, key: jax.Array) -> tuple[jnp.ndarray, jax.Array]:
+    def _sample_interior(self) -> jnp.ndarray:
         """Generate random samples uniformly in the domain interior."""
-        key, subkey = jr.split(key)
+        self.key, subkey = jr.split(self.key)
 
         # Sample uniform in [0, 1)^dim
         samples = jr.uniform(subkey, shape=(self.interior_samples, self.dim))
 
         # Transform to [x_min, x_max]^dim
         points = self.x_min + samples * (self.x_max - self.x_min)
-        return points, key
+        return points
 
-    def _setup_boundary_samples(self, key: jax.Array) -> tuple[dict, jax.Array]:
+    def _setup_boundary_samples(self) -> dict:
         """Generate random samples on all boundary faces."""
         face_points = []
         face_normals = []
 
         for axis in range(self.dim):
             for boundary_value in [self.x_min, self.x_max]:
-                key, subkey = jr.split(key)
+                self.key, subkey = jr.split(self.key)
 
                 # Sample random points on the (dim-1)-dimensional face
                 # We need dim-1 free dimensions
@@ -71,15 +67,15 @@ class MonteCarloIntegration(NDCubeIntegration):
         return {
             "points": jnp.concatenate(face_points),
             "normals": jnp.concatenate(face_normals),
-        }, key
+        }
 
     def integrate_interior(
             self,
-            func: Callable[[jnp.ndarray], jnp.ndarray]
+            func: Callable[[jnp.ndarray], jnp.ndarray],
         ) -> jnp.ndarray:
         """Integrate over interior using Monte Carlo sampling."""
-        points_interior, key = self._sample_interior(self._fallback_key)
-        self._fallback_key = key
+
+        points_interior = self._sample_interior()
 
         # Evaluate function at random samples
         func_values = func(points_interior)
@@ -88,11 +84,11 @@ class MonteCarloIntegration(NDCubeIntegration):
         return integral
 
     def integrate_boundary(
-            self, func: Callable[[jnp.ndarray, jnp.ndarray], jnp.ndarray]
+            self,
+            func: Callable[[jnp.ndarray, jnp.ndarray], jnp.ndarray]
         ) -> jnp.ndarray:
         """Integrate over boundary using Monte Carlo sampling."""
-        boundary_data, key = self._setup_boundary_samples(self._fallback_key)
-        self._fallback_key = key
+        boundary_data = self._setup_boundary_samples()
 
         func_values = func(
             boundary_data["points"],
@@ -112,13 +108,10 @@ class MonteCarloIntegration(NDCubeIntegration):
         if rng_key is None:
             raise ValueError("rng_key may not be None in Monte Carlo Integration.")
 
-        points_interior, next_key = self._sample_interior(rng_key)
-        boundary_data, next_key = self._setup_boundary_samples(next_key)
+        self.key = rng_key
 
-        interior_values = interior_func(points_interior)
-        boundary_values = boundary_func(boundary_data["points"], boundary_data["normals"])
+        interior_loss = self.integrate_interior(interior_func)
+        boundary_loss = self.integrate_boundary(boundary_func)
 
-        interior_loss = (self.volume / self.interior_samples) * jnp.sum(interior_values)
-        boundary_loss = (self.face_area / self.boundary_samples) * jnp.sum(boundary_values)
         total_loss = interior_loss + boundary_loss
         return total_loss, interior_loss, boundary_loss

@@ -34,7 +34,6 @@ class MonteCarloConfig(IntegrationConfigBase):
     integration_method: Literal["monte_carlo"] = "monte_carlo"
     interior_samples: int = 10000
     boundary_samples: int = 1000
-    monte_carlo_seed: int = 42
 
     def validate(self) -> None:
         self.validate_domain()

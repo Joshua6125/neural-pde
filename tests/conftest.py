@@ -58,9 +58,8 @@ def config_monte_carlo_1d():
         dim=1,
         x_min=0.0,
         x_max=1.0,
-        interior_samples=100000,
-        boundary_samples=10000,
-        monte_carlo_seed=42,
+        interior_samples=500000,
+        boundary_samples=50000,
     )
 
 
@@ -71,9 +70,8 @@ def config_monte_carlo_2d():
         dim=2,
         x_min=0.0,
         x_max=1.0,
-        interior_samples=500000,
-        boundary_samples=50000,
-        monte_carlo_seed=42,
+        interior_samples=5000000,
+        boundary_samples=500000,
     )
 
 
@@ -84,9 +82,8 @@ def config_monte_carlo_3d():
         dim=3,
         x_min=0.0,
         x_max=1.0,
-        interior_samples=1000000,
-        boundary_samples=100000,
-        monte_carlo_seed=42,
+        interior_samples=10000000,
+        boundary_samples=1000000,
     )
 
 
@@ -115,7 +112,6 @@ def config_monte_carlo_custom(request):
         x_max=params.get('x_max', 1.0),
         interior_samples=params.get('interior_samples', 10000),
         boundary_samples=params.get('boundary_samples', 1000),
-        monte_carlo_seed=params.get('seed', 42),
     )
 
 
