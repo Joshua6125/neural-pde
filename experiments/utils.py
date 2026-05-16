@@ -218,7 +218,6 @@ def build_trainer_config(
         learning_rate=lr,
         optimiser=str(spec.get("optimiser", "adamw")),
         seed=int(spec.get("seed", 42)),
-        integration_seed=spec.get("integration_seed", None),
         log_every=int(spec.get("log_every", 50)),
         use_jit=bool(spec.get("use_jit", True))
     )
