@@ -5,6 +5,9 @@ generate_data: true
 make_plots: true
 # ----------------
 
+# ----------------
+# Problem parameters
+# ----------------
 iterations: 5
 
 problem_params:
@@ -15,12 +18,12 @@ training:
   epochs: 100000
   learning_rate:
     kind: exponential_decay
-    init_value: 1.0e-3
+    init_value: 1.0e-4
     transition_steps: 1000
-    decay_rate: 0.90
+    decay_rate: 0.95
     staircase: true
   seed: 100
-  log_every: 50
+  log_every: 5
   optimiser: "adamw"
 
 integration:
@@ -68,3 +71,16 @@ methods:
       v: 1
       sigma: 1
     ic_weight: 10.0
+
+# ----------------
+# Data analysis parameters
+# ----------------
+
+plot_loss:
+  show_error: False
+  error_low: 0 # percent
+  error_high: 100 # percent
+  size_windowed_average: 100 # In epochs
+
+plot_space_time_error:
+  

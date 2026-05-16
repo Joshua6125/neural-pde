@@ -247,6 +247,14 @@ class DataProcessor:
             print("No metrics data found. Cannot plot loss.")
             return
 
+        plot_loss_config = self.problem.cfg.get("plot_loss", {})
+
+        show_error = bool(plot_loss_config.get("show_error", True))
+        error_low = max(100, min(0, int(plot_loss_config.get("error_low", 0))))
+        error_high = max(100, min(0, int(plot_loss_config.get("error_high", 100))))
+        window_size = int(plot_loss_config.get("size_windowed_average", 1)) // int(self.problem.cfg.get("training", {}).get("log_every", 1))
+        size_windowed_average = max(1, window_size)
+
         plt.figure(figsize=(10, 6))
         for name, metrics_list in self.metrics_data.items():
             if not metrics_list:
@@ -259,16 +267,18 @@ class DataProcessor:
 
             all_losses = np.array(all_losses)
             median_loss = np.median(all_losses, axis=0)
-            low_loss = np.percentile(all_losses, 25, axis=0)
-            high_loss = np.percentile(all_losses, 75, axis=0)
+            windowed_median_loss = np.convolve(median_loss, np.ones(size_windowed_average)/size_windowed_average, mode='valid')[1:]
+            line = plt.plot(steps[size_windowed_average//2:-size_windowed_average//2], windowed_median_loss, label=name)[0]
 
-            line = plt.plot(steps, median_loss, label=name)[0]
-            plt.fill_between(steps, low_loss, high_loss, color=line.get_color(), alpha=0.3)
+            if show_error:
+                low_loss = np.percentile(all_losses, error_low, axis=0)
+                high_loss = np.percentile(all_losses, error_high, axis=0)
+                plt.fill_between(steps, low_loss, high_loss, color=line.get_color(), alpha=0.3)
 
         plt.yscale("log")
         plt.xlabel("Steps")
         plt.ylabel("Loss")
-        plt.title("Training Loss")
+        plt.title("Training Loss" if size_windowed_average == 1 else f"Windowed Training Loss (size={size_windowed_average})")
         plt.legend()
         plt.grid(True)
 
