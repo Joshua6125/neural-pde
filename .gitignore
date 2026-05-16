@@ -5,7 +5,6 @@ data
 *.tar.gz
 *.zip
 *.stats
-results
 outputs
 
 # This is not clean, but good enough for now.

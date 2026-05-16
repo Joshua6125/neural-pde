@@ -1,0 +1,52 @@
+script_name: experiment1
+iterations: 5
+problem_params:
+  T: 1.0
+  c: 1.0
+training:
+  epochs: 100000
+  learning_rate:
+    kind: exponential_decay
+    init_value: 0.001
+    transition_steps: 1000
+    decay_rate: 0.9
+    staircase: true
+  seed: 100
+  log_every: 5
+  optimiser: adamw
+integration:
+  kind: monte_carlo
+  dim: 2
+  x_min: 0.0
+  x_max: 1.0
+  monte_carlo:
+    monte_carlo_interior_samples: 1600
+    monte_carlo_boundary_samples: 1000
+    monte_carlo_seed: 42
+test_data_params:
+  n_time: 20
+  n_space: 80
+  seed: 42
+models:
+- name: mlp
+  hidden_dim: 64
+  num_layers: 5
+- name: kan
+  hidden_dim: 64
+  num_layers: 5
+  input_dim: 2
+methods:
+- name: pinn
+  output_heads:
+    u: 1
+  ic_weight: 1.0
+  bc_weights: 100.0
+- name: sls
+  output_heads:
+    v: 1
+    sigma: 1
+- name: fosls
+  output_heads:
+    v: 1
+    sigma: 1
+  ic_weight: 10.0
