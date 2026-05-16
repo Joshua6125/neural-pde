@@ -54,7 +54,6 @@ class TestTrainerWithRealSLS:
                 x_max=1.0,
                 interior_samples=64,
                 boundary_samples=16,
-                monte_carlo_seed=5,
             )
         )
         cfg = TrainConfig(

@@ -11,6 +11,9 @@ def test_monte_carlo_constant_1d(config_monte_carlo_1d, test_functions_1d):
     integrator = MonteCarloIntegration(config_monte_carlo_1d)
     const_func = test_functions_1d['constant']
 
+    # Add key, as this is usually passed via integrate()
+    integrator.key = jr.PRNGKey(0)
+
     result = integrator.integrate_interior(const_func['func'])
     expected = const_func['integral']
 
@@ -23,6 +26,9 @@ def test_monte_carlo_linear_1d(config_monte_carlo_1d, test_functions_1d):
 
     integrator = MonteCarloIntegration(config_monte_carlo_1d)
     linear_func = test_functions_1d['linear']
+
+    # Add key, as this is usually passed via integrate()
+    integrator.key = jr.PRNGKey(0)
 
     result = integrator.integrate_interior(linear_func['func'])
     expected = linear_func['integral']
@@ -37,6 +43,9 @@ def test_monte_carlo_quadratic_1d(config_monte_carlo_1d, test_functions_1d):
     integrator = MonteCarloIntegration(config_monte_carlo_1d)
     quadratic_func = test_functions_1d['quadratic']
 
+    # Add key, as this is usually passed via integrate()
+    integrator.key = jr.PRNGKey(0)
+
     result = integrator.integrate_interior(quadratic_func['func'])
     expected = quadratic_func['integral']
 
@@ -50,8 +59,12 @@ def test_monte_carlo_sine_1d(config_monte_carlo_1d, test_functions_1d):
     integrator = MonteCarloIntegration(config_monte_carlo_1d)
     sine_func = test_functions_1d['sine']
 
+    # Add key, as this is usually passed via integrate()
+    integrator.key = jr.PRNGKey(0)
+
     result = integrator.integrate_interior(sine_func['func'])
     expected = sine_func['integral']
+
 
     assert jnp.allclose(result, expected, atol=sine_func['tolerance'])
 
@@ -62,6 +75,9 @@ def test_monte_carlo_exponential_1d(config_monte_carlo_1d, test_functions_1d):
 
     integrator = MonteCarloIntegration(config_monte_carlo_1d)
     exponential_func = test_functions_1d['exponential']
+
+    # Add key, as this is usually passed via integrate()
+    integrator.key = jr.PRNGKey(0)
 
     result = integrator.integrate_interior(exponential_func['func'])
     expected = exponential_func['integral']
@@ -76,6 +92,9 @@ def test_monte_carlo_constant_2d(config_monte_carlo_2d, test_functions_2d):
     integrator = MonteCarloIntegration(config_monte_carlo_2d)
     const_func = test_functions_2d['constant']
 
+    # Add key, as this is usually passed via integrate()
+    integrator.key = jr.PRNGKey(0)
+
     result = integrator.integrate_interior(const_func['func'])
     expected = const_func['integral']
 
@@ -89,6 +108,9 @@ def test_monte_carlo_separable_2d(config_monte_carlo_2d, test_functions_2d):
     integrator = MonteCarloIntegration(config_monte_carlo_2d)
     seperable_func = test_functions_2d['separable']
 
+    # Add key, as this is usually passed via integrate()
+    integrator.key = jr.PRNGKey(0)
+
     result = integrator.integrate_interior(seperable_func['func'])
     expected = seperable_func['integral']
 
@@ -101,6 +123,9 @@ def test_monte_carlo_product_sine_2d(config_monte_carlo_2d, test_functions_2d):
 
     integrator = MonteCarloIntegration(config_monte_carlo_2d)
     product_sine_func = test_functions_2d['product_sine']
+
+    # Add key, as this is usually passed via integrate()
+    integrator.key = jr.PRNGKey(0)
 
     result = integrator.integrate_interior(product_sine_func['func'])
     expected = product_sine_func['integral']
@@ -116,6 +141,9 @@ def test_monte_carlo_constant_3d(config_monte_carlo_3d, test_functions_3d):
     integrator = MonteCarloIntegration(config_monte_carlo_3d)
     const_func = test_functions_3d['constant']
 
+    # Add key, as this is usually passed via integrate()
+    integrator.key = jr.PRNGKey(0)
+
     result = integrator.integrate_interior(const_func['func'])
     expected = const_func['integral']
 
@@ -130,6 +158,9 @@ def test_monte_carlo_separable_3d(config_monte_carlo_3d, test_functions_3d):
     integrator = MonteCarloIntegration(config_monte_carlo_3d)
     separable_func = test_functions_3d['separable']
 
+    # Add key, as this is usually passed via integrate()
+    integrator.key = jr.PRNGKey(0)
+
     result = integrator.integrate_interior(separable_func['func'])
     expected = separable_func['integral']
 
@@ -141,6 +172,9 @@ def test_monte_carlo_boundary_dirichlet_1d(config_monte_carlo_1d):
     from src.integration import MonteCarloIntegration
 
     integrator = MonteCarloIntegration(config_monte_carlo_1d)
+
+    # Add key, as this is usually passed via integrate()
+    integrator.key = jr.PRNGKey(0)
 
     # Boundary function always returns 1
     boundary_func = lambda pts, normals: jnp.ones(pts.shape[0])
@@ -194,6 +228,9 @@ def test_monte_carlo_integrate_combined_1d(config_monte_carlo_1d, test_functions
     integrator = MonteCarloIntegration(config_monte_carlo_1d)
     const_func = test_functions_1d['constant']
 
+    # Add key, as this is usually passed via integrate()
+    integrator.key = jr.PRNGKey(0)
+
     # Compute using combined method
     interior_func = const_func['func']
     boundary_func = lambda pts, normals: jnp.ones(pts.shape[0])
@@ -220,6 +257,10 @@ def test_monte_carlo_custom_bounds_negative(config_monte_carlo_1d):
     config = replace(config_monte_carlo_1d, x_min=-1.0, x_max=1.0)
 
     integrator = MonteCarloIntegration(config)
+
+    # Add key, as this is usually passed via integrate()
+    integrator.key = jr.PRNGKey(0)
+
     result = integrator.integrate_interior(lambda x: jnp.ones(x.shape[0]))
     expected = 2.0
 
@@ -234,6 +275,10 @@ def test_monte_carlo_custom_bounds_scaled(config_monte_carlo_1d):
     config = replace(config_monte_carlo_1d, x_min=0.0, x_max=2.0)
 
     integrator = MonteCarloIntegration(config)
+
+    # Add key, as this is usually passed via integrate()
+    integrator.key = jr.PRNGKey(0)
+
     result = integrator.integrate_interior(lambda x: x[:, 0])
     expected = 2.0
 
@@ -246,6 +291,9 @@ def test_monte_carlo_boundary_2d(config_monte_carlo_2d):
     from src.integration import MonteCarloIntegration
 
     integrator = MonteCarloIntegration(config_monte_carlo_2d)
+
+    # Add key, as this is usually passed via integrate()
+    integrator.key = jr.PRNGKey(0)
 
     # Boundary function always returns 1
     boundary_func = lambda pts, normals: jnp.ones(pts.shape[0])
@@ -263,6 +311,9 @@ def test_monte_carlo_boundary_normals_2d(config_monte_carlo_2d):
     from src.integration import MonteCarloIntegration
 
     integrator = MonteCarloIntegration(config_monte_carlo_2d)
+
+    # Add key, as this is usually passed via integrate()
+    integrator.key = jr.PRNGKey(0)
 
     # Function returns x-component of outward normal
     boundary_func = lambda pts, normals: normals[:, 0]
