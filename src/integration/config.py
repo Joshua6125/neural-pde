@@ -31,16 +31,15 @@ class QuadratureConfig(IntegrationConfigBase):
 @dataclass(frozen=True)
 class MonteCarloConfig(IntegrationConfigBase):
     """Configuration for Monte Carlo integration."""
-    # TODO: Should rename the properties to not include monte_carlo
     integration_method: Literal["monte_carlo"] = "monte_carlo"
-    monte_carlo_interior_samples: int = 10000
-    monte_carlo_boundary_samples: int = 1000
+    interior_samples: int = 10000
+    boundary_samples: int = 1000
     monte_carlo_seed: int = 42
 
     def validate(self) -> None:
         self.validate_domain()
-        assert self.monte_carlo_interior_samples > 0, "interior_samples must be strictly positive"
-        assert self.monte_carlo_boundary_samples > 0, "boundary_samples must be strictly positive"
+        assert self.interior_samples > 0, "interior_samples must be strictly positive"
+        assert self.boundary_samples > 0, "boundary_samples must be strictly positive"
 
 
 AnyIntegrationConfig: TypeAlias = QuadratureConfig | MonteCarloConfig

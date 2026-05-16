@@ -172,7 +172,7 @@ def test_monte_carlo_invalid_bounds(config_monte_carlo_1d):
 def test_monte_carlo_invalid_interior_samples(config_monte_carlo_1d):
     from src.integration import MonteCarloIntegration
 
-    bad_config = replace(config_monte_carlo_1d, monte_carlo_interior_samples=0)
+    bad_config = replace(config_monte_carlo_1d, interior_samples=0)
     with pytest.raises(AssertionError, match="interior_samples must be strictly positive"):
         MonteCarloIntegration(bad_config)
 
@@ -181,7 +181,7 @@ def test_monte_carlo_invalid_interior_samples(config_monte_carlo_1d):
 def test_monte_carlo_invalid_boundary_samples(config_monte_carlo_1d):
     from src.integration import MonteCarloIntegration
 
-    bad_config = replace(config_monte_carlo_1d, monte_carlo_boundary_samples=0)
+    bad_config = replace(config_monte_carlo_1d, boundary_samples=0)
     with pytest.raises(AssertionError, match="boundary_samples must be strictly positive"):
         MonteCarloIntegration(bad_config)
 

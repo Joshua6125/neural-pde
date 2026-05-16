@@ -52,8 +52,8 @@ class TestTrainerWithRealSLS:
                 dim=2,
                 x_min=0.0,
                 x_max=1.0,
-                monte_carlo_interior_samples=64,
-                monte_carlo_boundary_samples=16,
+                interior_samples=64,
+                boundary_samples=16,
                 monte_carlo_seed=5,
             )
         )

@@ -20,8 +20,8 @@ integration:
   x_min: 0.0
   x_max: 1.0
   monte_carlo:
-    monte_carlo_interior_samples: 1600
-    monte_carlo_boundary_samples: 1000
+    interior_samples: 1600
+    boundary_samples: 1000
     monte_carlo_seed: 42
 test_data_params:
   n_time: 20

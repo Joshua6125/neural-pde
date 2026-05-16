@@ -20,8 +20,8 @@ class MonteCarloIntegration(NDCubeIntegration):
         config.validate()
 
         self.dim = config.dim
-        self.interior_samples = config.monte_carlo_interior_samples
-        self.boundary_samples = config.monte_carlo_boundary_samples
+        self.interior_samples = config.interior_samples
+        self.boundary_samples = config.boundary_samples
         self.x_min = config.x_min
         self.x_max = config.x_max
         self.seed = config.monte_carlo_seed

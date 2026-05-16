@@ -27,8 +27,8 @@ def build_integration_config(data: DictConfig) -> AnyIntegrationConfig:
             dim=int(data.get("dim", 2)),
             x_min=float(data.get("x_min", 0.0)),
             x_max=float(data.get("x_max", 0.0)),
-            monte_carlo_boundary_samples=int(specific_data.get("monte_carlo_boundary_samples", 1)),
-            monte_carlo_interior_samples=int(specific_data.get("monte_carlo_interior_samples", 1)),
+            boundary_samples=int(specific_data.get("boundary_samples", 1)),
+            interior_samples=int(specific_data.get("interior_samples", 1)),
             monte_carlo_seed=int(specific_data.get("monte_carlo_seed", 0))
         )
     elif integration_type == "quadrature":
