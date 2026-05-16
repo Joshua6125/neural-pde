@@ -1,4 +1,9 @@
+# Ensure the following lines are always part of the config
+# ----------------
 script_name: experiment1
+generate_data: true
+make_plots: true
+# ----------------
 
 iterations: 5
 

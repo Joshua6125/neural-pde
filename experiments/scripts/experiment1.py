@@ -287,7 +287,7 @@ class DataProcessor:
         from utils import make_first_order_model, build_model_config
 
         if not os.path.exists(self.models_dir):
-            print("No models directory found. Cannot plot FOSLS error.")
+            print("No models directory found. Cannot plot SLS error.")
             return
 
         # Time and space discretization
@@ -352,7 +352,7 @@ class DataProcessor:
             plt.fill_between(t_vals, low_error, high_error, color=line.get_color(), alpha=0.3)
 
         plt.xlabel("Time (t)")
-        plt.ylabel("Avg L2 SLS Error Norm over x")
+        plt.ylabel("Avg log L2 SLS Error Norm over x")
         plt.yscale("log")
         plt.title("Error Plot over Space-Time")
         plt.legend()
