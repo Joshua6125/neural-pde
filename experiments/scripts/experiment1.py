@@ -326,8 +326,8 @@ class DataProcessor:
                 iter_errors_over_time = []
                 for t in t_vals:
                     # Analytical solution terms
-                    true_v = self.problem.analytical_solution_t(t, x_vals)
-                    true_sigma = self.problem.analytical_solution_x(t, x_vals)
+                    true_v = self.problem.analytical_solution_t(t, jnp.array(x_vals))
+                    true_sigma = self.problem.analytical_solution_x(t, jnp.array(x_vals))
                     true_vector = jnp.stack([true_v, true_sigma], axis=-1)
 
                     # Model prediction (v, sigma)
@@ -352,7 +352,8 @@ class DataProcessor:
             plt.fill_between(t_vals, low_error, high_error, color=line.get_color(), alpha=0.3)
 
         plt.xlabel("Time (t)")
-        plt.ylabel("Avg L2 FOSLS Error Norm over x")
+        plt.ylabel("Avg L2 SLS Error Norm over x")
+        plt.yscale("log")
         plt.title("Error Plot over Space-Time")
         plt.legend()
         plt.grid(True)

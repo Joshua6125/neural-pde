@@ -32,6 +32,10 @@ def main(cfg: DictConfig):
     # Hydra automatically creates a timestamped output directory for the run
     output_dir = HydraConfig.get().runtime.output_dir
 
+    print(f"=== Starting Experiment ===")
+    print(f"Output directory: {output_dir}")
+    print(f"Configuration:\\n{OmegaConf.to_yaml(cfg)}")
+
     if "script_name" not in cfg:
         raise ValueError("The configuration must specify 'script_name' (e.g. script_name: my_exp_script).")
 
