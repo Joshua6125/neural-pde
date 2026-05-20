@@ -77,9 +77,9 @@ methods:
 
 plot_loss:
   show_error: False
-  error_low: 0 # percent
-  error_high: 25 # percent
-  size_windowed_average: 75 # In epochs
+  error_low: 25 # percent
+  error_high: 75 # percent
+  size_windowed_average: 100 # In epochs
 
 plot_real_space_time_error:
   show_error: True

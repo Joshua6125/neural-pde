@@ -88,11 +88,11 @@ class PINNLoss(Loss):
         ut_val = jax.grad(self._u)(x)[0]
 
         u0_val = self._u0_fn(x)
-        if jnp.ndim(u0_val) != 0:
+        if not jnp.ndim(u0_val) == 0:
             raise ValueError("u0 should be scalar or return scalar type.")
 
         ut0_val = self._ut0_fn(x)
-        if jnp.ndim(ut0_val) != 0:
+        if not jnp.ndim(ut0_val) == 0:
             raise ValueError("ut0 should be scalar or return scalar type.")
 
         return self.ic_weight * ((u_val - u0_val) ** 2 + (ut_val - ut0_val) ** 2)

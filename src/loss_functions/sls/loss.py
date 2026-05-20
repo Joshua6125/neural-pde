@@ -2,6 +2,7 @@
 
 from typing import Callable
 
+import sys
 import jax
 import jax.numpy as jnp
 
@@ -47,7 +48,7 @@ class SLSLoss(Loss):
         self.sigma0 = sigma0
         self.v_boundary = v_boundary
         if not self.v_boundary == 0.0:
-            print("WARNING: SLS formulation is only proven for Dirichlet boundary conditions")
+            print("WARNING: SLS formulation is only proven for Dirichlet boundary conditions", file=sys.stderr)
 
         self._f_fn = f if callable(f) else self._constant_function(f)
         self._g_fn = g if callable(g) else self._constant_function(g)
@@ -78,7 +79,7 @@ class SLSLoss(Loss):
         div_sigma = jnp.trace(J_sigma[:, 1:])
 
         f = self._f_fn(x)
-        if jnp.ndim(f) != 0:
+        if not jnp.ndim(f) == 0:
             raise ValueError("f should be scalar or return scalar type.")
 
         g = self._g_fn(x)
