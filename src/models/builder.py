@@ -4,6 +4,7 @@ from typing_extensions import runtime_checkable
 
 from .mlp import MLP
 from .kan import KANModel
+from .node import GlobalNODE
 
 import jax
 import jax.numpy as jnp
@@ -84,7 +85,31 @@ class KANModelConfig(BaseModelConfig):
         assert self.input_dim > 0, "input_dim must be strictly positive"
 
 
-AnyModelConfig: TypeAlias = MLPModelConfig | KANModelConfig
+@dataclass(frozen=True)
+class GlobalNODEConfig(BaseModelConfig):
+    """Configuration for Global NODE model."""
+
+    kind: Literal["gnode"] = "gnode"
+    z_dim: int = 16
+    latent_hidden_dim: int = 64
+    latent_num_layers: int = 2
+    decoder_hidden_dim: int = 64
+    decoder_num_layers: int = 2
+    T: float = 1.0
+    dt: float = 0.01
+
+    def validate(self) -> None:
+        super().validate()
+        assert self.z_dim > 0, "z_dim must be strictly positive"
+        assert self.latent_hidden_dim > 0, "latent_hidden_dim must be strictly positive"
+        assert self.latent_num_layers > 0, "latent_num_layers must be strictly positive"
+        assert self.decoder_hidden_dim > 0, "decoder_hidden_dim must be strictly positive"
+        assert self.decoder_num_layers > 0, "decoder_num_layers must be strictly positive"
+        assert self.T > 0, "T must be strictly positive"
+        assert self.dt > 0, "dt must be strictly positive"
+
+
+AnyModelConfig: TypeAlias = MLPModelConfig | KANModelConfig | GlobalNODEConfig
 
 
 def build_model(cfg: AnyModelConfig) -> BuiltModelAdapter:
@@ -111,6 +136,21 @@ def build_model(cfg: AnyModelConfig) -> BuiltModelAdapter:
                 degree=cfg.degree,
                 model_type=cfg.model_type,
                 seed=cfg.seed
+            )
+        )
+
+    if isinstance(cfg, GlobalNODEConfig):
+        cfg.validate()
+        return BuiltModelAdapter(
+            GlobalNODE(
+                output_heads=cfg.output_heads,
+                z_dim=cfg.z_dim,
+                latent_hidden_dim=cfg.latent_hidden_dim,
+                latent_num_layers=cfg.latent_num_layers,
+                decoder_hidden_dim=cfg.decoder_hidden_dim,
+                decoder_num_layers=cfg.decoder_num_layers,
+                T=cfg.T,
+                dt=cfg.dt,
             )
         )
 

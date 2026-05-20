@@ -41,20 +41,28 @@ test_data_params:
   seed: 42
 
 models:
-  - name: "mlp"
-    hidden_dim: 64
-    num_layers: 5
+  # - name: "mlp"
+  #   hidden_dim: 64
+  #   num_layers: 5
   # - name: "kan"
   #   hidden_dim: 64
   #   num_layers: 5
   #   input_dim: 2
+  - name: "gnode"
+    z_dim: 16
+    latent_hidden_dim: 64
+    latent_num_layers: 2
+    decoder_hidden_dim: 64
+    decoder_num_layers: 2
+    T: 1
+    dt: 0.01
 
 methods:
-  - name: "pinn"
-    output_heads:
-      u: 1
-    ic_weight: 1.0
-    bc_weights: 100.0
+  # - name: "pinn"
+  #   output_heads:
+  #     u: 1
+  #   ic_weight: 1.0
+  #   bc_weights: 100.0
   - name: "sls"
     output_heads:
       v: 1

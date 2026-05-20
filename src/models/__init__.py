@@ -6,6 +6,7 @@ from .builder import (
     AnyModelConfig,
     MLPModelConfig,
     KANModelConfig,
+    GlobalNODEConfig,
     build_model,
 )
 
@@ -14,6 +15,7 @@ __all__ = [
     "KANModel",
     "MLPModelConfig",
     "KANModelConfig",
+    "GlobalNODEConfig",
     "AnyModelConfig",
     "BuiltModelProtocol",
     "BuiltModelAdapter",

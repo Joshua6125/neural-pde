@@ -1,8 +1,8 @@
-from typing import Callable, cast
+from typing import cast
 from omegaconf import DictConfig
 
 from src.loss_functions import PINNConfig, gPINNConfig, SLSConfig, FOSLSConfig, AlgorithmConfig
-from src.models import MLPModelConfig, KANModelConfig, AnyModelConfig
+from src.models import MLPModelConfig, KANModelConfig, GlobalNODEConfig, AnyModelConfig
 from src.train import TrainConfig
 from src.integration import MonteCarloConfig, QuadratureConfig, AnyIntegrationConfig
 
@@ -108,6 +108,25 @@ def build_kan_config(
         input_dim=int(spec.get("input_dim", 1)),
     )
 
+def build_gnode_config(
+    spec: DictConfig,
+    output_heads: dict[str, int]
+) -> GlobalNODEConfig:
+
+    if not output_heads:
+        raise ValueError("Model must have output heads.")
+
+    return GlobalNODEConfig(
+        output_heads=output_heads,
+        z_dim=int(spec.get("zdim", 1)),
+        latent_hidden_dim=int(spec.get("latent_hidden_dim", 1)),
+        latent_num_layers=int(spec.get("latent_num_layers", 1)),
+        decoder_hidden_dim=int(spec.get("decoder_hidden_dim", 1)),
+        decoder_num_layers=int(spec.get("decoder_num_layers", 1)),
+        T=int(spec.get("T", 1)),
+        dt=float(spec.get("dt", 0.01)),
+    )
+
 
 def build_model_config(
     spec: DictConfig,
@@ -120,6 +139,8 @@ def build_model_config(
         return build_mlp_config(spec, output_heads)
     if kind == "kan":
         return build_kan_config(spec, output_heads)
+    if kind == "gnode":
+        return build_gnode_config(spec, output_heads)
 
     raise ValueError(f"Unknown model type: {kind}")
 
