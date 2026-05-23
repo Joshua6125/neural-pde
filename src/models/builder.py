@@ -4,6 +4,7 @@ from typing_extensions import runtime_checkable
 
 from .mlp import MLP
 from .kan import KANModel
+from .siren import SIREN
 
 import jax
 import jax.numpy as jnp
@@ -84,7 +85,28 @@ class KANModelConfig(BaseModelConfig):
         assert self.input_dim > 0, "input_dim must be strictly positive"
 
 
-AnyModelConfig: TypeAlias = MLPModelConfig | KANModelConfig
+@dataclass(frozen=True)
+class SIRENModelConfig(BaseModelConfig):
+    """Configuration for a SIREN model (sinusoidal activations).
+
+    Implements the configuration parameters used by the SIREN module.
+    """
+
+    kind: Literal["siren"] = "siren"
+    hidden_dim: int = 64
+    num_layers: int = 4
+    w0: float = 30.0
+    w0_hidden: float = 1.0
+
+    def validate(self) -> None:
+        super().validate()
+        assert self.hidden_dim > 0, "hidden_dim must be strictly positive"
+        assert self.num_layers > 0, "num_layers must be strictly positive"
+        assert self.w0 > 0, "w0 must be strictly positive"
+        assert self.w0_hidden > 0, "w0_hidden must be strictly positive"
+
+
+AnyModelConfig: TypeAlias = MLPModelConfig | KANModelConfig | SIRENModelConfig
 
 
 def build_model(cfg: AnyModelConfig) -> BuiltModelAdapter:
@@ -111,6 +133,18 @@ def build_model(cfg: AnyModelConfig) -> BuiltModelAdapter:
                 degree=cfg.degree,
                 model_type=cfg.model_type,
                 seed=cfg.seed
+            )
+        )
+
+    if isinstance(cfg, SIRENModelConfig):
+        cfg.validate()
+        return BuiltModelAdapter(
+            SIREN(
+                hidden_dim=cfg.hidden_dim,
+                num_layers=cfg.num_layers,
+                output_heads=cfg.output_heads,
+                w0=cfg.w0,
+                w0_hidden=cfg.w0_hidden,
             )
         )
 
