@@ -46,7 +46,8 @@ class SIREN(nn.Module):
         was_unbatched = x.ndim == 1
         x_in = x[None, :] if was_unbatched else x
 
-        h = x_in
+        # normalize coordinates from [0,1] to [-1,1]
+        h = 2.0 * x_in - 1.0
 
         # first layer
         h = nn.Dense(self.hidden_dim, kernel_init=self._first_kernel_init(), name="siren_dense_0")(h)
@@ -59,7 +60,7 @@ class SIREN(nn.Module):
                 kernel_init=self._hidden_kernel_init(self.w0_hidden),
                 name=f"siren_dense_{i}",
             )(h)
-            h = jnp.sin(h)
+            h = jnp.sin(self.w0_hidden * h)
 
         # output heads: initialize similarly to hidden layers (paper suggests small init)
         outputs: dict[str, jnp.ndarray] = {}

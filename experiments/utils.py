@@ -2,7 +2,7 @@ from typing import Callable, cast
 from omegaconf import DictConfig
 
 from src.loss_functions import PINNConfig, gPINNConfig, SLSConfig, FOSLSConfig, AlgorithmConfig
-from src.models import MLPModelConfig, KANModelConfig, AnyModelConfig
+from src.models import MLPModelConfig, KANModelConfig, SIRENModelConfig, AnyModelConfig
 from src.train import TrainConfig
 from src.integration import MonteCarloConfig, QuadratureConfig, AnyIntegrationConfig
 
@@ -108,6 +108,21 @@ def build_kan_config(
         input_dim=int(spec.get("input_dim", 1)),
     )
 
+def build_siren_config(
+    spec: DictConfig,
+    output_heads: dict[str, int],
+) -> SIRENModelConfig:
+    if not output_heads:
+        raise ValueError("Model must have output heads.")
+
+    return SIRENModelConfig(
+        output_heads=output_heads,
+        hidden_dim=int(spec.get("hidden_dim", 1)),
+        num_layers=int(spec.get("num_layers", 1)),
+        w0=float(spec.get("w0", 30.0)),
+        w0_hidden=float(spec.get("w0_hidden", 1.0)),
+    )
+
 
 def build_model_config(
     spec: DictConfig,
@@ -120,6 +135,8 @@ def build_model_config(
         return build_mlp_config(spec, output_heads)
     if kind == "kan":
         return build_kan_config(spec, output_heads)
+    if kind == "siren":
+        return build_siren_config(spec, output_heads)
 
     raise ValueError(f"Unknown model type: {kind}")
 
