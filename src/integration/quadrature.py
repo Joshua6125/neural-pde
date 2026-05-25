@@ -1,10 +1,11 @@
-from typing import Callable
+from typing import Callable, Any
 from .base import NDCubeIntegration
 from .config import QuadratureConfig
 
 from numpy.polynomial.legendre import leggauss
 
 import sys
+import jax
 import jax.numpy as jnp
 
 class QuadratureIntegration(NDCubeIntegration):
@@ -67,14 +68,19 @@ class QuadratureIntegration(NDCubeIntegration):
 
     def integrate_interior(
             self,
-            func: Callable[[jnp.ndarray], jnp.ndarray]
-        ) -> jnp.ndarray:
+            func: Callable[[jnp.ndarray], Any]
+        ) -> Any:
         """Integrate over interior using quadrature rule."""
         # Evaluate function at quadrature points
         func_values = func(self.points_interior)
 
         # Compute weighted sum (quadrature formula)
-        integral = jnp.sum(self.weights_interior * func_values)
+        # func_values can be a pytree of arrays. We multiply by weights alongside axis 0
+        # using tensordot to support multi-dimensional outputs gracefully.
+        integral = jax.tree_util.tree_map(
+            lambda x: jnp.tensordot(self.weights_interior, x, axes=([0], [0])),
+            func_values
+        )
         return integral
 
     def _generate_face_quadrature(self, dim_axis: int, boundary_value: float) -> jnp.ndarray:
@@ -169,11 +175,16 @@ class QuadratureIntegration(NDCubeIntegration):
 
     def integrate_boundary(
             self,
-            func: Callable[[jnp.ndarray, jnp.ndarray], jnp.ndarray]
-        ) -> jnp.ndarray:
+            func: Callable[[jnp.ndarray, jnp.ndarray], Any]
+        ) -> Any:
         """Integrate function over the cube boundary."""
         func_values = func(
             self.boundary_faces["points"],
             self.boundary_faces["normals"]
         )
-        return jnp.sum(self.boundary_faces["weights"] * func_values)
+
+        integral = jax.tree_util.tree_map(
+            lambda x: jnp.tensordot(self.boundary_faces["weights"], x, axes=([0], [0])),
+            func_values
+        )
+        return integral

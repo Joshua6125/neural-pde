@@ -1,4 +1,4 @@
-from typing import Callable
+from typing import Callable, Any
 from .base import NDCubeIntegration
 from .config import MonteCarloConfig
 
@@ -71,8 +71,8 @@ class MonteCarloIntegration(NDCubeIntegration):
 
     def integrate_interior(
             self,
-            func: Callable[[jnp.ndarray], jnp.ndarray],
-        ) -> jnp.ndarray:
+            func: Callable[[jnp.ndarray], Any],
+        ) -> Any:
         """Integrate over interior using Monte Carlo sampling."""
 
         points_interior = self._sample_interior()
@@ -80,13 +80,14 @@ class MonteCarloIntegration(NDCubeIntegration):
         # Evaluate function at random samples
         func_values = func(points_interior)
         # Monte Carlo: volume * (1/n) * sum(f)
-        integral = (self.volume / self.interior_samples) * jnp.sum(func_values)
+        factor = self.volume / self.interior_samples
+        integral = jax.tree_util.tree_map(lambda x: factor * jnp.sum(x, axis=0), func_values)
         return integral
 
     def integrate_boundary(
             self,
-            func: Callable[[jnp.ndarray, jnp.ndarray], jnp.ndarray]
-        ) -> jnp.ndarray:
+            func: Callable[[jnp.ndarray, jnp.ndarray], Any]
+        ) -> Any:
         """Integrate over boundary using Monte Carlo sampling."""
         boundary_data = self._setup_boundary_samples()
 
@@ -95,15 +96,16 @@ class MonteCarloIntegration(NDCubeIntegration):
             boundary_data["normals"]
         )
         # Monte Carlo on boundary: area * (1/n) * sum(f)
-        integral = (self.face_area / self.boundary_samples) * jnp.sum(func_values)
+        factor = self.face_area / self.boundary_samples
+        integral = jax.tree_util.tree_map(lambda x: factor * jnp.sum(x, axis=0), func_values)
         return integral
 
     def integrate(
             self,
-            interior_func: Callable[[jnp.ndarray], jnp.ndarray],
-            boundary_func: Callable[[jnp.ndarray, jnp.ndarray], jnp.ndarray],
+            interior_func: Callable[[jnp.ndarray], Any],
+            boundary_func: Callable[[jnp.ndarray, jnp.ndarray], Any],
             rng_key: jax.Array | None = jax.random.PRNGKey(42),
-        ) -> tuple[jnp.ndarray, jnp.ndarray, jnp.ndarray]:
+        ) -> tuple[Any, Any]:
         """Integrate with explicit RNG threading for reproducible resampling."""
         if rng_key is None:
             raise ValueError("rng_key may not be None in Monte Carlo Integration.")
@@ -113,5 +115,4 @@ class MonteCarloIntegration(NDCubeIntegration):
         interior_loss = self.integrate_interior(interior_func)
         boundary_loss = self.integrate_boundary(boundary_func)
 
-        total_loss = interior_loss + boundary_loss
-        return total_loss, interior_loss, boundary_loss
+        return interior_loss, boundary_loss
