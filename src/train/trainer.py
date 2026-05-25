@@ -61,13 +61,14 @@ class Trainer:
             self,
             params: Any,
             integration_key: jax.Array,
-        ) -> tuple[jnp.ndarray, tuple[jnp.ndarray, jnp.ndarray, jax.Array]]:
+        ) -> tuple[jnp.ndarray, tuple[Any, Any, jax.Array]]:
         interior_fn, boundary_fn = self.method.loss_functions(params)
-        total, interior, boundary = self.integrator.integrate(
+        interior, boundary = self.integrator.integrate(
             interior_fn,
             boundary_fn,
             integration_key,
         )
+        total = self.method.aggregate_loss(interior, boundary)
         # Split key to ensure next time we have other sample points
         next_key, _ = jr.split(integration_key)
 
@@ -94,6 +95,11 @@ class Trainer:
             boundary_loss,
             next_integration_key,
         )
+
+    @staticmethod
+    def _tree_sum(tree):
+        leaves = jax.tree_util.tree_leaves(tree)
+        return sum(float(jnp.sum(leaf)) for leaf in leaves) if leaves else 0.0
 
     def fit(
             self,
@@ -154,8 +160,8 @@ class Trainer:
                 metrics = TrainStepMetrics(
                     step=epoch,
                     total_loss=float(total_loss),
-                    interior_loss=float(interior_loss),
-                    boundary_loss=float(boundary_loss),
+                    interior_loss=self._tree_sum(interior_loss),
+                    boundary_loss=self._tree_sum(boundary_loss),
                     training_time=state.total_training_time,
                 )
 

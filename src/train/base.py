@@ -62,3 +62,18 @@ class TrainingMethod(ABC):
             (interior_loss_fn, boundary_loss_fn)
         """
         ...
+
+    def aggregate_loss(self, interior: Any, boundary: Any) -> jnp.ndarray:
+        """Aggregate interior and boundary integration results into a single scalar loss.
+
+        Default implementation assumes interior and boundary are PyTrees of scalar totals,
+        and simply sums them up. Can be overridden by specific methods (e.g. vPINN).
+        """
+
+        def tree_sum(tree: Any) -> jnp.ndarray:
+            leaves = jax.tree_util.tree_leaves(tree)
+            if not leaves:
+                return jnp.array(0.0)
+            return sum(jnp.sum(leaf) for leaf in leaves) # type: ignore
+
+        return tree_sum(interior) + tree_sum(boundary)
