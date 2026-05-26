@@ -1,7 +1,7 @@
 from typing import Callable, cast
 from omegaconf import DictConfig
 
-from src.loss_functions import PINNConfig, gPINNConfig, SLSConfig, FOSLSConfig, AlgorithmConfig
+from src.loss_functions import PINNConfig, gPINNConfig, vPINNConfig, SLSConfig, FOSLSConfig, AlgorithmConfig
 from src.models import MLPModelConfig, KANModelConfig, AnyModelConfig
 from src.train import TrainConfig
 from src.integration import MonteCarloConfig, QuadratureConfig, AnyIntegrationConfig
@@ -187,6 +187,23 @@ def build_fosls_config(
     )
 
 
+def build_vpinn_config(
+    spec: DictConfig,
+    model: AnyModelConfig,
+    wave_functions: dict,
+) -> vPINNConfig:
+    return vPINNConfig(
+        model=model,
+        c=wave_functions.get("c", 1.0),
+        f=wave_functions.get("f", 0.0),
+        u0=wave_functions.get("u0", 0.0),
+        ut0=wave_functions.get("ut0", 0.0),
+        ic_weight=float(spec.get("ic_weight", 1.0)),
+        bc_weight=float(spec.get("bc_weight", 1.0)),
+        n_test_functions=int(spec.get("n_test_functions", 10))
+    )
+
+
 def build_method_config(
     data: DictConfig,
     model: AnyModelConfig,
@@ -198,6 +215,8 @@ def build_method_config(
         return build_pinn_config(data, model, wave_functions)
     if kind == "gpinn":
         return build_gpinn_config(data, model, wave_functions)
+    if kind == "vpinn":
+        return build_vpinn_config(data, model, wave_functions)
     if kind == "sls":
         return build_sls_config(model, wave_functions)
     if kind == "fosls":
