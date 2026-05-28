@@ -235,12 +235,9 @@ def test_monte_carlo_integrate_combined_1d(config_monte_carlo_1d, test_functions
     interior_func = const_func['func']
     boundary_func = lambda pts, normals: jnp.ones(pts.shape[0])
 
-    total_loss, interior_loss, boundary_loss = integrator.integrate(
+    interior_loss, boundary_loss = integrator.integrate(
         interior_func, boundary_func
     )
-
-    # Verify total = interior + boundary
-    assert jnp.allclose(total_loss, interior_loss + boundary_loss, atol=1e-14)
 
     # Verify interior matches direct call
     assert jnp.allclose(interior_loss, const_func['integral'], atol=const_func['tolerance'])
@@ -338,18 +335,18 @@ def test_monte_carlo_resamples(config_monte_carlo_1d):
     key0 = jr.PRNGKey(0)
 
     integrator_a = MonteCarloIntegration(config_monte_carlo_1d)
-    _, interior_1a, _ = integrator_a.integrate(interior_func, boundary_func, key0)
+    interior_1a, _ = integrator_a.integrate(interior_func, boundary_func, key0)
     key1a, _ = jr.split(key0)
-    _, interior_2a, _ = integrator_a.integrate(interior_func, boundary_func, key1a)
+    interior_2a, _ = integrator_a.integrate(interior_func, boundary_func, key1a)
 
     # New key should produce a new sample set and therefore a different estimate.
     assert not jnp.allclose(interior_1a, interior_2a)
 
     # Replaying the same key sequence reproduces the same estimates exactly.
     integrator_b = MonteCarloIntegration(config_monte_carlo_1d)
-    _, interior_1b, _ = integrator_b.integrate(interior_func, boundary_func, key0)
+    interior_1b, _ = integrator_b.integrate(interior_func, boundary_func, key0)
     key1b, _ = jr.split(key0)
-    _, interior_2b, _ = integrator_b.integrate(interior_func, boundary_func, key1b)
+    interior_2b, _ = integrator_b.integrate(interior_func, boundary_func, key1b)
 
     assert jnp.allclose(interior_1a, interior_1b)
     assert jnp.allclose(interior_2a, interior_2b)

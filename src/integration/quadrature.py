@@ -27,13 +27,20 @@ class QuadratureIntegration(NDCubeIntegration):
             # TODO: Implement adaptive quadrature
             print("Warning: Adaptive quadrature not implemented yet. Ignoring adaptive flag.", file=sys.stderr)
 
-        self.dim = config.dim
+        self.spatial_dim = config.spatial_dim
+        self.dim = self.spatial_dim + 1
         if self.dim > 3:
             print(f"Warning: {self.dim}-dimensional quadrature with degree {self.degree} "
                   f"creates {self.degree**self.dim} points.", file=sys.stderr)
 
+        self.t_min = config.t_min
+        self.t_max = config.t_max
         self.x_min = config.x_min
         self.x_max = config.x_max
+
+        # Time and space domains explicitly separated
+        self.domain_min = jnp.array([config.t_min] + [config.x_min] * config.spatial_dim)
+        self.domain_max = jnp.array([config.t_max] + [config.x_max] * config.spatial_dim)
 
         # Set up sampling grids for interior and boundary
         self.points_interior, self.weights_interior = self._setup_quadrature_grids()
@@ -45,21 +52,21 @@ class QuadratureIntegration(NDCubeIntegration):
         p = jnp.array(lg_samp[0])
         w = jnp.array(lg_samp[1])
 
-        # Transform sample interval
-        center = (self.x_max + self.x_min) / 2.0
-        half_width = (self.x_max - self.x_min) / 2.0
-        p_transformed = half_width * p + center
-
-        # Transform weight accordingly as well
-        w_transformed = w * half_width
+        # Transform for each axis based on its dedicated min/max bounds
+        points_mesh_axis = []
+        weight_mesh_axis = []
+        for d in range(self.dim):
+            center = (self.domain_max[d] + self.domain_min[d]) / 2.0
+            half_width = (self.domain_max[d] - self.domain_min[d]) / 2.0
+            
+            points_mesh_axis.append(half_width * p + center)
+            weight_mesh_axis.append(w * half_width)
 
         # Create sample mesh
-        points_mesh_axis = [p_transformed] * self.dim
         points_mesh = jnp.meshgrid(*points_mesh_axis, indexing='ij')
         points = jnp.stack(points_mesh, axis=-1).reshape(-1, self.dim)
 
         # Create weight mesh
-        weight_mesh_axis = [w_transformed] * self.dim
         weight_mesh = jnp.meshgrid(*weight_mesh_axis, indexing='ij')
         weights = jnp.stack(weight_mesh, axis=-1)
         weights = jnp.prod(weights, axis=-1).reshape(-1)
@@ -83,38 +90,13 @@ class QuadratureIntegration(NDCubeIntegration):
         )
         return integral
 
-    def _generate_face_quadrature(self, dim_axis: int, boundary_value: float) -> jnp.ndarray:
-        """Generate quadrature points on a specific boundary face."""
-        # Create a grid for the (dim-1) dimensions that are not fixed
-        free_axes = [i for i in range(self.dim) if i != dim_axis]
-        free_points_mesh_axis = [self.points_interior[:, i] for i in free_axes]
-        free_points_mesh = jnp.meshgrid(*free_points_mesh_axis, indexing='ij')
-        free_points = jnp.stack(free_points_mesh, axis=-1).reshape(-1, self.dim - 1)
-
-        # Insert the fixed boundary value into the correct position
-        face_points = jnp.insert(free_points, dim_axis, boundary_value, axis=-1)
-        return face_points
-
-    def _compute_face_normals(self, dim_axis: int, boundary_value: float) -> jnp.ndarray:
-        """Compute normal vectors for a specific boundary face."""
-        normal_vector = jnp.zeros(self.dim)
-        normal_vector = normal_vector.at[dim_axis].set(1.0 if boundary_value == self.x_max else -1.0)
-        return jnp.tile(normal_vector, (self.degree ** (self.dim - 1), 1))
-
-    def _compute_face_area(self) -> float:
-        """Compute the area of a boundary face."""
-        return (self.x_max - self.x_min) ** (self.dim - 1)
-
     def _setup_boundary_grids(self) -> dict[str, jnp.ndarray]:
         """Generate quadrature points and weights on all boundary faces."""
 
         if self.dim == 1:
-            points = jnp.array([[self.x_min], [self.x_max]])
-
+            points = jnp.array([[self.domain_min[0]], [self.domain_max[0]]])
             normals = jnp.array([[-1.0], [ 1.0]])
-
             weights = jnp.ones(2)
-
             return {
                 "points": points,
                 "normals": normals,
@@ -126,41 +108,43 @@ class QuadratureIntegration(NDCubeIntegration):
         p_1d = jnp.array(p_1d)
         w_1d = jnp.array(w_1d)
 
-        center = (self.x_max + self.x_min) / 2.0
-        half_width = (self.x_max - self.x_min) / 2.0
-
-        p_1d = half_width * p_1d + center
-        w_1d = half_width * w_1d
+        # Scale nodes for each specific dimension
+        p_1d_scaled = []
+        w_1d_scaled = []
+        for d in range(self.dim):
+            center = (self.domain_max[d] + self.domain_min[d]) / 2.0
+            half_width = (self.domain_max[d] - self.domain_min[d]) / 2.0
+            p_1d_scaled.append(half_width * p_1d + center)
+            w_1d_scaled.append(half_width * w_1d)
 
         face_points = []
         face_normals = []
         face_weights = []
 
         for axis in range(self.dim):
-            for boundary_value in [self.x_min, self.x_max]:
+            for is_max, boundary_value in [(False, self.domain_min[axis]), (True, self.domain_max[axis])]:
+
+                # Select transformed 1D points/weights for all free axes
+                free_p_axes = [p_1d_scaled[d] for d in range(self.dim) if d != axis]
+                free_w_axes = [w_1d_scaled[d] for d in range(self.dim) if d != axis]
 
                 # tensor grid for the free coordinates
-                mesh_axes = [p_1d] * (self.dim - 1)
-                mesh = jnp.meshgrid(*mesh_axes, indexing="ij")
-
+                mesh = jnp.meshgrid(*free_p_axes, indexing="ij")
                 free_points = jnp.stack(mesh, axis=-1).reshape(-1, self.dim - 1)
 
                 # insert fixed coordinate
                 pts = jnp.insert(free_points, axis, boundary_value, axis=1)
 
                 # compute weights for tensor grid
-                weight_axes = [w_1d] * (self.dim - 1)
-                weight_mesh = jnp.meshgrid(*weight_axes, indexing="ij")
-
+                weight_mesh = jnp.meshgrid(*free_w_axes, indexing="ij")
                 w = jnp.stack(weight_mesh, axis=-1)
                 w = jnp.prod(w, axis=-1).reshape(-1)
 
                 # outward normal
                 normal = jnp.zeros(self.dim)
                 normal = normal.at[axis].set(
-                    1.0 if boundary_value == self.x_max else -1.0
+                    1.0 if is_max else -1.0
                 )
-
                 normals = jnp.tile(normal, (pts.shape[0], 1))
 
                 face_points.append(pts)

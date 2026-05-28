@@ -24,17 +24,21 @@ def build_integration_config(data: DictConfig) -> AnyIntegrationConfig:
     # choose config class and allowed keys
     if integration_type == "monte_carlo":
         return MonteCarloConfig(
-            dim=int(data.get("dim", 2)),
+            spatial_dim=int(data.get("spatial_dim", 1)),
             x_min=float(data.get("x_min", 0.0)),
-            x_max=float(data.get("x_max", 0.0)),
+            x_max=float(data.get("x_max", 1.0)),
+            t_min=float(data.get("t_min", 0.0)),
+            t_max=float(data.get("t_max", 1.0)),
             boundary_samples=int(specific_data.get("boundary_samples", 1)),
             interior_samples=int(specific_data.get("interior_samples", 1)),
         )
     elif integration_type == "quadrature":
         return QuadratureConfig(
-            dim=int(data.get("dim", 2)),
+            spatial_dim=int(data.get("spatial_dim", 1)),
             x_min=float(data.get("x_min", 0.0)),
-            x_max=float(data.get("x_max", 0.0)),
+            x_max=float(data.get("x_max", 1.0)),
+            t_min=float(data.get("t_min", 0.0)),
+            t_max=float(data.get("t_max", 1.0)),
             degree=int(specific_data.get("degree", 1)),
             adaptive_integration=bool(specific_data.get("adaptive_integration", False))
         )
