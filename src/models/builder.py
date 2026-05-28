@@ -3,14 +3,14 @@ from typing import Literal, TypeAlias, Mapping, Protocol, Any, cast
 from typing_extensions import runtime_checkable
 
 from .mlp import MLP
-from .kan import KANModel
+from .kan import KAN
 
 import jax
 import jax.numpy as jnp
 import flax.linen as nn
 
 
-# AnyBuiltModel: TypeAlias = MLP | KANModel
+# AnyBuiltModel: TypeAlias = MLP | KAN
 
 
 @runtime_checkable
@@ -47,7 +47,7 @@ class BaseModelConfig:
 
 
 @dataclass(frozen=True)
-class MLPModelConfig(BaseModelConfig):
+class MLPConfig(BaseModelConfig):
     """Configuration for the built-in fully connected model."""
 
     kind: Literal["mlp"] = "mlp"
@@ -61,7 +61,7 @@ class MLPModelConfig(BaseModelConfig):
 
 
 @dataclass(frozen=True)
-class KANModelConfig(BaseModelConfig):
+class KANConfig(BaseModelConfig):
     """Configuration for KAN model."""
 
     kind: Literal["kan"] = "kan"
@@ -84,12 +84,12 @@ class KANModelConfig(BaseModelConfig):
         assert self.input_dim > 0, "input_dim must be strictly positive"
 
 
-AnyModelConfig: TypeAlias = MLPModelConfig | KANModelConfig
+AnyModelConfig: TypeAlias = MLPConfig | KANConfig
 
 
 def build_model(cfg: AnyModelConfig) -> BuiltModelAdapter:
     """Build model from declarative model config."""
-    if isinstance(cfg, MLPModelConfig):
+    if isinstance(cfg, MLPConfig):
         cfg.validate()
         return BuiltModelAdapter(
             MLP(
@@ -99,10 +99,10 @@ def build_model(cfg: AnyModelConfig) -> BuiltModelAdapter:
             )
         )
 
-    if isinstance(cfg, KANModelConfig):
+    if isinstance(cfg, KANConfig):
         cfg.validate()
         return BuiltModelAdapter(
-            KANModel(
+            KAN(
                 hidden_dim=cfg.hidden_dim,
                 num_layers=cfg.num_layers,
                 output_heads=cfg.output_heads,

@@ -9,7 +9,7 @@ import jax.numpy as jnp
 
 from typing import Any
 
-from src.models import MLPModelConfig
+from src.models import MLPConfig
 
 
 # ============================================================================
@@ -314,8 +314,8 @@ def sls_config_with_boundary(callable_v_boundary_linear):
 
 @pytest.fixture
 def mlp_model_config():
-    """Reusable MLPModelConfig for SLSConfig tests."""
-    return MLPModelConfig(
+    """Reusable MLPConfig for SLSConfig tests."""
+    return MLPConfig(
         hidden_dim=8,
         num_layers=2,
         output_heads={"v": 1, "sigma": 1},

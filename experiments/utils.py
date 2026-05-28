@@ -2,7 +2,7 @@ from typing import Callable, cast
 from omegaconf import DictConfig
 
 from src.loss_functions import PINNConfig, gPINNConfig, vPINNConfig, SLSConfig, FOSLSConfig, AlgorithmConfig
-from src.models import MLPModelConfig, KANModelConfig, AnyModelConfig
+from src.models import MLPConfig, KANConfig, AnyModelConfig
 from src.train import TrainConfig
 from src.integration import MonteCarloConfig, QuadratureConfig, AnyIntegrationConfig
 
@@ -85,12 +85,12 @@ def build_learning_rate_schedule(spec: DictConfig) -> optax.Schedule:
 def build_mlp_config(
     spec: DictConfig,
     output_heads: dict[str, int],
-) -> MLPModelConfig:
+) -> MLPConfig:
 
     if not output_heads:
         raise ValueError("Model must have output heads.")
 
-    return MLPModelConfig(
+    return MLPConfig(
         output_heads=output_heads,
         hidden_dim=int(spec.get("hidden_dim", 1)),
         num_layers=int(spec.get("num_layers", 1)),
@@ -100,12 +100,12 @@ def build_mlp_config(
 def build_kan_config(
     spec: DictConfig,
     output_heads: dict[str, int],
-) -> KANModelConfig:
+) -> KANConfig:
 
     if not output_heads:
         raise ValueError("Model must have output heads.")
 
-    return KANModelConfig(
+    return KANConfig(
         output_heads=output_heads,
         hidden_dim=int(spec.get("hidden_dim", 1)),
         num_layers=int(spec.get("num_layers", 1)),

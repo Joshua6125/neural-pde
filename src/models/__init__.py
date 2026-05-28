@@ -1,19 +1,19 @@
 from .mlp import MLP
-from .kan import KANModel
+from .kan import KAN
 from .builder import (
     BuiltModelAdapter,
     BuiltModelProtocol,
     AnyModelConfig,
-    MLPModelConfig,
-    KANModelConfig,
+    MLPConfig,
+    KANConfig,
     build_model,
 )
 
 __all__ = [
     "MLP",
-    "KANModel",
-    "MLPModelConfig",
-    "KANModelConfig",
+    "KAN",
+    "MLPConfig",
+    "KANConfig",
     "AnyModelConfig",
     "BuiltModelProtocol",
     "BuiltModelAdapter",

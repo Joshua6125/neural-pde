@@ -6,7 +6,7 @@ from flax import nnx
 from jaxkan.models.KAN import KAN
 
 
-class KANModel(nn.Module):
+class KAN(nn.Module):
     """Linen-compatible wrapper around jaxKAN's NNX KAN model.
 
     The public behaviour matches ``MLP``:

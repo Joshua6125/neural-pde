@@ -3,7 +3,7 @@
 import pytest
 
 from src.loss_functions import SLSConfig
-from src.models import MLPModelConfig
+from src.models import MLPConfig
 
 
 pytestmark = pytest.mark.SLS
@@ -17,7 +17,7 @@ class TestSLSConfigInstantiation:
         config = sls_config_default
         assert config is not None
         assert config.kind == "sls"
-        assert isinstance(config.model, MLPModelConfig)
+        assert isinstance(config.model, MLPConfig)
 
     def test_kind_is_ls(self):
         """kind field is always 'sls'."""
@@ -125,7 +125,7 @@ class TestSLSConfigMultipleArgs:
 
     def test_custom_model_config_is_supported(self):
         """Custom model config instances are supported."""
-        model_config = MLPModelConfig(
+        model_config = MLPConfig(
             hidden_dim=16,
             num_layers=3,
             output_heads={"v": 1, "sigma": 1},

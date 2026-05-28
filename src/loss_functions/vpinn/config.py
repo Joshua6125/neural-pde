@@ -5,7 +5,7 @@ from typing import Callable, Literal
 
 import jax.numpy as jnp
 
-from ...models import AnyModelConfig, MLPModelConfig
+from ...models import AnyModelConfig, MLPConfig
 from ..base import AlgorithmConfig
 
 
@@ -13,7 +13,7 @@ from ..base import AlgorithmConfig
 class vPINNConfig(AlgorithmConfig):
     """Configuration for Variational PINN algorithm."""
     kind: Literal["vpinn"] = "vpinn"
-    model: AnyModelConfig = field(default_factory=MLPModelConfig)
+    model: AnyModelConfig = field(default_factory=MLPConfig)
     c: float | Callable[[jnp.ndarray], jnp.ndarray] = 1.0
     f: float | Callable[[jnp.ndarray], jnp.ndarray] = 0.0
     u0: float | Callable[[jnp.ndarray], jnp.ndarray] = 0.0
@@ -21,4 +21,3 @@ class vPINNConfig(AlgorithmConfig):
     ic_weight: float = 1.0
     bc_weight: float = 1.0
     n_test_functions: int = 10
-    
