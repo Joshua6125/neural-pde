@@ -30,6 +30,7 @@ class TrainConfig:
     """
 
     epochs: int = 1000
+    max_training_time: float = 100000
     # TODO: Should consider maybe building the Schedule in src/
     learning_rate: Schedule = optax.exponential_decay(
         init_value=1e-4,

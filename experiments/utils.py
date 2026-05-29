@@ -238,6 +238,7 @@ def build_trainer_config(
 
     return TrainConfig(
         epochs=int(spec.get("epochs", 1)),
+        max_training_time=float(spec.get("max_training_time", 100.0)),
         learning_rate=lr,
         optimiser=str(spec.get("optimiser", "adamw")),
         seed=int(spec.get("seed", 42)),

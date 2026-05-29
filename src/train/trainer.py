@@ -177,4 +177,8 @@ class Trainer:
                 else:
                     callback(metrics)
 
+            # Stop training if max training time has been hit.
+            if state.total_training_time > self.train_cfg.max_training_time:
+                return state, history
+
         return state, history

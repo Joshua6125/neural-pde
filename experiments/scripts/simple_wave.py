@@ -230,7 +230,7 @@ class RunTraining:
                     pickle.dump(current_run_evals, f)
 
                 final_loss = logged_metrics[-1].total_loss if logged_metrics else "N/A"
-                print(f"  -> Success! Time: {elapsed_time:.1f}s, Final Loss: {final_loss}\n")
+                print(f"  -> Success! Time: {elapsed_time:.1f}s of which {final_state.total_training_time:.1f}s training time, Final Loss: {final_loss}\n")
             except Exception as exc:
                 print(f"  -> Failed: {exc}\n")
 
@@ -354,10 +354,6 @@ def run(
         Should plots be generated.
     """
     problem = ProblemDefinition(cfg)
-
-    print("\n==========================================")
-    print(f"   Executing Experiment 1 Pipeline")
-    print("==========================================\n")
 
     if generate_data:
         iterations = cfg.get("iterations", 1)
