@@ -288,16 +288,73 @@ class DataProcessor:
             if not evals_list:
                 continue
 
+            # Steps as recorded in evaluation callbacks (these are epoch numbers)
             steps = np.array([e["step"] for e in evals_list[0]])
+
+            # Gather metric values across iterations
             all_vals = []
             for evals in evals_list:
                 all_vals.append([e[metric_key] for e in evals])
-
             all_vals = np.array(all_vals)
             median_val = np.median(all_vals, axis=0)
 
+            # Build a matrix of training times aligned to evaluation steps across iterations
+            metrics_lists = self.metrics_data.get(name, [])
+            n_iters = len(evals_list)
+            n_points = steps.shape[0]
+            training_times = np.empty((n_iters, n_points), dtype=float)
+
+            def _times_for_eval_points(evals, metrics_seq):
+                # metrics_seq is a list of TrainStepMetrics-like objects
+                if not metrics_seq:
+                    return np.array([np.nan] * len(evals))
+                m_steps = np.array([m.step for m in metrics_seq])
+                m_times = np.array([m.training_time for m in metrics_seq], dtype=float)
+                out = []
+                for s in [e["step"] for e in evals]:
+                    if s in m_steps:
+                        out.append(float(m_times[m_steps == s][0]))
+                    else:
+                        # Linear interpolate or extrapolate using nearest two points
+                        if m_steps.size >= 2:
+                            if s < m_steps.min():
+                                i0, i1 = 0, 1
+                            elif s > m_steps.max():
+                                i0, i1 = -2, -1
+                            else:
+                                idx = np.searchsorted(m_steps, s)
+                                i0, i1 = idx - 1, idx
+                            s0, s1 = m_steps[i0], m_steps[i1]
+                            t0, t1 = m_times[i0], m_times[i1]
+                            if s1 == s0:
+                                out.append(float(t1))
+                            else:
+                                frac = (s - s0) / (s1 - s0)
+                                out.append(float(t0 + frac * (t1 - t0)))
+                        else:
+                            out.append(float(m_times[0]))
+                return np.array(out)
+
+            for i, evals in enumerate(evals_list):
+                if i < len(metrics_lists):
+                    metrics_seq = metrics_lists[i]
+                elif metrics_lists:
+                    metrics_seq = metrics_lists[0]
+                else:
+                    metrics_seq = []
+                training_times[i, :] = _times_for_eval_points(evals, metrics_seq)
+
+            # If no training time information is available, fall back to steps (keep original behavior)
+            if np.all(np.isnan(training_times)):
+                x_vals = steps
+            else:
+                # Use median training time across iterations as the x-axis
+                median_time = np.nanmedian(training_times, axis=0)
+                x_vals = median_time
+
+            # Windowed averaging if requested
             if size_windowed_average == 1:
-                x = steps
+                x = x_vals
                 y = median_val
                 if show_error:
                     low_val = np.percentile(all_vals, error_low, axis=0)
@@ -307,7 +364,7 @@ class DataProcessor:
                 y = np.convolve(median_val, np.ones(w) / w, mode='valid')
                 L = y.shape[0]
                 half = (w - 1) // 2
-                x = steps[half: half + L]
+                x = x_vals[half: half + L]
                 if show_error:
                     low_val = np.percentile(all_vals, error_low, axis=0)
                     high_val = np.percentile(all_vals, error_high, axis=0)
@@ -319,7 +376,8 @@ class DataProcessor:
                 plt.fill_between(x, low_val, high_val, color=line.get_color(), alpha=0.3) # type: ignore ; It is always bound.
 
         plt.yscale("log")
-        plt.xlabel("Training Steps")
+        # Prefer training time (seconds) on the x-axis; fall back to steps if unavailable
+        plt.xlabel("Training Time (s)")
         plt.ylabel(ylabel)
         plt.title(title if size_windowed_average == 1 else f"Windowed {title} (size={size_windowed_average})")
         plt.legend()
