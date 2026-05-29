@@ -131,12 +131,12 @@ class Trainer:
                 callback_uses_state = len(inspect.signature(callback).parameters) >= 2
             except (TypeError, ValueError):
                 callback_uses_state = False
-
-        # Account for previous training time
-        start_time = time.time() - state.total_training_time
+    
 
         history: list[TrainStepMetrics] = []
         for epoch in range(1, self.train_cfg.epochs + 1):
+            start_time = time.time() - state.total_training_time
+
             previous_state = state
             params, opt_state, total_loss, interior_loss, boundary_loss, integration_key = self._train_step_fn(
                 state.params,

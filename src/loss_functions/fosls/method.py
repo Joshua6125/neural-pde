@@ -48,18 +48,12 @@ class FOSLS(TrainingMethod):
 
     def loss_functions(self, params):
         """Create loss functions for current parameters."""
-        def fosls_apply(x: jnp.ndarray) -> dict[str, jnp.ndarray]:
-            return self.model.apply(params, x)
-
-        def v_apply(x: jnp.ndarray) -> jnp.ndarray:
-            return fosls_apply(x)["v"]
-
-        def sigma_apply(x: jnp.ndarray) -> jnp.ndarray:
-            return fosls_apply(x)["sigma"]
+        def fosls_apply(x: jnp.ndarray) -> jnp.ndarray:
+            out = self.model.apply(params, x)
+            return jnp.concatenate([jnp.atleast_1d(out["v"]), jnp.atleast_1d(out["sigma"])], axis=-1)
 
         loss = FOSLSLoss(
-            v_model=v_apply,
-            sigma_model=sigma_apply,
+            model=fosls_apply,
             f=self.config.f,
             g=self.config.g,
             v0=self.config.v0,

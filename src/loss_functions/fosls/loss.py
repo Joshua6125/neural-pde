@@ -33,8 +33,7 @@ class FOSLSLoss(Loss):
 
     def __init__(
         self,
-        v_model: Callable[[jnp.ndarray], jnp.ndarray],
-        sigma_model: Callable[[jnp.ndarray], jnp.ndarray],
+        model: Callable[[jnp.ndarray], jnp.ndarray],
         f: float | Callable[[jnp.ndarray], jnp.ndarray] = 0.0,
         g: float | Callable[[jnp.ndarray], jnp.ndarray] = 0.0,
         v0: float | Callable[[jnp.ndarray], jnp.ndarray] = 0.0,
@@ -42,8 +41,7 @@ class FOSLSLoss(Loss):
         v_boundary: float | Callable[[jnp.ndarray], jnp.ndarray] = 0.0,
         ic_weight: float = 1.0,
     ):
-        self.v_model = v_model
-        self.sigma_model = sigma_model
+        self.model = model
         self.f = f
         self.g = g
         self.v0 = v0
@@ -64,27 +62,23 @@ class FOSLSLoss(Loss):
         self._vmapped_interior_residual = jax.vmap(self._interior_residual)
         self._vmapped_ic_residual = jax.vmap(self._ic_residual)
         self._vmapped_spatial_bc_residual = jax.vmap(self._spatial_bc_residual)
-
-    def _v(self, x: jnp.ndarray) -> jnp.ndarray:
-        return self.v_model(x).squeeze()
-
-    def _sigma(self, x: jnp.ndarray) -> jnp.ndarray:
-        return self.sigma_model(x).reshape(-1)
-
+    
     def _interior_residual(self, x: jnp.ndarray) -> jnp.ndarray:
         """Sum of squared residuals of both equations."""
-        v_grad = jax.grad(self._v)(x)
-        dt_v = v_grad[0]
-        grad_v = v_grad[1:]
+        jac = jax.jacobian(self.model)(x)
 
-        J_sigma = jax.jacobian(self._sigma)(x)
-        dt_sigma = J_sigma[:, 0]
-        div_sigma = jnp.trace(J_sigma[:, 1:])
+        dt_v = jnp.squeeze(jac[0])
+        dt_sigma = jnp.squeeze(jac_t[1])
+
+        grad_v = jnp.squeeze(jac_x[0])
+        div_sigma = jnp.squeeze(jac_x[1])
+
+        print(f"dt_v: {dt_v.shape}, dt_sigma: {dt_sigma.shape}, grad_v: {grad_v.shape}, div_sigma: {div_sigma.shape}")
 
         f = self._f_fn(x)
         if jnp.ndim(f) != 0:
             raise ValueError("f should be scalar or return scalar type.")
-
+        
         g = self._g_fn(x)
         if jnp.ndim(g) == 0:
             g = g * jnp.ones_like(grad_v)
@@ -102,8 +96,7 @@ class FOSLSLoss(Loss):
 
     def _ic_residual(self, x: jnp.ndarray) -> jnp.ndarray:
         """IC residuals at t=t_min."""
-        v_val = self._v(x)
-        sigma_val = self._sigma(x)
+        v_val, sigma_val = self.model(x)
 
         v0_val = self._v0_fn(x)
         if jnp.ndim(v0_val) != 0:
@@ -122,7 +115,7 @@ class FOSLSLoss(Loss):
         if self.v_boundary is None:
             return jnp.zeros(())
 
-        v_val = self._v(x)
+        v_val, _ = self.model(x)
         v_boundary_val = self._v_boundary_fn(x) if self._v_boundary_fn is not None else 0.0
         if jnp.ndim(v_boundary_val) != 0:
             raise ValueError("v_boundary should be scalar or return scalar type.")

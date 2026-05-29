@@ -16,7 +16,7 @@ problem_params:
 
 training:
   epochs: 1000000
-  max_training_time: 120.0
+  max_training_time: 60.0
   learning_rate:
     kind: exponential_decay
     init_value: 1.0e-4
@@ -24,7 +24,7 @@ training:
     decay_rate: 0.95
     staircase: true
   seed: 42
-  log_every: 10
+  log_every: 100
   optimiser: "adamw"
 
 integration:
@@ -48,11 +48,11 @@ models:
   #   input_dim: 2
 
 methods:
-  - name: "pinn"
-    output_heads:
-      u: 1
-    ic_weight: 1.0
-    bc_weights: 100.0
+  # - name: "pinn"
+  #   output_heads:
+  #     u: 1
+  #   ic_weight: 1.0
+  #   bc_weights: 100.0
   # - name: "sls"
   #   output_heads:
   #     v: 1
@@ -68,12 +68,12 @@ methods:
       v: 1
       sigma: 1
     ic_weight: 1.0
-  - name: "vpinn"
-    output_heads:
-      u: 1
-    ic_weight: 1.0
-    bc_weight: 100.0
-    n_test_functions: 10
+  # - name: "vpinn"
+  #   output_heads:
+  #     u: 1
+  #   ic_weight: 1.0
+  #   bc_weight: 100.0
+  #   n_test_functions: 10
 
 # ----------------
 # Data analysis parameters
@@ -86,6 +86,6 @@ plot_params:
 plot_loss:
   show_error: True
   error_low: 0 # percent
-  error_high: 1 # percent
-  size_windowed_average: 1 # In epochs
+  error_high: 100 # percent
+  size_windowed_average: 100 # In epochs
 
