@@ -62,23 +62,22 @@ class FOSLSLoss(Loss):
         self._vmapped_interior_residual = jax.vmap(self._interior_residual)
         self._vmapped_ic_residual = jax.vmap(self._ic_residual)
         self._vmapped_spatial_bc_residual = jax.vmap(self._spatial_bc_residual)
-    
+
     def _interior_residual(self, x: jnp.ndarray) -> jnp.ndarray:
         """Sum of squared residuals of both equations."""
-        jac = jax.jacobian(self.model)(x)
+        jac_v, jac_sigma = jax.jacobian(self.model)(x)
 
-        dt_v = jnp.squeeze(jac[0])
-        dt_sigma = jnp.squeeze(jac_t[1])
+        dt_v = jnp.squeeze(jac_v[0])
+        grad_v = jnp.squeeze(jac_v[1:])
+        dt_sigma = jnp.squeeze(jac_sigma[:, 0])
 
-        grad_v = jnp.squeeze(jac_x[0])
-        div_sigma = jnp.squeeze(jac_x[1])
-
-        print(f"dt_v: {dt_v.shape}, dt_sigma: {dt_sigma.shape}, grad_v: {grad_v.shape}, div_sigma: {div_sigma.shape}")
+        jac_sigma_spatial = jac_sigma[:, 1:]
+        div_sigma = jnp.trace(jac_sigma_spatial)
 
         f = self._f_fn(x)
         if jnp.ndim(f) != 0:
             raise ValueError("f should be scalar or return scalar type.")
-        
+
         g = self._g_fn(x)
         if jnp.ndim(g) == 0:
             g = g * jnp.ones_like(grad_v)
