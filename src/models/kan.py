@@ -3,7 +3,7 @@ from typing import Mapping
 import flax.linen as nn
 import jax.numpy as jnp
 from flax import nnx
-from jaxkan.models.KAN import KAN
+from jaxkan.models.KAN import KAN as nnxKAN
 
 
 class KAN(nn.Module):
@@ -46,7 +46,7 @@ class KAN(nn.Module):
         self.validate()
         layer_type, required_parameters = self._kan_hparams()
         self.kan = nnx.bridge.to_linen(
-            KAN,
+            nnxKAN,
             self._layer_dims(),
             layer_type=layer_type,
             required_parameters=required_parameters,

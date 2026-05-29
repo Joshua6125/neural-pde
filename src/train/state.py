@@ -30,6 +30,7 @@ class TrainConfig:
     """
 
     epochs: int = 1000
+    # TODO: Should consider maybe building the Schedule in src/
     learning_rate: Schedule = optax.exponential_decay(
         init_value=1e-4,
         transition_steps=1000,

@@ -63,7 +63,7 @@ class MLPConfig(BaseModelConfig):
 @dataclass(frozen=True)
 class KANConfig(BaseModelConfig):
     """Configuration for KAN model."""
-
+    # TODO: Should look at this. Should probably fix it with fourier rather than chebyshev
     kind: Literal["kan"] = "kan"
     hidden_dim: int = 64
     num_layers: int = 4
