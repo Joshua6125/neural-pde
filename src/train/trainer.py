@@ -166,7 +166,7 @@ class Trainer:
                 )
 
             if should_log:
-                print(f"Training progress: {epoch}/{self.train_cfg.epochs}")
+                print(f"Training progress: {epoch}/{self.train_cfg.epochs}, {state.total_training_time:.2f}/{self.train_cfg.max_training_time:.2f}s")
                 assert metrics is not None
                 history.append(metrics)
 

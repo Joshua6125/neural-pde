@@ -172,7 +172,7 @@ class RunTraining:
         print(f"--- Starting Training Phase (Iteration {iteration+1}) ---")
         print(f"Total configurations to train: {total_runs}")
         init_lr = self.cfg.get("training", {}).get("learning_rate", {}).get("init_value", "Unknown")
-        print(f"Epochs: {trainer_config.epochs}, Initial LR: {init_lr}, Seed: {trainer_config.seed}\n")
+        print(f"Epochs: {trainer_config.epochs} or Time: {trainer_config.max_training_time}, Initial LR: {init_lr}, Seed: {trainer_config.seed}\n")
 
         domain_pts = create_evaluation_domain(self.cfg)
         f_fn = lambda t, x: self.problem.source_function(t, x)
