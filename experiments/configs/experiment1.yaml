@@ -38,11 +38,6 @@ integration:
     interior_samples: 1600
     boundary_samples: 1000
 
-test_data_params:
-  n_time: 100
-  n_space: 500
-  seed: 42
-
 models:
   - name: "mlp"
     hidden_dim: 64
@@ -83,6 +78,10 @@ methods:
 # ----------------
 # Data analysis parameters
 # ----------------
+
+plot_params:
+  t_grid: 100
+  x_grid: 100
 
 plot_loss:
   show_error: True

@@ -272,15 +272,15 @@ def make_first_order_model(model_apply, method_kind: str):
     return wrapped_apply
 
 
-def create_evaluation_domain(cfg: DictConfig, t_points: int = 50, x_points: int = 50) -> jnp.ndarray:
+def create_evaluation_domain(cfg: DictConfig) -> jnp.ndarray:
     """Creates a deterministic space-time grid for evaluation."""
     t_min = float(cfg.get("integration", {}).get("t_min", 0.0))
     t_max = float(cfg.get("integration", {}).get("t_max", 1.0))
     x_min = float(cfg.get("integration", {}).get("x_min", 0.0))
     x_max = float(cfg.get("integration", {}).get("x_max", 1.0))
 
-    t_grid = jnp.linspace(t_min, t_max, t_points)
-    x_grid = jnp.linspace(x_min, x_max, x_points)
+    t_grid = jnp.linspace(t_min, t_max, cfg.plot_params.get("t_grid", 100))
+    x_grid = jnp.linspace(x_min, x_max, cfg.plot_params.get("x_grid", 100))
 
     T, X = jnp.meshgrid(t_grid, x_grid, indexing='ij')
 
