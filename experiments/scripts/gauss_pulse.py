@@ -31,61 +31,40 @@ import jax
 
 
 class ProblemDefinition:
-    """Analytical problem definition of a simple wave equation."""
-
+    """Gaussian pulse benchmark inspired by FGK23 Section 5.2."""
     def __init__(self, cfg: DictConfig):
-        """
-        Parameters
-        ----------
-        cfg : DictConfig
-            The overridden experiment configuration.
-        """
-
         self.x_min = float(cfg.integration.get("x_min", 0.0))
         self.x_max = float(cfg.integration.get("x_max", 1.0))
+
         self.T = float(cfg.problem_params.get("T", 1.0))
         self.c = float(cfg.problem_params.get("c", 1.0))
+
+        # Pulse parameters
+        self.kappa = float(cfg.problem_params.get("kappa", 100.0))
+        self.mu = float(cfg.problem_params.get("mu", 0.25))
+
         self.cfg = cfg
 
-    def analytical_solution(self, t: jnp.ndarray, x: jnp.ndarray) -> jnp.ndarray:
-        """Compute the manufactured analytical solution."""
-        t_array = jnp.asarray(t)
-        x_array = jnp.asarray(x)
-
-        t_term = jnp.sin(jnp.pi * t_array / self.T)
-        x_term = jnp.sin(jnp.pi * (x_array - self.x_min) / (self.x_max - self.x_min))
-        result = t_term * x_term
-
-        return jnp.where(jnp.isclose(t_array / self.T, 1.0, atol=1e-10), 0.0, result)
+    def solution_u(self, t: jnp.ndarray, x: jnp.ndarray) -> jnp.ndarray:
+        xi = x - self.mu - self.c * t
+        return jnp.exp(-self.kappa * xi**2)
 
     def solution_v(self, t: jnp.ndarray, x: jnp.ndarray) -> jnp.ndarray:
-        """Time derivative of the manufactured analytical solution."""
-        return (
-            jnp.pi / self.T
-        ) * jnp.cos(jnp.pi * t / self.T) * jnp.sin(jnp.pi * (x - self.x_min) / (self.x_max - self.x_min))
+        xi = x - self.mu - self.c * t
+        return 2.0 * self.kappa* self.c * xi * jnp.exp(-self.kappa * xi**2)
 
     def solution_sigma(self, t: jnp.ndarray, x: jnp.ndarray) -> jnp.ndarray:
-        """Spatial derivative of the manufactured analytical solution."""
-        return (
-            jnp.sin(jnp.pi * t / self.T)
-            * jnp.cos(jnp.pi * (x - self.x_min) / (self.x_max - self.x_min))
-            * (jnp.pi / (self.x_max - self.x_min))
-        )
+        xi = x - self.mu - self.c * t
+        return -2.0 * self.kappa * xi * jnp.exp(-self.kappa * xi**2)
 
     def source_f(self, t: jnp.ndarray, x: jnp.ndarray) -> jnp.ndarray:
-        """Closed-form source term for the manufactured PDE."""
-        u = self.analytical_solution(t, x)
-        coeff = -jnp.pi**2 / self.T**2 + self.c**2 * jnp.pi**2 / (self.x_max - self.x_min)**2
-        return coeff * u
+        return jnp.zeros_like(x)
 
     def source_g(self, t: jnp.ndarray, x: jnp.ndarray) -> jnp.ndarray:
-        """Zero vector source used by the SLS formulation."""
-        _ = (t, x)
         return jnp.zeros((1,))
 
     def get_sample_input(self) -> jnp.ndarray:
-        """Return a representative sample input for model initialisation."""
-        return jnp.asarray([[0.5, 0.0]], dtype=jnp.float32)
+        return jnp.asarray([[0.0, 0.5]], dtype=jnp.float32)
 
 
 class RunTraining:
@@ -113,7 +92,7 @@ class RunTraining:
         self.sigma0 = lambda v: jnp.array(
             [self.problem.solution_sigma(jnp.array(v[0]), jnp.array(v[1]))]
         )
-        self.u0 = lambda v: self.problem.analytical_solution(jnp.array(v[0]), jnp.array(v[1]))
+        self.u0 = lambda v: self.problem.solution_u(jnp.array(v[0]), jnp.array(v[1]))
         self.ut0 = lambda v: self.problem.solution_v(jnp.array(v[0]), jnp.array(v[1]))
         self.c = float(cfg.problem_params.get("c", 1.0))
 
@@ -172,7 +151,7 @@ class RunTraining:
         print(f"--- Starting Training Phase (Iteration {iteration+1}) ---")
         print(f"Total configurations to train: {total_runs}")
         init_lr = self.cfg.get("training", {}).get("learning_rate", {}).get("init_value", "Unknown")
-        print(f"Epochs: {trainer_config.epochs} or Time: {trainer_config.max_training_time}, Initial LR: {init_lr}, Seed: {trainer_config.seed}\n")
+        print(f"Epochs: {trainer_config.epochs}, Initial LR: {init_lr}, Seed: {trainer_config.seed}\n")
 
         domain_pts = create_evaluation_domain(self.cfg)
         f_fn = lambda t, x: self.problem.source_f(t, x)
@@ -230,7 +209,7 @@ class RunTraining:
                     pickle.dump(current_run_evals, f)
 
                 final_loss = logged_metrics[-1].total_loss if logged_metrics else "N/A"
-                print(f"  -> Success! Time: {elapsed_time:.1f}s of which {final_state.total_training_time:.1f}s training time, Final Loss: {final_loss}\n")
+                print(f"  -> Success! Time: {elapsed_time:.1f}s, Final Loss: {final_loss}\n")
             except Exception as exc:
                 print(f"  -> Failed: {exc}\n")
 
@@ -288,73 +267,16 @@ class DataProcessor:
             if not evals_list:
                 continue
 
-            # Steps as recorded in evaluation callbacks (these are epoch numbers)
             steps = np.array([e["step"] for e in evals_list[0]])
-
-            # Gather metric values across iterations
             all_vals = []
             for evals in evals_list:
                 all_vals.append([e[metric_key] for e in evals])
+
             all_vals = np.array(all_vals)
             median_val = np.median(all_vals, axis=0)
 
-            # Build a matrix of training times aligned to evaluation steps across iterations
-            metrics_lists = self.metrics_data.get(name, [])
-            n_iters = len(evals_list)
-            n_points = steps.shape[0]
-            training_times = np.empty((n_iters, n_points), dtype=float)
-
-            def _times_for_eval_points(evals, metrics_seq):
-                # metrics_seq is a list of TrainStepMetrics-like objects
-                if not metrics_seq:
-                    return np.array([np.nan] * len(evals))
-                m_steps = np.array([m.step for m in metrics_seq])
-                m_times = np.array([m.training_time for m in metrics_seq], dtype=float)
-                out = []
-                for s in [e["step"] for e in evals]:
-                    if s in m_steps:
-                        out.append(float(m_times[m_steps == s][0]))
-                    else:
-                        # Linear interpolate or extrapolate using nearest two points
-                        if m_steps.size >= 2:
-                            if s < m_steps.min():
-                                i0, i1 = 0, 1
-                            elif s > m_steps.max():
-                                i0, i1 = -2, -1
-                            else:
-                                idx = np.searchsorted(m_steps, s)
-                                i0, i1 = idx - 1, idx
-                            s0, s1 = m_steps[i0], m_steps[i1]
-                            t0, t1 = m_times[i0], m_times[i1]
-                            if s1 == s0:
-                                out.append(float(t1))
-                            else:
-                                frac = (s - s0) / (s1 - s0)
-                                out.append(float(t0 + frac * (t1 - t0)))
-                        else:
-                            out.append(float(m_times[0]))
-                return np.array(out)
-
-            for i, evals in enumerate(evals_list):
-                if i < len(metrics_lists):
-                    metrics_seq = metrics_lists[i]
-                elif metrics_lists:
-                    metrics_seq = metrics_lists[0]
-                else:
-                    metrics_seq = []
-                training_times[i, :] = _times_for_eval_points(evals, metrics_seq)
-
-            # If no training time information is available, fall back to steps (keep original behavior)
-            if np.all(np.isnan(training_times)):
-                x_vals = steps
-            else:
-                # Use median training time across iterations as the x-axis
-                median_time = np.nanmedian(training_times, axis=0)
-                x_vals = median_time
-
-            # Windowed averaging if requested
             if size_windowed_average == 1:
-                x = x_vals
+                x = steps
                 y = median_val
                 if show_error:
                     low_val = np.percentile(all_vals, error_low, axis=0)
@@ -364,7 +286,7 @@ class DataProcessor:
                 y = np.convolve(median_val, np.ones(w) / w, mode='valid')
                 L = y.shape[0]
                 half = (w - 1) // 2
-                x = x_vals[half: half + L]
+                x = steps[half: half + L]
                 if show_error:
                     low_val = np.percentile(all_vals, error_low, axis=0)
                     high_val = np.percentile(all_vals, error_high, axis=0)
@@ -376,8 +298,7 @@ class DataProcessor:
                 plt.fill_between(x, low_val, high_val, color=line.get_color(), alpha=0.3) # type: ignore ; It is always bound.
 
         plt.yscale("log")
-        # Prefer training time (seconds) on the x-axis; fall back to steps if unavailable
-        plt.xlabel("Training Time (s)")
+        plt.xlabel("Training Steps")
         plt.ylabel(ylabel)
         plt.title(title if size_windowed_average == 1 else f"Windowed {title} (size={size_windowed_average})")
         plt.legend()

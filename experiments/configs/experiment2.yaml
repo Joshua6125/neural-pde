@@ -1,7 +1,7 @@
 # ----------------
 # Ensure the following lines are always part of the config
 # ----------------
-script_name: simple_wave
+script_name: gauss_pulse
 generate_data: true
 make_plots: true
 
@@ -15,7 +15,7 @@ problem_params:
   c: 1.0
 
 training:
-  epochs: 1000000
+  epochs: 1000
   max_training_time: 60.0
   learning_rate:
     kind: exponential_decay
@@ -48,11 +48,11 @@ models:
   #   input_dim: 2
 
 methods:
-  # - name: "pinn"
-  #   output_heads:
-  #     u: 1
-  #   ic_weight: 1.0
-  #   bc_weights: 100.0
+  - name: "pinn"
+    output_heads:
+      u: 1
+    ic_weight: 1.0
+    bc_weights: 100.0
   # - name: "sls"
   #   output_heads:
   #     v: 1
