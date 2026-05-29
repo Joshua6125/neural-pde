@@ -263,7 +263,7 @@ def make_first_order_model(model_apply, method_kind: str):
     # For PINN/gPINN: model_apply returns dict with u, we need v = u_t, sigma = u_x
     def u_fn(params, t, x):
         return jnp.squeeze(model_apply(params, jnp.array([t, x]))["u"])
-
+    
     def wrapped_apply(params, t, x):
         v = jax.grad(u_fn, argnums=1)(params, t, x) # Differentiate t
         sigma = jax.grad(u_fn, argnums=2)(params, t, x) # Differentiate x

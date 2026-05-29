@@ -131,11 +131,12 @@ class Trainer:
                 callback_uses_state = len(inspect.signature(callback).parameters) >= 2
             except (TypeError, ValueError):
                 callback_uses_state = False
-    
 
+        start_time = time.time()
+ 
         history: list[TrainStepMetrics] = []
         for epoch in range(1, self.train_cfg.epochs + 1):
-            start_time = time.time() - state.total_training_time
+            train_time = time.time() - state.total_training_time
 
             previous_state = state
             params, opt_state, total_loss, interior_loss, boundary_loss, integration_key = self._train_step_fn(
@@ -149,7 +150,7 @@ class Trainer:
                 params=params,
                 opt_state=opt_state,
                 integration_key=integration_key,
-                total_training_time=time.time() - start_time
+                total_training_time=time.time() - train_time
             )
 
             # We only want to convert floats if we want to log
@@ -166,7 +167,9 @@ class Trainer:
                 )
 
             if should_log:
-                print(f"Training progress: {epoch}/{self.train_cfg.epochs}, {state.total_training_time:.2f}/{self.train_cfg.max_training_time:.2f}s")
+                print(f"Training progress: {epoch}/{self.train_cfg.epochs}, ",
+                      f"{state.total_training_time:.2f}/{self.train_cfg.max_training_time:.2f}s",
+                      f"({time.time() - start_time:.2f}s total elapsed)")
                 assert metrics is not None
                 history.append(metrics)
 
