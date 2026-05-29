@@ -250,22 +250,96 @@ def make_first_order_model(model_apply, method_kind: str):
     """
     Wraps the standard model_apply to always return the first-order vector
     representation: (v, sigma) using autodiff if it's a second-order model (e.g. PINN).
-    If it's already a first-order model (SLS/FOSLS), it leaves it alone.
+    If it's already a first-order model, it leaves it alone.
     """
     if method_kind in ["sls", "fosls"]:
         # output is already dict with v and sigma
         def wrapped_apply(params, t, x):
             out = model_apply(params, jnp.array([t, x]))
-            return jnp.concatenate([out["v"], out["sigma"]], axis=-1)
+            return jnp.concatenate([jnp.atleast_1d(out["v"]), jnp.atleast_1d(out["sigma"])], axis=-1)
         return wrapped_apply
 
     # For PINN/gPINN: model_apply returns dict with u, we need v = u_t, sigma = u_x
     def u_fn(params, t, x):
-        return model_apply(params, jnp.array([t, x]))["u"][0]
+        return jnp.squeeze(model_apply(params, jnp.array([t, x]))["u"])
 
     def wrapped_apply(params, t, x):
         v = jax.grad(u_fn, argnums=1)(params, t, x) # Differentiate t
         sigma = jax.grad(u_fn, argnums=2)(params, t, x) # Differentiate x
-        return jnp.array([v, sigma])
+        return jnp.concatenate([jnp.atleast_1d(v), jnp.atleast_1d(sigma)], axis=-1)
 
     return wrapped_apply
+
+
+def create_evaluation_domain(cfg: DictConfig, t_points: int = 50, x_points: int = 50) -> jnp.ndarray:
+    """Creates a deterministic space-time grid for evaluation."""
+    t_min = float(cfg.get("integration", {}).get("t_min", 0.0))
+    t_max = float(cfg.get("integration", {}).get("t_max", 1.0))
+    x_min = float(cfg.get("integration", {}).get("x_min", 0.0))
+    x_max = float(cfg.get("integration", {}).get("x_max", 1.0))
+
+    t_grid = jnp.linspace(t_min, t_max, t_points)
+    x_grid = jnp.linspace(x_min, x_max, x_points)
+
+    T, X = jnp.meshgrid(t_grid, x_grid, indexing='ij')
+
+    return jnp.stack([T.flatten(), X.flatten()], axis=-1)
+
+
+def evaluate_metrics(
+    model_apply_fn: Callable,
+    params,
+    method_kind: str,
+    f_fn: Callable,
+    g_fn: Callable,
+    analytical_v_fn: Callable,
+    analytical_sigma_fn: Callable,
+    domain_points: jnp.ndarray
+) -> dict:
+    """
+    Evaluates the L2 error of the model representations of `v` and `sigma`
+    compared to the exact analytical solutions over fixed domain points,
+    plus the exact analytic FOSLS norm integration.
+    """
+
+    first_order_fn = make_first_order_model(model_apply_fn, method_kind)
+
+    def compute_point_metrics(p, t, x):
+        pred = first_order_fn(p, t, x)
+        pred_v = jnp.squeeze(pred[0])
+        pred_sigma = jnp.squeeze(pred[1])
+
+        true_v = jnp.squeeze(analytical_v_fn(t, x))
+        true_sigma = jnp.squeeze(analytical_sigma_fn(t, x))
+
+        l2_v = (pred_v - true_v)**2
+        l2_sigma = (pred_sigma - true_sigma)**2
+
+        jac_t, jac_x = jax.jacobian(first_order_fn, argnums=(1, 2))(p, t, x)
+
+        v_t = jnp.squeeze(jac_t[0])
+        sigma_t = jnp.squeeze(jac_t[1])
+
+        v_x = jnp.squeeze(jac_x[0])
+        sigma_x = jnp.squeeze(jac_x[1])
+
+        res_v = v_t - sigma_x - jnp.squeeze(f_fn(t, x))
+        res_sigma = sigma_t - v_x - jnp.squeeze(g_fn(t, x))
+
+        fosls_norm = res_v**2 + res_sigma**2
+
+        return l2_v, l2_sigma, fosls_norm
+
+    vmap_metrics = jax.vmap(compute_point_metrics, in_axes=(None, 0, 0))
+
+    t_vals = domain_points[:, 0]
+    x_vals = domain_points[:, 1]
+
+    l2_v, l2_sigma, fosls_norm = vmap_metrics(params, t_vals, x_vals)
+
+    return {
+        "l2_error_v": float(jnp.mean(l2_v)),
+        "l2_error_sigma": float(jnp.mean(l2_sigma)),
+        "total_l2_error": float(jnp.mean(l2_v + l2_sigma)),
+        "fosls_norm": float(jnp.mean(fosls_norm))
+    }
