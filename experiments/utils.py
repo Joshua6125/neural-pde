@@ -115,18 +115,16 @@ def build_kan_config(
 
 
 def build_model_config(
+    model_name: str,
     spec: DictConfig,
     output_heads: dict[str, int],
 ) -> AnyModelConfig:
-
-    kind = spec.get("name", None)
-
-    if kind == "mlp":
+    if model_name == "mlp":
         return build_mlp_config(spec, output_heads)
-    if kind == "kan":
+    if model_name == "kan":
         return build_kan_config(spec, output_heads)
 
-    raise ValueError(f"Unknown model type: {kind}")
+    raise ValueError(f"Unknown model type: {model_name}")
 
 
 def build_pinn_config(
@@ -196,22 +194,21 @@ def build_vpinn_config(
 
 
 def build_method_config(
+    method_name: str,
     data: DictConfig,
     model: AnyModelConfig,
     wave_functions: dict
 ) -> AlgorithmConfig:
-    kind = data.get("name", None)
-
-    if kind == "pinn":
+    if method_name == "pinn":
         return build_pinn_config(data, model, wave_functions)
-    if kind == "gpinn":
+    if method_name == "gpinn":
         return build_gpinn_config(data, model, wave_functions)
-    if kind == "vpinn":
+    if method_name == "vpinn":
         return build_vpinn_config(data, model, wave_functions)
-    if kind == "fosls":
+    if method_name == "fosls":
         return build_fosls_config(data, model, wave_functions)
 
-    raise ValueError(f"Unknown method type: {kind}")
+    raise ValueError(f"Unknown method type: {method_name}")
 
 
 def build_trainer_config(

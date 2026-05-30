@@ -48,38 +48,45 @@ callback_integration:
   quadrature:
     degree: 50
 
+combinations: [
+  # Should be [method, model]
+  ["pinn", "mlp"],
+  ["fosls", "mlp"],
+  ["vpinn", "mlp"]
+]
+
 models:
-  - name: "mlp"
+  mlp:
     hidden_dim: 64
     num_layers: 5
-  # - name: "kan"
+  # kan:
   #   hidden_dim: 64
   #   num_layers: 5
   #   input_dim: 2
 
 methods:
-  - name: "pinn"
+  pinn:
     output_heads:
       u: 1
     ic_weight: 1.0
     bc_weights: 100.0
-  # - name: "gpinn"
+  # gpinn:
   #   output_heads:
   #     u: 1
   #   ic_weight: 1.0
   #   bc_weight: 100.0
   #   residual_grad_weight: 1e-2
-  - name: "fosls"
+  fosls:
     output_heads:
       v: 1
       sigma: 1
     ic_weight: 1.0
-  # - name: "vpinn"
-  #   output_heads:
-  #     u: 1
-  #   ic_weight: 1.0
-  #   bc_weight: 100.0
-  #   n_test_functions: 10
+  vpinn:
+    output_heads:
+      u: 1
+    ic_weight: 1.0
+    bc_weight: 100.0
+    n_test_functions: 10
 
 # ----------------
 # Data analysis parameters

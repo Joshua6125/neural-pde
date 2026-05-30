@@ -1,11 +1,4 @@
-"""
-The purpose of this experiment is to compar pairs of loss functions and neural architectures.
-
-In particular, all loss functions are compared to one another with MLP.
-"""
-
 from glob import glob
-from itertools import product
 from collections import defaultdict
 from omegaconf import DictConfig
 from utils import (
@@ -18,7 +11,7 @@ from utils import (
 )
 from src.trainer import TrainState, TrainStepMetrics, run_training
 from src.models import AnyModelConfig, build_model
-from src.loss_functions import AlgorithmConfig, build_algorithm
+from src.loss_functions import AlgorithmConfig
 from src.integration import get_integrator
 
 import jax.numpy as jnp
@@ -120,16 +113,20 @@ class RunTraining:
             "c": self.c,
         }
 
-    def _generate_combinations(self) -> list[tuple[AnyModelConfig, AlgorithmConfig]]:
-        """Generate combination of all configs"""
-        models = self.cfg.get("models", "")
-        methods = self.cfg.get("methods", "")
+    def _read_combinations(self) -> list[tuple[AnyModelConfig, AlgorithmConfig]]:
+        combinations = self.cfg.get("combinations", ())
+
+        all_models = self.cfg.get("models", "")
+        all_methods = self.cfg.get("methods", "")
 
         pairs = []
-        for method, model in product(methods, models):
+        for method_name, model_name in combinations:
+            method = all_methods.get(method_name, {})
+            model = all_models.get(model_name, {})
+
             heads = method.get("output_heads", "")
-            model_config = build_model_config(model, heads)
-            method_config = build_method_config(method, model_config, self.wave_functions)
+            model_config = build_model_config(model_name, model, heads)
+            method_config = build_method_config(method_name, method, model_config, self.wave_functions)
 
             pairs.append((model_config, method_config))
 
@@ -159,7 +156,7 @@ class RunTraining:
             seed=base_trainer_config.seed + iteration
         )
 
-        pairs = self._generate_combinations()
+        pairs = self._read_combinations()
         total_runs = len(pairs)
 
         print(f"--- Starting Training Phase (Iteration {iteration+1}) ---")
