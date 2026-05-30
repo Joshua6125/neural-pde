@@ -1,5 +1,6 @@
 """vPINN loss function."""
 
+import itertools
 from typing import Callable
 
 import jax
@@ -11,9 +12,8 @@ from ..base import Loss
 class vPINNLoss(Loss):
     """vPINN loss projecting the residual onto multiple test functions.
 
-    This implementation uses the Petrov-Galerkin integration trick: it evaluates
-    the strong residual against a set of orthogonal test functions (Fourier basis),
-    deferring the squaring operation until after the integration step.
+    This implementation uses a tensor-product Fourier basis (sine functions)
+    that naturally vanish at the domain boundaries.
     """
 
     def __init__(
@@ -26,6 +26,8 @@ class vPINNLoss(Loss):
         ic_weight: float = 1.0,
         bc_weight: float = 1.0,
         n_test_functions: int = 10,
+        domain_min: jnp.ndarray | None = None,
+        domain_max: jnp.ndarray | None = None,
     ):
         self.u_model = u_model
         self.c = c
@@ -36,13 +38,23 @@ class vPINNLoss(Loss):
         self.bc_weight = bc_weight
         self.n_test_functions = n_test_functions
 
+        self.domain_min = domain_min if domain_min is not None else jnp.array([0.0, 0.0])
+        self.domain_max = domain_max if domain_max is not None else jnp.array([1.0, 1.0])
+        self.dim = self.domain_min.shape[0]
+
         self._c_fn = c if callable(c) else self._constant_function(c)
         self._f_fn = f if callable(f) else self._constant_function(f)
         self._u0_fn = u0 if callable(u0) else self._constant_function(u0)
         self._ut0_fn = ut0 if callable(ut0) else self._constant_function(ut0)
 
-        # Precompute k indices for Fourier basis (1..n)
-        self._k_vals = jnp.arange(1, self.n_test_functions + 1)
+        # Tensor product Fourier basis construction (Symmetric J x J x ...)
+        # N_total = J^dim -> J = floor(N_total^(1/dim))
+        J = int(self.n_test_functions ** (1.0 / self.dim))
+        if J < 1:
+            J = 1
+
+        indices = list(itertools.product(range(1, J + 1), repeat=self.dim))
+        self._k_vecs = jnp.array(indices)
 
         self._vmapped_pde_residual = jax.vmap(self._pde_residual)
         self._vmapped_ic_residual = jax.vmap(self._ic_residual)
@@ -53,7 +65,7 @@ class vPINNLoss(Loss):
 
     def _pde_residual(self, x: jnp.ndarray) -> jnp.ndarray:
         """Returns the strong PDE residual projected onto test functions.
-        Output shape: (n_test_functions,)
+        Output shape: (n_active_test_functions,)
         """
         H = jax.hessian(self._u)(x)
         u_tt = H[0, 0]
@@ -64,11 +76,13 @@ class vPINNLoss(Loss):
 
         residual = u_tt - c**2 * laplacian_u - f
 
-        # Evaluate Fourier sine basis test functions at a 1D coordinate derived
-        # from the point `x`. We use the sum of coordinates as a single scalar
-        # evaluation point.
-        x_sum = jnp.sum(x)
-        test_vals = jnp.sin(self._k_vals * jnp.pi * x_sum)
+        # Map actual coordinates to unit domain [0, 1]^dim
+        x_unit = (x - self.domain_min) / (self.domain_max - self.domain_min)
+
+        # Compute tensor product basis: v(x) = prod_d sin(k_d * pi * x_unit_d)
+        # self._k_vecs shape: (N_active, dim)
+        # x_unit shape: (dim,)
+        test_vals = jnp.prod(jnp.sin(self._k_vecs * jnp.pi * x_unit), axis=-1)
 
         # Do not square here! Return the integrand R(x) * v_k(x)
         return residual * test_vals

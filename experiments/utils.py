@@ -180,7 +180,21 @@ def build_vpinn_config(
     spec: DictConfig,
     model: AnyModelConfig,
     wave_functions: dict,
+    integration_data: DictConfig | None = None,
 ) -> vPINNConfig:
+    domain_min = None
+    domain_max = None
+
+    if integration_data:
+        t_min = float(integration_data.get("t_min", 0.0))
+        t_max = float(integration_data.get("t_max", 1.0))
+        x_min = float(integration_data.get("x_min", 0.0))
+        x_max = float(integration_data.get("x_max", 1.0))
+        spatial_dim = int(integration_data.get("spatial_dim", 1))
+
+        domain_min = jnp.array([t_min] + [x_min] * spatial_dim)
+        domain_max = jnp.array([t_max] + [x_max] * spatial_dim)
+
     return vPINNConfig(
         model=model,
         c=wave_functions.get("c", 1.0),
@@ -189,7 +203,9 @@ def build_vpinn_config(
         ut0=wave_functions.get("ut0", 0.0),
         ic_weight=float(spec.get("ic_weight", 1.0)),
         bc_weight=float(spec.get("bc_weight", 1.0)),
-        n_test_functions=int(spec.get("n_test_functions", 10))
+        n_test_functions=int(spec.get("n_test_functions", 10)),
+        domain_min=domain_min,
+        domain_max=domain_max,
     )
 
 
@@ -197,14 +213,15 @@ def build_method_config(
     method_name: str,
     data: DictConfig,
     model: AnyModelConfig,
-    wave_functions: dict
+    wave_functions: dict,
+    integration_data: DictConfig | None = None,
 ) -> AlgorithmConfig:
     if method_name == "pinn":
         return build_pinn_config(data, model, wave_functions)
     if method_name == "gpinn":
         return build_gpinn_config(data, model, wave_functions)
     if method_name == "vpinn":
-        return build_vpinn_config(data, model, wave_functions)
+        return build_vpinn_config(data, model, wave_functions, integration_data)
     if method_name == "fosls":
         return build_fosls_config(data, model, wave_functions)
 

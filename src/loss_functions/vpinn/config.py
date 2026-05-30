@@ -21,3 +21,5 @@ class vPINNConfig(AlgorithmConfig):
     ic_weight: float = 1.0
     bc_weight: float = 1.0
     n_test_functions: int = 10
+    domain_min: jnp.ndarray | None = None
+    domain_max: jnp.ndarray | None = None

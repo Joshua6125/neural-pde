@@ -52,6 +52,8 @@ class vPINN(TrainingMethod):
             ic_weight=self.config.ic_weight,
             bc_weight=self.config.bc_weight,
             n_test_functions=self.config.n_test_functions,
+            domain_min=self.config.domain_min,
+            domain_max=self.config.domain_max,
         )
         return loss.loss_functions()
 
