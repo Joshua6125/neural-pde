@@ -13,12 +13,12 @@ from utils import (
     build_method_config,
     build_integration_config,
     build_trainer_config,
-    create_evaluation_domain,
-    evaluate_metrics
+    calculate_fosls_norm
 )
-from src.trainer import TrainState, run_training
+from src.trainer import TrainState, TrainStepMetrics, run_training
 from src.models import AnyModelConfig, build_model
 from src.loss_functions import AlgorithmConfig
+from src.integration import get_integrator
 
 import jax.numpy as jnp
 import numpy as np
@@ -47,7 +47,7 @@ class ProblemDefinition:
         self.c = float(cfg.problem_params.get("c", 1.0))
         self.cfg = cfg
 
-    def analytical_solution(self, t: jnp.ndarray, x: jnp.ndarray) -> jnp.ndarray:
+    def solution_u(self, t: jnp.ndarray, x: jnp.ndarray) -> jnp.ndarray:
         """Compute the manufactured analytical solution."""
         t_array = jnp.asarray(t)
         x_array = jnp.asarray(x)
@@ -74,7 +74,7 @@ class ProblemDefinition:
 
     def source_f(self, t: jnp.ndarray, x: jnp.ndarray) -> jnp.ndarray:
         """Closed-form source term for the manufactured PDE."""
-        u = self.analytical_solution(t, x)
+        u = self.solution_u(t, x)
         coeff = -jnp.pi**2 / self.T**2 + self.c**2 * jnp.pi**2 / (self.x_max - self.x_min)**2
         return coeff * u
 
@@ -113,7 +113,7 @@ class RunTraining:
         self.sigma0 = lambda v: jnp.array(
             [self.problem.solution_sigma(jnp.array(v[0]), jnp.array(v[1]))]
         )
-        self.u0 = lambda v: self.problem.analytical_solution(jnp.array(v[0]), jnp.array(v[1]))
+        self.u0 = lambda v: self.problem.solution_u(jnp.array(v[0]), jnp.array(v[1]))
         self.ut0 = lambda v: self.problem.solution_v(jnp.array(v[0]), jnp.array(v[1]))
         self.c = float(cfg.problem_params.get("c", 1.0))
 
@@ -172,13 +172,10 @@ class RunTraining:
         print(f"--- Starting Training Phase (Iteration {iteration+1}) ---")
         print(f"Total configurations to train: {total_runs}")
         init_lr = self.cfg.get("training", {}).get("learning_rate", {}).get("init_value", "Unknown")
-        print(f"Epochs: {trainer_config.epochs} or Time: {trainer_config.max_training_time}, Initial LR: {init_lr}, Seed: {trainer_config.seed}\n")
+        print(f"Epochs: {trainer_config.epochs}, Initial LR: {init_lr}, Seed: {trainer_config.seed}\n")
 
-        domain_pts = create_evaluation_domain(self.cfg)
-        f_fn = lambda t, x: self.problem.source_f(t, x)
-        g_fn = lambda t, x: self.problem.source_g(t, x)
-        v_true = lambda t, x: self.problem.solution_v(t, x)
-        sigma_true = lambda t, x: self.problem.solution_sigma(t, x)
+        integrator_config = build_integration_config(self.cfg.callback_integration)
+        integrator = get_integrator(integrator_config)
 
         models_dir = os.path.join(self.output_dir, "models")
         logs_dir = os.path.join(self.output_dir, "logs")
@@ -193,46 +190,44 @@ class RunTraining:
             built_model = build_model(model)
             current_run_evals = []
 
-            def eval_callback(metrics, state: TrainState):
-                if not state.step % self.cfg.training.get("log_every", 1000) == 0:
-                    return
-                eval_data = evaluate_metrics(
-                    model_apply_fn=built_model.apply,
-                    params=state.params,
-                    method_kind=method.kind,
-                    f_fn=f_fn,
-                    g_fn=g_fn,
-                    analytical_v_fn=v_true,
-                    analytical_sigma_fn=sigma_true,
-                    domain_points=domain_pts
-                )
-                eval_data["step"] = state.step
+            def eval_callback(metrics: TrainStepMetrics, state: TrainState):
+                if method.kind == "fosls":
+                    eval_data = metrics.total_loss
+                else:
+                    eval_data = calculate_fosls_norm(
+                        model_apply_fn=built_model.apply,
+                        params=state.params,
+                        method_kind=method.kind,
+                        f_fn=self.f,
+                        g_fn=self.g,
+                        v0_fn=self.v0,
+                        sigma0_fn=self.sigma0,
+                        integrator=integrator
+                    )
                 current_run_evals.append(eval_data)
 
             start_time = time.time()
-            try:
-                final_state, logged_metrics = run_training(
-                    method,
-                    integrator_config,
-                    model,
-                    trainer_config,
-                    sample_input,
-                    callback=eval_callback
-                )
-                elapsed_time = time.time() - start_time
+            final_state, logged_metrics = run_training(
+                method,
+                integrator_config,
+                model,
+                trainer_config,
+                sample_input,
+                callback=eval_callback
+            )
+            elapsed_time = time.time() - start_time
 
-                name = f"{model.kind}-{method.kind}"
-                with open(os.path.join(models_dir, f"{name}_iter{iteration}.pkl"), "wb") as f:
-                    pickle.dump(final_state.params, f)
-                with open(os.path.join(logs_dir, f"{name}_iter{iteration}.pkl"), "wb") as f:
-                    pickle.dump(logged_metrics, f)
-                with open(os.path.join(evals_dir, f"{name}_iter{iteration}.pkl"), "wb") as f:
-                    pickle.dump(current_run_evals, f)
+            name = f"{model.kind}-{method.kind}"
+            with open(os.path.join(models_dir, f"{name}_iter{iteration}.pkl"), "wb") as f:
+                pickle.dump(final_state.params, f)
+            with open(os.path.join(logs_dir, f"{name}_iter{iteration}.pkl"), "wb") as f:
+                pickle.dump(logged_metrics, f)
+            with open(os.path.join(evals_dir, f"{name}_iter{iteration}.pkl"), "wb") as f:
+                pickle.dump(current_run_evals, f)
 
-                final_loss = logged_metrics[-1].total_loss if logged_metrics else "N/A"
-                print(f"  -> Success! Time: {elapsed_time:.1f}s of which {final_state.total_training_time:.1f}s training time, Final Loss: {final_loss}\n")
-            except Exception as exc:
-                print(f"  -> Failed: {exc}\n")
+            final_loss = logged_metrics[-1].total_loss if logged_metrics else "N/A"
+            print(f"  -> Success! Time: {elapsed_time:.1f}s, Final Loss: {final_loss}\n")
+
 
 class DataProcessor:
     def __init__(self, problem: ProblemDefinition, results_dir: str):
@@ -269,117 +264,55 @@ class DataProcessor:
         else:
             print(f"Warning: Evals directory not found at {self.evals_dir}")
 
-    def plot_eval_metric(self, metric_key: str, ylabel: str, title: str, filename: str):
+    def plot_eval_metric(self, ylabel: str, title: str, filename: str):
         import matplotlib.pyplot as plt
 
         if not self.evals_data:
             print(f"No evaluation data found. Cannot plot {title}.")
+            return
+        if not self.metrics_data:
+            print(f"No metrics data found. Cannot plot {title}.")
             return
 
         plot_config = self.problem.cfg.get("plot_loss", {})
         show_error = bool(plot_config.get("show_error", True))
         error_low = max(0, min(100, int(plot_config.get("error_low", 0))))
         error_high = max(0, min(100, int(plot_config.get("error_high", 100))))
-        window_size = int(plot_config.get("size_windowed_average", 1)) // int(self.problem.cfg.get("training", {}).get("log_every", 1))
-        size_windowed_average = max(1, window_size)
+        grid_resolution = max(2, int(plot_config.get("grid_resolution", 1000)))
 
         plt.figure(figsize=(10, 6))
-        for name, evals_list in self.evals_data.items():
-            if not evals_list:
-                continue
+        for name, all_vals in self.evals_data.items():
+            metrics = self.metrics_data[name]
 
-            # Steps as recorded in evaluation callbacks (these are epoch numbers)
-            steps = np.array([e["step"] for e in evals_list[0]])
+            all_training_times = [[m.training_time for m in run_metrics] for run_metrics in metrics]
 
-            # Gather metric values across iterations
-            all_vals = []
-            for evals in evals_list:
-                all_vals.append([e[metric_key] for e in evals])
-            all_vals = np.array(all_vals)
-            median_val = np.median(all_vals, axis=0)
+            min_time = min(times[0] for times in all_training_times if len(times) > 0)
+            max_time = max(times[-1] for times in all_training_times if len(times) > 0)
+            common_time_grid = np.linspace(min_time, max_time, grid_resolution)
 
-            # Build a matrix of training times aligned to evaluation steps across iterations
-            metrics_lists = self.metrics_data.get(name, [])
-            n_iters = len(evals_list)
-            n_points = steps.shape[0]
-            training_times = np.empty((n_iters, n_points), dtype=float)
+            interpolated_runs = []
+            for run_times, run_vals in zip(all_training_times, all_vals):
+                run_times_arr = np.array(run_times)
+                run_vals_arr = np.array(run_vals)
 
-            def _times_for_eval_points(evals, metrics_seq):
-                # metrics_seq is a list of TrainStepMetrics-like objects
-                if not metrics_seq:
-                    return np.array([np.nan] * len(evals))
-                m_steps = np.array([m.step for m in metrics_seq])
-                m_times = np.array([m.training_time for m in metrics_seq], dtype=float)
-                out = []
-                for s in [e["step"] for e in evals]:
-                    if s in m_steps:
-                        out.append(float(m_times[m_steps == s][0]))
-                    else:
-                        # Linear interpolate or extrapolate using nearest two points
-                        if m_steps.size >= 2:
-                            if s < m_steps.min():
-                                i0, i1 = 0, 1
-                            elif s > m_steps.max():
-                                i0, i1 = -2, -1
-                            else:
-                                idx = np.searchsorted(m_steps, s)
-                                i0, i1 = idx - 1, idx
-                            s0, s1 = m_steps[i0], m_steps[i1]
-                            t0, t1 = m_times[i0], m_times[i1]
-                            if s1 == s0:
-                                out.append(float(t1))
-                            else:
-                                frac = (s - s0) / (s1 - s0)
-                                out.append(float(t0 + frac * (t1 - t0)))
-                        else:
-                            out.append(float(m_times[0]))
-                return np.array(out)
+                interp_vals = np.interp(common_time_grid, run_times_arr, run_vals_arr)
+                interpolated_runs.append(interp_vals)
 
-            for i, evals in enumerate(evals_list):
-                if i < len(metrics_lists):
-                    metrics_seq = metrics_lists[i]
-                elif metrics_lists:
-                    metrics_seq = metrics_lists[0]
-                else:
-                    metrics_seq = []
-                training_times[i, :] = _times_for_eval_points(evals, metrics_seq)
+            interpolated_matrix = np.vstack(interpolated_runs)
 
-            # If no training time information is available, fall back to steps (keep original behavior)
-            if np.all(np.isnan(training_times)):
-                x_vals = steps
-            else:
-                # Use median training time across iterations as the x-axis
-                median_time = np.nanmedian(training_times, axis=0)
-                x_vals = median_time
+            median_val = np.median(interpolated_matrix, axis=0)
 
-            # Windowed averaging if requested
-            if size_windowed_average == 1:
-                x = x_vals
-                y = median_val
-                if show_error:
-                    low_val = np.percentile(all_vals, error_low, axis=0)
-                    high_val = np.percentile(all_vals, error_high, axis=0)
-            else:
-                w = size_windowed_average
-                y = np.convolve(median_val, np.ones(w) / w, mode='valid')
-                L = y.shape[0]
-                half = (w - 1) // 2
-                x = x_vals[half: half + L]
-                if show_error:
-                    low_val = np.percentile(all_vals, error_low, axis=0)
-                    high_val = np.percentile(all_vals, error_high, axis=0)
-                    low_val = np.convolve(low_val, np.ones(w) / w, mode='valid')
-                    high_val = np.convolve(high_val, np.ones(w) / w, mode='valid')
+            line = plt.plot(common_time_grid, median_val, label=name)[0]
 
-            line = plt.plot(x, y, label=name)[0]
             if show_error:
-                plt.fill_between(x, low_val, high_val, color=line.get_color(), alpha=0.3) # type: ignore ; It is always bound.
+                low_val = np.percentile(interpolated_matrix, error_low, axis=0)
+                high_val = np.percentile(interpolated_matrix, error_high, axis=0)
+                plt.fill_between(common_time_grid, low_val, high_val, color=line.get_color(), alpha=0.3)
 
         plt.yscale("log")
-        # Prefer training time (seconds) on the x-axis; fall back to steps if unavailable
-        plt.xlabel("Training Time (s)")
+        plt.xlabel("Training Time (seconds)")
         plt.ylabel(ylabel)
-        plt.title(title if size_windowed_average == 1 else f"Windowed {title} (size={size_windowed_average})")
+        plt.title(title)
         plt.legend()
         plt.grid(True)
 
@@ -424,14 +357,7 @@ def run(
         print("[PHASE 2] Processing Data and Generating Plots...")
         processor = DataProcessor(problem, output_dir)
         processor.plot_eval_metric(
-            metric_key="total_l2_error",
-            ylabel="Total L2 Error (v & sigma)",
-            title="L2 Prediction Error vs Training Time",
-            filename="l2_error_plot.png"
-        )
-        processor.plot_eval_metric(
-            metric_key="fosls_norm",
-            ylabel="FOSLS Space-Time Integral Norm",
+            ylabel="FOSLS Norm",
             title="FOSLS Norm vs Training Time",
             filename="fosls_norm_plot.png"
         )

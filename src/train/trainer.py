@@ -147,7 +147,8 @@ class Trainer:
             )
 
             # We only want to convert floats if we want to log
-            should_log = epoch % self.train_cfg.log_every == 0
+            # Should log first iteration as well, for the completeness of later analysis.
+            should_log = epoch % self.train_cfg.log_every == 0 or epoch == 1
             if should_log:
                 metrics = TrainStepMetrics(
                     step=epoch,

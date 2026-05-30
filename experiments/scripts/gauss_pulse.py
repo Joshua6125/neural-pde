@@ -13,12 +13,13 @@ from utils import (
     build_method_config,
     build_integration_config,
     build_trainer_config,
-    create_evaluation_domain,
-    evaluate_metrics
+    make_second_order_model,
+    calculate_fosls_norm
 )
-from src.trainer import TrainState, run_training
+from src.trainer import TrainState, TrainStepMetrics, run_training
 from src.models import AnyModelConfig, build_model
-from src.loss_functions import AlgorithmConfig
+from src.loss_functions import AlgorithmConfig, build_algorithm
+from src.integration import get_integrator
 
 import jax.numpy as jnp
 import numpy as np
@@ -45,17 +46,30 @@ class ProblemDefinition:
 
         self.cfg = cfg
 
-    def solution_u(self, t: jnp.ndarray, x: jnp.ndarray) -> jnp.ndarray:
-        xi = x - self.mu - self.c * t
+    # def solution_u(self, t: jnp.ndarray, x: jnp.ndarray) -> jnp.ndarray:
+    #     xi = x - self.mu - self.c * t
+    #     return jnp.exp(-self.kappa * xi**2)
+
+    # def solution_v(self, t: jnp.ndarray, x: jnp.ndarray) -> jnp.ndarray:
+    #     xi = x - self.mu - self.c * t
+    #     return 2.0 * self.kappa* self.c * xi * jnp.exp(-self.kappa * xi**2)
+
+    # def solution_sigma(self, t: jnp.ndarray, x: jnp.ndarray) -> jnp.ndarray:
+    #     xi = x - self.mu - self.c * t
+    #     return -2.0 * self.kappa * xi * jnp.exp(-self.kappa * xi**2)
+
+    def initial_u(self, x: jnp.ndarray) -> jnp.ndarray:
+        xi = x - self.mu
         return jnp.exp(-self.kappa * xi**2)
 
-    def solution_v(self, t: jnp.ndarray, x: jnp.ndarray) -> jnp.ndarray:
-        xi = x - self.mu - self.c * t
+    def initial_v(self, x: jnp.ndarray) -> jnp.ndarray:
+        xi = x - self.mu
         return 2.0 * self.kappa* self.c * xi * jnp.exp(-self.kappa * xi**2)
 
-    def solution_sigma(self, t: jnp.ndarray, x: jnp.ndarray) -> jnp.ndarray:
-        xi = x - self.mu - self.c * t
+    def initial_sigma(self, x: jnp.ndarray) -> jnp.ndarray:
+        xi = x - self.mu
         return -2.0 * self.kappa * xi * jnp.exp(-self.kappa * xi**2)
+
 
     def source_f(self, t: jnp.ndarray, x: jnp.ndarray) -> jnp.ndarray:
         return jnp.zeros_like(x)
@@ -88,12 +102,12 @@ class RunTraining:
         # Define the simple wave equation lambdas
         self.f = lambda v: self.problem.source_f(jnp.array(v[0]), jnp.array(v[1]))
         self.g = lambda v: self.problem.source_g(jnp.array(v[0]), jnp.array(v[1]))
-        self.v0 = lambda v: self.problem.solution_v(jnp.array(v[0]), jnp.array(v[1]))
+        self.v0 = lambda v: self.problem.initial_v(jnp.array(v[1]))
         self.sigma0 = lambda v: jnp.array(
-            [self.problem.solution_sigma(jnp.array(v[0]), jnp.array(v[1]))]
+            [self.problem.initial_sigma(jnp.array(v[1]))]
         )
-        self.u0 = lambda v: self.problem.solution_u(jnp.array(v[0]), jnp.array(v[1]))
-        self.ut0 = lambda v: self.problem.solution_v(jnp.array(v[0]), jnp.array(v[1]))
+        self.u0 = lambda v: self.problem.initial_u(jnp.array(v[1]))
+        self.ut0 = lambda v: self.problem.initial_v(jnp.array(v[1]))
         self.c = float(cfg.problem_params.get("c", 1.0))
 
         self.wave_functions = {
@@ -153,11 +167,8 @@ class RunTraining:
         init_lr = self.cfg.get("training", {}).get("learning_rate", {}).get("init_value", "Unknown")
         print(f"Epochs: {trainer_config.epochs}, Initial LR: {init_lr}, Seed: {trainer_config.seed}\n")
 
-        domain_pts = create_evaluation_domain(self.cfg)
-        f_fn = lambda t, x: self.problem.source_f(t, x)
-        g_fn = lambda t, x: self.problem.source_g(t, x)
-        v_true = lambda t, x: self.problem.solution_v(t, x)
-        sigma_true = lambda t, x: self.problem.solution_sigma(t, x)
+        integrator_config = build_integration_config(self.cfg.callback_integration)
+        integrator = get_integrator(integrator_config)
 
         models_dir = os.path.join(self.output_dir, "models")
         logs_dir = os.path.join(self.output_dir, "logs")
@@ -172,46 +183,44 @@ class RunTraining:
             built_model = build_model(model)
             current_run_evals = []
 
-            def eval_callback(metrics, state: TrainState):
-                if not state.step % self.cfg.training.get("log_every", 1000) == 0:
-                    return
-                eval_data = evaluate_metrics(
-                    model_apply_fn=built_model.apply,
-                    params=state.params,
-                    method_kind=method.kind,
-                    f_fn=f_fn,
-                    g_fn=g_fn,
-                    analytical_v_fn=v_true,
-                    analytical_sigma_fn=sigma_true,
-                    domain_points=domain_pts
-                )
-                eval_data["step"] = state.step
+            def eval_callback(metrics: TrainStepMetrics, state: TrainState):
+                if method.kind == "fosls":
+                    eval_data = metrics.total_loss
+                else:
+                    eval_data = calculate_fosls_norm(
+                        model_apply_fn=built_model.apply,
+                        params=state.params,
+                        method_kind=method.kind,
+                        f_fn=self.f,
+                        g_fn=self.g,
+                        v0_fn=self.v0,
+                        sigma0_fn=self.sigma0,
+                        integrator=integrator
+                    )
                 current_run_evals.append(eval_data)
 
             start_time = time.time()
-            try:
-                final_state, logged_metrics = run_training(
-                    method,
-                    integrator_config,
-                    model,
-                    trainer_config,
-                    sample_input,
-                    callback=eval_callback
-                )
-                elapsed_time = time.time() - start_time
+            final_state, logged_metrics = run_training(
+                method,
+                integrator_config,
+                model,
+                trainer_config,
+                sample_input,
+                callback=eval_callback
+            )
+            elapsed_time = time.time() - start_time
 
-                name = f"{model.kind}-{method.kind}"
-                with open(os.path.join(models_dir, f"{name}_iter{iteration}.pkl"), "wb") as f:
-                    pickle.dump(final_state.params, f)
-                with open(os.path.join(logs_dir, f"{name}_iter{iteration}.pkl"), "wb") as f:
-                    pickle.dump(logged_metrics, f)
-                with open(os.path.join(evals_dir, f"{name}_iter{iteration}.pkl"), "wb") as f:
-                    pickle.dump(current_run_evals, f)
+            name = f"{model.kind}-{method.kind}"
+            with open(os.path.join(models_dir, f"{name}_iter{iteration}.pkl"), "wb") as f:
+                pickle.dump(final_state.params, f)
+            with open(os.path.join(logs_dir, f"{name}_iter{iteration}.pkl"), "wb") as f:
+                pickle.dump(logged_metrics, f)
+            with open(os.path.join(evals_dir, f"{name}_iter{iteration}.pkl"), "wb") as f:
+                pickle.dump(current_run_evals, f)
 
-                final_loss = logged_metrics[-1].total_loss if logged_metrics else "N/A"
-                print(f"  -> Success! Time: {elapsed_time:.1f}s, Final Loss: {final_loss}\n")
-            except Exception as exc:
-                print(f"  -> Failed: {exc}\n")
+            final_loss = logged_metrics[-1].total_loss if logged_metrics else "N/A"
+            print(f"  -> Success! Time: {elapsed_time:.1f}s, Final Loss: {final_loss}\n")
+
 
 class DataProcessor:
     def __init__(self, problem: ProblemDefinition, results_dir: str):
@@ -248,59 +257,55 @@ class DataProcessor:
         else:
             print(f"Warning: Evals directory not found at {self.evals_dir}")
 
-    def plot_eval_metric(self, metric_key: str, ylabel: str, title: str, filename: str):
+    def plot_eval_metric(self, ylabel: str, title: str, filename: str):
         import matplotlib.pyplot as plt
 
         if not self.evals_data:
             print(f"No evaluation data found. Cannot plot {title}.")
+            return
+        if not self.metrics_data:
+            print(f"No metrics data found. Cannot plot {title}.")
             return
 
         plot_config = self.problem.cfg.get("plot_loss", {})
         show_error = bool(plot_config.get("show_error", True))
         error_low = max(0, min(100, int(plot_config.get("error_low", 0))))
         error_high = max(0, min(100, int(plot_config.get("error_high", 100))))
-        window_size = int(plot_config.get("size_windowed_average", 1)) // int(self.problem.cfg.get("training", {}).get("log_every", 1))
-        size_windowed_average = max(1, window_size)
+        grid_resolution = max(2, int(plot_config.get("grid_resolution", 1000)))
 
         plt.figure(figsize=(10, 6))
-        for name, evals_list in self.evals_data.items():
-            if not evals_list:
-                continue
+        for name, all_vals in self.evals_data.items():
+            metrics = self.metrics_data[name]
 
-            steps = np.array([e["step"] for e in evals_list[0]])
-            all_vals = []
-            for evals in evals_list:
-                all_vals.append([e[metric_key] for e in evals])
+            all_training_times = [[m.training_time for m in run_metrics] for run_metrics in metrics]
 
-            all_vals = np.array(all_vals)
-            median_val = np.median(all_vals, axis=0)
+            min_time = min(times[0] for times in all_training_times if len(times) > 0)
+            max_time = max(times[-1] for times in all_training_times if len(times) > 0)
+            common_time_grid = np.linspace(min_time, max_time, grid_resolution)
 
-            if size_windowed_average == 1:
-                x = steps
-                y = median_val
-                if show_error:
-                    low_val = np.percentile(all_vals, error_low, axis=0)
-                    high_val = np.percentile(all_vals, error_high, axis=0)
-            else:
-                w = size_windowed_average
-                y = np.convolve(median_val, np.ones(w) / w, mode='valid')
-                L = y.shape[0]
-                half = (w - 1) // 2
-                x = steps[half: half + L]
-                if show_error:
-                    low_val = np.percentile(all_vals, error_low, axis=0)
-                    high_val = np.percentile(all_vals, error_high, axis=0)
-                    low_val = np.convolve(low_val, np.ones(w) / w, mode='valid')
-                    high_val = np.convolve(high_val, np.ones(w) / w, mode='valid')
+            interpolated_runs = []
+            for run_times, run_vals in zip(all_training_times, all_vals):
+                run_times_arr = np.array(run_times)
+                run_vals_arr = np.array(run_vals)
 
-            line = plt.plot(x, y, label=name)[0]
+                interp_vals = np.interp(common_time_grid, run_times_arr, run_vals_arr)
+                interpolated_runs.append(interp_vals)
+
+            interpolated_matrix = np.vstack(interpolated_runs)
+
+            median_val = np.median(interpolated_matrix, axis=0)
+
+            line = plt.plot(common_time_grid, median_val, label=name)[0]
+
             if show_error:
-                plt.fill_between(x, low_val, high_val, color=line.get_color(), alpha=0.3) # type: ignore ; It is always bound.
+                low_val = np.percentile(interpolated_matrix, error_low, axis=0)
+                high_val = np.percentile(interpolated_matrix, error_high, axis=0)
+                plt.fill_between(common_time_grid, low_val, high_val, color=line.get_color(), alpha=0.3)
 
         plt.yscale("log")
-        plt.xlabel("Training Steps")
+        plt.xlabel("Training Time (seconds)")
         plt.ylabel(ylabel)
-        plt.title(title if size_windowed_average == 1 else f"Windowed {title} (size={size_windowed_average})")
+        plt.title(title)
         plt.legend()
         plt.grid(True)
 
@@ -310,6 +315,80 @@ class DataProcessor:
         plt.savefig(plot_path)
         plt.close()
         print(f"Plot saved to {plot_path}")
+
+    def plot_specific_times(self, time: float):
+        import matplotlib.pyplot as plt
+
+        if not os.path.exists(self.models_dir):
+            print("No models directory found.")
+            return
+
+        plot_loss_config = self.problem.cfg.get("plot_specific_t", {})
+
+        show_error = bool(plot_loss_config.get("show_error", True))
+        error_low = min(100, max(0, int(plot_loss_config.get("error_low", 0))))
+        error_high = min(100, max(0, int(plot_loss_config.get("error_high", 100))))
+
+        x_vals = jnp.linspace(self.problem.x_min, self.problem.x_max, 50)
+
+        methods = self.problem.cfg.get("methods", [])
+        models = self.problem.cfg.get("models", [])
+        combinations = []
+        for method in methods:
+            for model in models:
+                combinations.append((model, method))
+
+        plt.figure(figsize=(10, 6))
+
+        for (model_cfg, method_cfg) in combinations:
+            heads = method_cfg.get("output_heads", "")
+            model_obj_cfg = build_model_config(model_cfg, heads)
+            model_obj = build_model(model_obj_cfg)
+            name = f"{model_cfg.name}-{method_cfg.name}"
+
+            model_files = glob(os.path.join(self.models_dir, f"{name}_iter*.pkl"))
+            if not model_files:
+                continue
+
+            u0 = lambda v: self.problem.initial_u(jnp.array(v[1]))
+            second_order_apply = make_second_order_model(model_obj.apply, method_cfg.name, u0_fn=u0)
+            batched_apply = jax.jit(jax.vmap(second_order_apply, in_axes=(None, 0)))
+
+            errors_per_iter = []
+            for m_file in model_files:
+                with open(m_file, "rb") as f:
+                    params = pickle.load(f)
+
+                pred_vector = batched_apply(params, jnp.concatenate([jnp.atleast_1d(time), x_vals]))
+
+                errors_per_iter.append(pred_vector)
+
+            if not errors_per_iter:
+                continue
+
+            median_error = jnp.median(jnp.array(errors_per_iter), axis=0)
+            line = plt.plot(x_vals, median_error, label=name)[0]
+
+            if show_error:
+                low_error = np.percentile(errors_per_iter, error_low, axis=0).flatten()
+                high_error = np.percentile(errors_per_iter, error_high, axis=0).flatten()
+                plt.fill_between(x_vals, low_error, high_error, color=line.get_color(), alpha=0.3)
+
+        # plt.plot(x_vals, self.problem.solution_u(jnp.atleast_1d(time), jnp.array(x_vals)), label="Analytic solution")
+
+        plt.xlabel("x")
+        plt.ylabel("u(x)")
+        # plt.yscale("log")
+        plt.title(f"Predicted displacement at t={time}s")
+        plt.legend()
+        plt.grid(True)
+
+        plots_dir = os.path.join(self.results_dir, "plots")
+        os.makedirs(plots_dir, exist_ok=True)
+        plot_path = os.path.join(plots_dir, f"error_at_time_{time}.png")
+        plt.savefig(plot_path)
+        plt.close()
+        print(f"Error plot saved to {plot_path}")
 
 
 def run(
@@ -345,17 +424,14 @@ def run(
         print("[PHASE 2] Processing Data and Generating Plots...")
         processor = DataProcessor(problem, output_dir)
         processor.plot_eval_metric(
-            metric_key="total_l2_error",
-            ylabel="Total L2 Error (v & sigma)",
-            title="L2 Prediction Error vs Training Time",
-            filename="l2_error_plot.png"
-        )
-        processor.plot_eval_metric(
-            metric_key="fosls_norm",
-            ylabel="FOSLS Space-Time Integral Norm",
+            ylabel="FOSLS Norm",
             title="FOSLS Norm vs Training Time",
             filename="fosls_norm_plot.png"
         )
+        # processor.plot_specific_times(0.0)
+        # processor.plot_specific_times(0.333)
+        # processor.plot_specific_times(0.666)
+        # processor.plot_specific_times(1.0)
         print("[PHASE 2] Complete.\n")
 
     print("Experiment pipeline finished successfully.")

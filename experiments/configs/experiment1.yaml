@@ -24,7 +24,7 @@ training:
     decay_rate: 0.95
     staircase: true
   seed: 42
-  log_every: 100
+  log_every: 200
   optimiser: "adamw"
 
 integration:
@@ -38,6 +38,16 @@ integration:
     interior_samples: 1600
     boundary_samples: 1000
 
+callback_integration:
+  kind: "quadrature"
+  spatial_dim: 1
+  x_min: 0.0
+  x_max: 1.0
+  t_min: 0.0
+  t_max: 1.0
+  quadrature:
+    degree: 50
+
 models:
   - name: "mlp"
     hidden_dim: 64
@@ -48,11 +58,11 @@ models:
   #   input_dim: 2
 
 methods:
-  # - name: "pinn"
-  #   output_heads:
-  #     u: 1
-  #   ic_weight: 1.0
-  #   bc_weights: 100.0
+  - name: "pinn"
+    output_heads:
+      u: 1
+    ic_weight: 1.0
+    bc_weights: 100.0
   # - name: "sls"
   #   output_heads:
   #     v: 1
@@ -89,3 +99,7 @@ plot_loss:
   error_high: 100 # percent
   size_windowed_average: 100 # In epochs
 
+plot_specific_t:
+  show_error: True
+  error_low: 0 # percent
+  error_high: 100 # percent
