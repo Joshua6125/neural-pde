@@ -26,7 +26,6 @@ class vPINNLoss(Loss):
         ic_weight: float = 1.0,
         bc_weight: float = 1.0,
         n_test_functions: int = 10,
-        vanish_test_functions: bool = True,
     ):
         self.u_model = u_model
         self.c = c
@@ -42,10 +41,8 @@ class vPINNLoss(Loss):
         self._u0_fn = u0 if callable(u0) else self._constant_function(u0)
         self._ut0_fn = ut0 if callable(ut0) else self._constant_function(ut0)
 
-        # Precompute degrees for Legendre polynomials (0..n-1)
-        self._degrees = jnp.arange(self.n_test_functions)
-        # Optionally multiply by (1 - x^2) to enforce zeros at domain boundaries +/-1
-        self.vanish_test_functions = vanish_test_functions
+        # Precompute k indices for Fourier basis (1..n)
+        self._k_vals = jnp.arange(1, self.n_test_functions + 1)
 
         self._vmapped_pde_residual = jax.vmap(self._pde_residual)
         self._vmapped_ic_residual = jax.vmap(self._ic_residual)
@@ -53,20 +50,6 @@ class vPINNLoss(Loss):
 
     def _u(self, x: jnp.ndarray) -> jnp.ndarray:
         return self.u_model(x).squeeze()
-
-    @staticmethod
-    def _legendre_vals(x0: jnp.ndarray, n: int) -> jnp.ndarray:
-        # Compute P_0..P_{n-1} at x0 using the three-term recurrence.
-        if n == 0:
-            return jnp.zeros((0,))
-        vals = [jnp.array(1.0)]
-        if n == 1:
-            return jnp.array(vals)
-        vals.append(jnp.array(x0))
-        for k in range(2, n):
-            p_n = ((2 * k - 1) * x0 * vals[-1] - (k - 1) * vals[-2]) / k
-            vals.append(p_n)
-        return jnp.stack(vals)
 
     def _pde_residual(self, x: jnp.ndarray) -> jnp.ndarray:
         """Returns the strong PDE residual projected onto test functions.
@@ -81,19 +64,11 @@ class vPINNLoss(Loss):
 
         residual = u_tt - c**2 * laplacian_u - f
 
-        # Evaluate Legendre polynomial test functions at a 1D coordinate derived
+        # Evaluate Fourier sine basis test functions at a 1D coordinate derived
         # from the point `x`. We use the sum of coordinates as a single scalar
-        # evaluation point. Legendre polynomials are orthogonal on [-1, 1]
-        # with weight function 1 (easy integration).
+        # evaluation point.
         x_sum = jnp.sum(x)
-
-        leg_vals = self._legendre_vals(x_sum, int(self.n_test_functions))
-
-        if self.vanish_test_functions:
-            # Multiply by (1 - x^2) to force test functions to vanish at x = +/-1.
-            test_vals = (1.0 - x_sum ** 2) * leg_vals
-        else:
-            test_vals = leg_vals
+        test_vals = jnp.sin(self._k_vals * jnp.pi * x_sum)
 
         # Do not square here! Return the integrand R(x) * v_k(x)
         return residual * test_vals
