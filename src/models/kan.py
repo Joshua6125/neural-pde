@@ -18,9 +18,9 @@ class KAN(nn.Module):
     num_layers: int
     output_heads: Mapping[str, int]
     input_dim: int
-    grid_size: int = 5
-    degree: int = 3
-    model_type: str = "efficient"  # aliases: "efficient" | "cheby" | "original"
+    grid_size: int = 5 # Used in "original", "base", and "spline"
+    degree: int = 3 #
+    model_type: str = "efficient"  # aliases: "efficient" | "cheby" | "chebychev" | "original" | "base" | "spline"
     seed: int = 42
 
     def validate(self) -> None:
@@ -85,7 +85,7 @@ class KAN(nn.Module):
         if model_type == "original":
             return "base", {"k": self.degree, "G": self.grid_size}
 
-        if model_type == "cheby":
+        if model_type in {"cheby", "chebychev"}:
             return "chebyshev", {"D": self.degree, "flavor": "default"}
 
         if model_type == "efficient":
@@ -93,9 +93,6 @@ class KAN(nn.Module):
 
         if model_type in {"base", "spline"}:
             return model_type, {"k": self.degree, "G": self.grid_size}
-
-        if model_type == "chebyshev":
-            return "chebyshev", {"D": self.degree, "flavor": "default"}
 
         raise ValueError(
             "Unknown model_type. Supported values: "

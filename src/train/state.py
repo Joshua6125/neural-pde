@@ -30,7 +30,7 @@ class TrainConfig:
     """
 
     epochs: int = 1000
-    max_training_time: float = 100000
+    max_training_time: float = 60
     # TODO: Should consider maybe building the Schedule in src/
     learning_rate: Schedule = optax.exponential_decay(
         init_value=1e-4,
@@ -40,7 +40,7 @@ class TrainConfig:
     ) # NOTE: Might use optax.cosine_decay_schedule(init_value=1e-4, decay_steps=50000, alpha=0.01) instead.
     optimiser: str = "adamw"
     seed: int = 0
-    log_every: int = 100
+    log_every: int = 100000000000
     use_jit: bool = True
 
     def validate(self) -> None:
