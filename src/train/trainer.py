@@ -158,7 +158,7 @@ class Trainer:
                     training_time=state.total_training_time,
                 )
 
-                print(f"Training progress: {epoch}/{self.train_cfg.epochs}, ",
+                print(f"Training progress: {epoch}/{self.train_cfg.epochs},",
                       f"{state.total_training_time:.2f}/{self.train_cfg.max_training_time:.2f}s",
                       f"({time.time() - start_time:.2f}s total elapsed)")
 

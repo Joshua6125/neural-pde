@@ -8,7 +8,7 @@ make_plots: true
 # ----------------
 # Problem parameters
 # ----------------
-iterations: 1
+iterations: 3
 
 problem_params:
   T: 1.0
@@ -35,8 +35,8 @@ integration:
   t_min: 0.0
   t_max: 1.0
   monte_carlo:
-    interior_samples: 1600
-    boundary_samples: 1000
+    interior_samples: 16000
+    boundary_samples: 10000
 
 callback_integration:
   kind: "quadrature"
@@ -52,17 +52,17 @@ combinations: [
   # Should be [method, model]
   ["pinn", "mlp"],
   ["fosls", "mlp"],
-  ["vpinn", "mlp"]
+  # ["vpinn", "mlp"]
 ]
 
 models:
   mlp:
     hidden_dim: 64
     num_layers: 5
-  # kan:
-  #   hidden_dim: 64
-  #   num_layers: 5
-  #   input_dim: 2
+  kan:
+    hidden_dim: 64
+    num_layers: 5
+    input_dim: 2
 
 methods:
   pinn:
@@ -70,12 +70,12 @@ methods:
       u: 1
     ic_weight: 1.0
     bc_weights: 100.0
-  # gpinn:
-  #   output_heads:
-  #     u: 1
-  #   ic_weight: 1.0
-  #   bc_weight: 100.0
-  #   residual_grad_weight: 1e-2
+  gpinn:
+    output_heads:
+      u: 1
+    ic_weight: 1.0
+    bc_weight: 100.0
+    residual_grad_weight: 1e-2
   fosls:
     output_heads:
       v: 1
@@ -86,7 +86,7 @@ methods:
       u: 1
     ic_weight: 1.0
     bc_weight: 100.0
-    n_test_functions: 10
+    n_test_functions: 100
 
 # ----------------
 # Data analysis parameters

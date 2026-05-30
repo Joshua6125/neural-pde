@@ -1,7 +1,7 @@
 # ----------------
 # Ensure the following lines are always part of the config
 # ----------------
-script_name: gaussian_pulse
+script_name: non_matching_boundary
 generate_data: true
 make_plots: true
 
@@ -59,10 +59,10 @@ models:
   mlp:
     hidden_dim: 64
     num_layers: 5
-  kan:
-    hidden_dim: 64
-    num_layers: 5
-    input_dim: 2
+  # kan:
+  #   hidden_dim: 64
+  #   num_layers: 5
+  #   input_dim: 2
 
 methods:
   pinn:
@@ -70,23 +70,23 @@ methods:
       u: 1
     ic_weight: 1.0
     bc_weights: 100.0
-  gpinn:
-    output_heads:
-      u: 1
-    ic_weight: 1.0
-    bc_weight: 100.0
-    residual_grad_weight: 1e-2
+  # gpinn:
+  #   output_heads:
+  #     u: 1
+  #   ic_weight: 1.0
+  #   bc_weight: 100.0
+  #   residual_grad_weight: 1e-2
   fosls:
     output_heads:
       v: 1
       sigma: 1
     ic_weight: 1.0
-  vpinn:
-    output_heads:
-      u: 1
-    ic_weight: 1.0
-    bc_weight: 100.0
-    n_test_functions: 100
+  # vpinn:
+  #   output_heads:
+  #     u: 1
+  #   ic_weight: 1.0
+  #   bc_weight: 100.0
+  #   n_test_functions: 100
 
 # ----------------
 # Data analysis parameters
