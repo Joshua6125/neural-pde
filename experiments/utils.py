@@ -1,7 +1,7 @@
 from typing import Callable, cast
 from omegaconf import DictConfig
 
-from src.loss_functions import PINNConfig, gPINNConfig, vPINNConfig, SLSConfig, FOSLSConfig, AlgorithmConfig, FOSLSLoss
+from src.loss_functions import PINNConfig, gPINNConfig, vPINNConfig, FOSLSConfig, AlgorithmConfig, FOSLSLoss
 from src.models import MLPConfig, KANConfig, AnyModelConfig
 from src.train import TrainConfig
 from src.integration import MonteCarloConfig, QuadratureConfig, AnyIntegrationConfig, NDCubeIntegration
@@ -162,20 +162,6 @@ def build_gpinn_config(
     )
 
 
-def build_sls_config(
-    model: AnyModelConfig,
-    wave_functions: dict,
-) -> SLSConfig:
-    return SLSConfig(
-        model=model,
-        f=wave_functions.get("f", 0.0),
-        g=wave_functions.get("g", 0.0),
-        v0=wave_functions.get("v0", 0.0),
-        sigma0=wave_functions.get("sigma0", 0.0),
-        v_boundary=wave_functions.get("v_boundary", 0.0)
-    )
-
-
 def build_fosls_config(
     spec: DictConfig,
     model: AnyModelConfig,
@@ -222,8 +208,6 @@ def build_method_config(
         return build_gpinn_config(data, model, wave_functions)
     if kind == "vpinn":
         return build_vpinn_config(data, model, wave_functions)
-    if kind == "sls":
-        return build_sls_config(model, wave_functions)
     if kind == "fosls":
         return build_fosls_config(data, model, wave_functions)
 
@@ -252,7 +236,7 @@ def make_first_order_model(params, model_apply, method_kind: str):
     """
     Wraps the standard model_apply to always return the first-order vector (v, sigma)
     """
-    if method_kind in ["sls", "fosls"]:
+    if method_kind in ["fosls"]:
         # output is already dict with v and sigma
         def fosls_apply(x: jnp.ndarray) -> jnp.ndarray:
             out = model_apply(params, x)
@@ -275,17 +259,11 @@ def make_first_order_model(params, model_apply, method_kind: str):
 def make_second_order_model(model_apply, method_kind: str, u0_fn=None):
     """
     Wraps the model_apply to always return the second-order variable (u).
-
-    Args:
-        model_apply: Core model function.
-        method_kind: "sls", "fosls", or "pinn".
-        u0_fn: A function u0_fn(x) returning initial displacement u(0, x).
-               Defaults to 0 if not provided.
     """
     if u0_fn is None:
         u0_fn = lambda x: jnp.zeros_like(x)
 
-    if method_kind in ["sls", "fosls"]:
+    if method_kind in ["fosls"]:
         def fosls_apply(params, x_in):
             t, x = x_in[0], x_in[1:]
 

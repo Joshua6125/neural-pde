@@ -63,10 +63,6 @@ methods:
       u: 1
     ic_weight: 1.0
     bc_weights: 100.0
-  # - name: "sls"
-  #   output_heads:
-  #     v: 1
-  #     sigma: 1
   # - name: "gpinn"
   #   output_heads:
   #     u: 1
