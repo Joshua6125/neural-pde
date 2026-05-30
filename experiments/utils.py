@@ -354,3 +354,62 @@ def calculate_fosls_norm(
     )
 
     return float(jnp.sum(interior_loss) + jnp.sum(boundary_loss))
+
+
+def calculate_dof(
+    input_dim: int,
+    model_cfg: AnyModelConfig
+) -> int:
+    if isinstance(model_cfg, MLPConfig):
+        '''
+        Assume:
+        input dimension: p
+        Output dimension: q
+        hidden layers: n
+        neurons in each hidden layer: k
+
+        input -> hidden
+        weights: pk
+        biases: k
+
+        hidden -> hidden
+        n - 1 transitions with each k^2 + k so (n - 1)(k^2 + k)
+
+        hidden -> output
+        weights: kq
+        biases: q
+
+        total:
+        pk + k + (n - 1)(k^2 + k) + kq + q
+        '''
+        p = input_dim
+        q = len(model_cfg.output_heads)
+        n = model_cfg.num_layers
+        k = model_cfg.hidden_dim
+
+        return p*k + k + (n - 1)*(k**2 + k) + k*q + q
+
+    if isinstance(model_cfg, KANConfig):
+        '''
+        Assume:
+        input dimension: p
+        Output dimension: q
+        hidden layers: n
+        neurons in each hidden layer: k
+        degree: d
+
+        Each function of degree d has (d + 1) coeffcients.
+
+        Number of edges is pk + (n - 1)k^2 + kq
+
+        total:
+        (d + 1)(pk + (n - 1)k^2 + kq) + kn + q
+        '''
+        p = input_dim
+        q = len(model_cfg.output_heads)
+        n = model_cfg.num_layers
+        k = model_cfg.hidden_dim
+        d = model_cfg.degree
+
+        return (d + 1)*(p*k + (n - 1)*k**2 + k*q) + k*n + q
+
