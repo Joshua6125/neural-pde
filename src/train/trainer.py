@@ -125,15 +125,8 @@ class Trainer:
             assert sample_input is not None
             state = self.init_state(sample_input)
 
-        callback_uses_state = False
-        if callback is not None:
-            try:
-                callback_uses_state = len(inspect.signature(callback).parameters) >= 2
-            except (TypeError, ValueError):
-                callback_uses_state = False
-
         start_time = time.time()
- 
+
         history: list[TrainStepMetrics] = []
         for epoch in range(1, self.train_cfg.epochs + 1):
             train_time = time.time() - state.total_training_time
@@ -150,14 +143,12 @@ class Trainer:
                 params=params,
                 opt_state=opt_state,
                 integration_key=integration_key,
-                total_training_time=time.time() - train_time
+                total_training_time=time.time() - train_time if state.step > 1 else 0.0
             )
 
             # We only want to convert floats if we want to log
             should_log = epoch % self.train_cfg.log_every == 0
-            should_materialise_metrics = should_log or callback is not None
-            metrics = None
-            if should_materialise_metrics:
+            if should_log:
                 metrics = TrainStepMetrics(
                     step=epoch,
                     total_loss=float(total_loss),
@@ -166,19 +157,14 @@ class Trainer:
                     training_time=state.total_training_time,
                 )
 
-            if should_log:
                 print(f"Training progress: {epoch}/{self.train_cfg.epochs}, ",
                       f"{state.total_training_time:.2f}/{self.train_cfg.max_training_time:.2f}s",
                       f"({time.time() - start_time:.2f}s total elapsed)")
-                assert metrics is not None
+
                 history.append(metrics)
 
-            if callback is not None:
-                assert metrics is not None
-                if callback_uses_state:
+                if callback is not None:
                     callback(metrics, previous_state)
-                else:
-                    callback(metrics)
 
             # Stop training if max training time has been hit.
             if state.total_training_time > self.train_cfg.max_training_time:
