@@ -72,13 +72,13 @@ methods:
     output_heads:
       u: 1
     ic_weight: 1.0
-    bc_weights: 100.0
-  # gpinn:
-  #   output_heads:
-  #     u: 1
-  #   ic_weight: 1.0
-  #   bc_weight: 100.0
-  #   residual_grad_weight: 1e-2
+    bc_weight: 100.0
+  gpinn:
+    output_heads:
+      u: 1
+    ic_weight: 1.0
+    bc_weight: 100.0
+    residual_grad_weight: 1e-2
   fosls:
     output_heads:
       v: 1

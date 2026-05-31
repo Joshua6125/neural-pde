@@ -244,7 +244,7 @@ class RunTraining:
                 pickle.dump(current_run_evals, f)
 
             final_loss = logged_metrics[-1].total_loss if logged_metrics else "N/A"
-            print(f"  -> Success! Time: {elapsed_time:.1f}s, Final Loss: {final_loss}\n")
+            print(f"  -> Success! Time: {elapsed_time:.1f}s\n")
 
 
 class DataProcessor:
@@ -282,7 +282,7 @@ class DataProcessor:
         else:
             print(f"Warning: Evals directory not found at {self.evals_dir}")
 
-    def plot_eval_metric(self, ylabel: str, title: str, filename: str):
+    def plot_fosls_loss(self, ylabel: str, title: str, filename: str):
         import matplotlib.pyplot as plt
 
         if not self.evals_data:
@@ -292,7 +292,7 @@ class DataProcessor:
             print(f"No metrics data found. Cannot plot {title}.")
             return
 
-        plot_config = self.problem.cfg.get("plot_loss", {})
+        plot_config = self.problem.cfg.get("plot_fosls_loss", {})
         show_error = bool(plot_config.get("show_error", True))
         error_low = max(0, min(100, int(plot_config.get("error_low", 0))))
         error_high = max(0, min(100, int(plot_config.get("error_high", 100))))
@@ -508,7 +508,7 @@ def run(
     if make_plots:
         print("[PHASE 2] Processing Data and Generating Plots...")
         processor = DataProcessor(problem, output_dir)
-        processor.plot_eval_metric(
+        processor.plot_fosls_loss(
             ylabel="FOSLS Norm",
             title="FOSLS Norm vs Training Time",
             filename="fosls_norm_plot.png"

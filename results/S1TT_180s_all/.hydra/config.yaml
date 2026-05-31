@@ -1,34 +1,24 @@
-# ----------------
-# Ensure the following lines are always part of the config
-# ----------------
-script_name: gaussian_pulse
+script_name: simple_wave
 generate_data: true
 make_plots: true
-
-# ----------------
-# Problem parameters
-# ----------------
 iterations: 3
-
 problem_params:
   T: 1.0
   c: 1.0
-
 training:
   epochs: 100000000
   max_training_time: 180.0
   learning_rate:
     kind: exponential_decay
-    init_value: 1.0e-4
+    init_value: 0.0001
     transition_steps: 1000
     decay_rate: 0.95
     staircase: true
   seed: 42
   log_every: 2000
-  optimiser: "adamw"
-
+  optimiser: adamw
 integration:
-  kind: "monte_carlo"
+  kind: monte_carlo
   spatial_dim: 1
   x_min: 0.0
   x_max: 1.0
@@ -37,9 +27,8 @@ integration:
   monte_carlo:
     interior_samples: 160000
     boundary_samples: 100000
-
 callback_integration:
-  kind: "quadrature"
+  kind: quadrature
   spatial_dim: 1
   x_min: 0.0
   x_max: 1.0
@@ -47,15 +36,15 @@ callback_integration:
   t_max: 1.0
   quadrature:
     degree: 50
-
-combinations: [
-  # Should be [method, model]
-  ["pinn", "mlp"],
-  ["fosls", "mlp"],
-  ["vpinn", "mlp"],
-  ["gpinn", "mlp"]
-]
-
+combinations:
+- - pinn
+  - mlp
+- - fosls
+  - mlp
+- - vpinn
+  - mlp
+- - gpinn
+  - mlp
 models:
   mlp:
     hidden_dim: 64
@@ -64,7 +53,6 @@ models:
     hidden_dim: 64
     num_layers: 5
     input_dim: 2
-
 methods:
   pinn:
     output_heads:
@@ -76,7 +64,7 @@ methods:
       u: 1
     ic_weight: 1.0
     bc_weight: 10.0
-    residual_grad_weight: 1e-2
+    residual_grad_weight: 0.01
   fosls:
     output_heads:
       v: 1
@@ -88,22 +76,15 @@ methods:
     ic_weight: 1.0
     bc_weight: 10.0
     n_test_functions: 400
-
-# ----------------
-# Data analysis parameters
-# ----------------
-
 plot_params:
   t_grid: 100
   x_grid: 100
-
-plot_fosls_loss:
-  show_error: True
-  error_low: 0 # percent
-  error_high: 100 # percent
-  size_windowed_average: 100 # In epochs
-
+plot_loss:
+  show_error: true
+  error_low: 0
+  error_high: 100
+  size_windowed_average: 100
 plot_specific_t:
-  show_error: True
-  error_low: 0 # percent
-  error_high: 100 # percent
+  show_error: true
+  error_low: 0
+  error_high: 100
