@@ -142,7 +142,13 @@ class RunTraining:
                 models_list.append(model_config)
 
             assert model_config
-            method_config = build_method_config(method_name, method, model_config, self.wave_functions)
+            method_config = build_method_config(
+                method_name,
+                method,
+                model_config,
+                self.wave_functions,
+                self.cfg.get("integration")
+            )
 
             pairs.append((models_list, method_config))
 

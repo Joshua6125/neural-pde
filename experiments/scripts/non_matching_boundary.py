@@ -148,7 +148,13 @@ class RunTraining:
 
             heads = method.get("output_heads", "")
             model_config = build_model_config(model_name, model, heads)
-            method_config = build_method_config(method_name, method, model_config, self.wave_functions)
+            method_config = build_method_config(
+                method_name,
+                method,
+                model_config,
+                self.wave_functions,
+                self.cfg.get("integration")
+            )
 
             pairs.append((model_config, method_config))
 
