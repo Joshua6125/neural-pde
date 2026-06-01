@@ -242,7 +242,10 @@ def build_trainer_config(
         optimiser=str(spec.get("optimiser", "adamw")),
         seed=int(spec.get("seed", 42)),
         log_every=int(spec.get("log_every", 50)),
-        use_jit=bool(spec.get("use_jit", True))
+        use_jit=bool(spec.get("use_jit", True)),
+        convergence_check=bool(spec.get("convergence_check", False)),
+        convergence_window_size=int(spec.get("convergence_window_size", 1000)),
+        convergence_rel_tol=float(spec.get("convergence_rel_tol", 1e-3))
     )
 
 
@@ -279,10 +282,13 @@ def make_second_order_model(model_apply, method_kind: str, u0_fn=None):
 
     if method_kind in ["fosls"]:
         def fosls_apply(params, x_in):
-            t, x = x_in[0], x_in[1:]
+            x_in = jnp.asarray(x_in)
+            t = x_in[0]
+            x = jnp.atleast_1d(x_in[1])
 
             def vector_field(time, u_val, args):
-                out = model_apply(params, jnp.array([time, x]))
+                model_input = jnp.concatenate([jnp.atleast_1d(time), x])
+                out = model_apply(params, model_input)
                 return jnp.atleast_1d(out["v"])
 
             # 1) Evaluate the initial condition at t=0 instead of t

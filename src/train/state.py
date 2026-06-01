@@ -24,7 +24,7 @@ class TrainConfig:
         Optional dedicated seed for integration sampling. If ``None``,
         integration randomness is derived from ``seed``.
     log_every : int
-        Logging frequency in epochs.
+        Logging frequency in epochs. If 0 then no logging.
     use_jit : bool
         Enable JIT compilation for train_step.
     """
@@ -40,14 +40,18 @@ class TrainConfig:
     ) # NOTE: Might use optax.cosine_decay_schedule(init_value=1e-4, decay_steps=50000, alpha=0.01) instead.
     optimiser: str = "adamw"
     seed: int = 0
-    log_every: int = 100000000000
+    log_every: int = 0
     use_jit: bool = True
+    convergence_check: bool = True
+    convergence_window_size: int = 100
+    # convergence_abs_tol: float = 1e-6
+    convergence_rel_tol: float = 1e-3
 
     def validate(self) -> None:
         assert self.epochs > 0, "epochs must be strictly positive"
         # NOTE: Need to check if scheduler automatically checks if learning rate is valid.
         # assert self.learning_rate > 0.0, "learning_rate must be strictly positive"
-        assert self.log_every > 0, "log_every must be strictly positive"
+        assert self.log_every >= 0, "log_every must be non-negative"
 
 
 @dataclass(frozen=True)

@@ -16,7 +16,7 @@ problem_params:
 
 training:
   epochs: 100000000
-  max_training_time: 180.0
+  max_training_time: 1000000.0
   learning_rate:
     kind: exponential_decay
     init_value: 1.0e-4
@@ -24,8 +24,11 @@ training:
     decay_rate: 0.95
     staircase: true
   seed: 42
-  log_every: 2000
+  log_every: 200
   optimiser: "adamw"
+  convergence_check: True
+  convergence_window_size: 1000
+  convergence_rel_tol: 1
 
 integration:
   kind: "monte_carlo"
@@ -50,10 +53,10 @@ callback_integration:
 
 combinations: [
   # Should be [method, model]
-  ["pinn", "mlp"],
+  # ["pinn", "mlp"],
   ["fosls", "mlp"],
-  ["vpinn", "mlp"],
-  ["gpinn", "mlp"]
+  # ["vpinn", "mlp"],
+  # ["gpinn", "mlp"]
 ]
 
 models:
@@ -104,6 +107,6 @@ plot_fosls_loss:
   size_windowed_average: 100 # In epochs
 
 plot_specific_t:
-  show_error: True
+  show_error: False
   error_low: 0 # percent
   error_high: 100 # percent

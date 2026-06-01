@@ -104,6 +104,6 @@ plot_fosls_loss:
   size_windowed_average: 100 # In epochs
 
 plot_specific_t:
-  show_error: True
+  show_error: False
   error_low: 0 # percent
   error_high: 100 # percent

@@ -1,4 +1,6 @@
 import inspect
+import math
+from collections import deque
 from dataclasses import dataclass
 from typing import Any, Callable
 
@@ -101,6 +103,48 @@ class Trainer:
         leaves = jax.tree_util.tree_leaves(tree)
         return sum(float(jnp.sum(leaf)) for leaf in leaves) if leaves else 0.0
 
+    @staticmethod
+    def _invoke_callback(
+            callback: Callable[..., None],
+            metrics: TrainStepMetrics,
+            previous_state: TrainState,
+        ) -> None:
+        """Call callbacks that accept either one or two positional arguments."""
+        signature = inspect.signature(callback)
+        positional_params = [
+            parameter
+            for parameter in signature.parameters.values()
+            if parameter.kind in (
+                inspect.Parameter.POSITIONAL_ONLY,
+                inspect.Parameter.POSITIONAL_OR_KEYWORD,
+            )
+        ]
+
+        if any(parameter.kind == inspect.Parameter.VAR_POSITIONAL for parameter in signature.parameters.values()):
+            callback(metrics, previous_state)
+        elif len(positional_params) >= 2:
+            callback(metrics, previous_state)
+        elif len(positional_params) == 1:
+            callback(metrics)
+        else:
+            callback()
+
+    def _has_converged(self, loss_window: deque[float]) -> bool:
+        """Check whether the rolling loss window has flattened out."""
+        if not loss_window:
+            return False
+
+        losses = tuple(loss_window)
+        if not all(math.isfinite(loss) for loss in losses):
+            return False
+
+        mean_loss = sum(losses) / len(losses)
+        mean_abs_loss = sum(abs(loss) for loss in losses) / len(losses)
+        tolerance = self.train_cfg.convergence_rel_tol * mean_abs_loss
+        max_deviation = max(abs(loss - mean_loss) for loss in losses)
+        # print(f"convergence: {max_deviation} - {tolerance}")
+        return max_deviation <= tolerance
+
     def fit(
             self,
             sample_input: jnp.ndarray | None = None,
@@ -125,11 +169,15 @@ class Trainer:
             assert sample_input is not None
             state = self.init_state(sample_input)
 
-        start_time = time.time()
+        if self.train_cfg.convergence_check and self.train_cfg.convergence_window_size <= 0:
+            raise ValueError("convergence_window_size must be positive when convergence_check is enabled")
 
+        loss_window: deque[float] = deque(maxlen=self.train_cfg.convergence_window_size)
+
+        start_time = time.time()
         history: list[TrainStepMetrics] = []
         for epoch in range(1, self.train_cfg.epochs + 1):
-            train_time = time.time() - state.total_training_time
+            train_time_start = time.time() - state.total_training_time
 
             previous_state = state
             params, opt_state, total_loss, interior_loss, boundary_loss, integration_key = self._train_step_fn(
@@ -138,34 +186,44 @@ class Trainer:
                 state.integration_key,
             )
 
+            total_training_time = time.time() - train_time_start if epoch > 1 else 0.0
+
             state = TrainState(
                 step=state.step + 1,
                 params=params,
                 opt_state=opt_state,
                 integration_key=integration_key,
-                total_training_time=time.time() - train_time if state.step > 1 else 0.0
+                total_training_time=total_training_time,
             )
 
-            # We only want to convert floats if we want to log
-            # Should log first iteration as well, for the completeness of later analysis.
-            should_log = epoch % self.train_cfg.log_every == 0 or epoch == 1
+            should_log = self.train_cfg.log_every > 0 and epoch % self.train_cfg.log_every == 0
+
             if should_log:
                 metrics = TrainStepMetrics(
                     step=epoch,
                     total_loss=float(total_loss),
                     interior_loss=self._tree_sum(interior_loss),
                     boundary_loss=self._tree_sum(boundary_loss),
-                    training_time=state.total_training_time,
+                    training_time=total_training_time,
                 )
 
-                print(f"Training progress: {epoch}/{self.train_cfg.epochs},",
-                      f"{state.total_training_time:.2f}/{self.train_cfg.max_training_time:.2f}s",
-                      f"({time.time() - start_time:.2f}s total elapsed)")
+                if should_log:
+                    print(f"Training progress: {epoch}/{self.train_cfg.epochs},",
+                          f"{total_training_time:.2f}/{self.train_cfg.max_training_time:.2f}s",
+                          f"({time.time() - start_time:.2f}s total elapsed)")
 
-                history.append(metrics)
+                    history.append(metrics)
 
                 if callback is not None:
-                    callback(metrics, previous_state)
+                    self._invoke_callback(callback, metrics, previous_state)
+
+            if self.train_cfg.convergence_check:
+                loss_window.append(float(total_loss))
+                if len(loss_window) > self.train_cfg.convergence_window_size:
+                    loss_window.popleft()
+
+                if len(loss_window) == self.train_cfg.convergence_window_size and self._has_converged(loss_window):
+                    return state, history
 
             # Stop training if max training time has been hit.
             if state.total_training_time > self.train_cfg.max_training_time:
