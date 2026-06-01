@@ -7,7 +7,8 @@ from utils import (
     build_method_config,
     build_integration_config,
     build_trainer_config,
-    calculate_fosls_norm
+    calculate_fosls_norm,
+    make_second_order_model
 )
 from src.trainer import TrainState, TrainStepMetrics, run_training
 from src.models import AnyModelConfig, build_model
@@ -302,7 +303,6 @@ class DataProcessor:
             for run_times, run_vals in zip(all_training_times, all_vals):
                 run_times_arr = np.array(run_times)
                 run_vals_arr = np.array(run_vals)
-
                 interp_vals = np.interp(common_time_grid, run_times_arr, run_vals_arr)
                 interpolated_runs.append(interp_vals)
 
@@ -327,6 +327,92 @@ class DataProcessor:
         plots_dir = os.path.join(self.results_dir, "plots")
         os.makedirs(plots_dir, exist_ok=True)
         plot_path = os.path.join(plots_dir, filename)
+        plt.savefig(plot_path)
+        plt.close()
+        print(f"Plot saved to {plot_path}")
+
+    def plot_specific_times(self, time: float):
+        import matplotlib.pyplot as plt
+
+        if not os.path.exists(self.models_dir):
+            print("No models directory found.")
+            return
+
+        plot_loss_config = self.problem.cfg.get("plot_specific_t", {})
+
+        show_error = bool(plot_loss_config.get("show_error", True))
+        error_low = min(100, max(0, int(plot_loss_config.get("error_low", 0))))
+        error_high = min(100, max(0, int(plot_loss_config.get("error_high", 100))))
+
+        x_vals = jnp.linspace(self.problem.x_min, self.problem.x_max, 50)
+
+        exact_sol = self.problem.solution_u(jnp.atleast_1d(time), jnp.array(x_vals))
+
+        combinations = self.problem.cfg.get("combinations", [])
+        all_models = self.problem.cfg.get("models", {})
+        all_methods = self.problem.cfg.get("methods", {})
+
+        plt.figure(figsize=(10, 6))
+
+        batch_inputs = jnp.stack([jnp.full_like(x_vals, float(time)), x_vals], axis=1)
+        plotted_any = False
+
+        for method_name, model_name in combinations:
+            method_cfg = all_methods.get(method_name, {})
+            model_cfg = all_models.get(model_name, {})
+            if not method_cfg or not model_cfg:
+                continue
+
+            heads = method_cfg.get("output_heads", "")
+            model_obj_cfg = build_model_config(model_name, model_cfg, heads)
+            model_obj = build_model(model_obj_cfg)
+            name = f"{model_name}-{method_name}"
+
+            model_files = glob(os.path.join(self.models_dir, f"{name}_iter*.pkl"))
+            if not model_files:
+                continue
+
+            u0 = lambda v: self.problem.solution_u(jnp.array(0.0), jnp.array(v[1]))
+            second_order_apply = make_second_order_model(model_obj.apply, method_name, u0_fn=u0)
+            batched_apply = jax.jit(jax.vmap(second_order_apply, in_axes=(None, 0)))
+
+            combo_predictions = []
+            for m_file in model_files:
+                with open(m_file, "rb") as f:
+                    params = pickle.load(f)
+
+                pred_vector = batched_apply(params, batch_inputs)
+                error_pred = np.abs(exact_sol - pred_vector)
+                combo_predictions.append(np.asarray(error_pred).squeeze())
+
+            if not combo_predictions:
+                continue
+
+            predictions_matrix = np.vstack(combo_predictions)
+            mean_prediction = np.mean(predictions_matrix, axis=0)
+
+            line = plt.plot(x_vals, mean_prediction, label=name)[0]
+            plotted_any = True
+
+            if show_error:
+                low_error = np.percentile(predictions_matrix, error_low, axis=0)
+                high_error = np.percentile(predictions_matrix, error_high, axis=0)
+
+                plt.fill_between(x_vals, low_error, high_error, color=line.get_color(), alpha=0.3)
+
+        if not plotted_any:
+            print("No predictions found. Cannot plot specific times.")
+            return
+
+        plt.xlabel("x")
+        plt.ylabel("u(x)")
+        plt.title(f"Error of predicted displacement at t={time}s")
+        plt.legend()
+        plt.grid(True)
+
+        plots_dir = os.path.join(self.results_dir, "plots")
+        os.makedirs(plots_dir, exist_ok=True)
+        plot_path = os.path.join(plots_dir, f"error_pred_at_time_{time}.png")
         plt.savefig(plot_path)
         plt.close()
         print(f"Plot saved to {plot_path}")
@@ -369,6 +455,10 @@ def run(
             title="FOSLS Norm vs Training Time",
             filename="fosls_norm_plot.png"
         )
+        processor.plot_specific_times(0.0)
+        processor.plot_specific_times(0.333)
+        processor.plot_specific_times(0.666)
+        processor.plot_specific_times(1.0)
         print("[PHASE 2] Complete.\n")
 
     print("Experiment pipeline finished successfully.")
