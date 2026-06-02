@@ -116,11 +116,11 @@ def build_kan_config(
 def build_siren_config(
     spec: DictConfig,
     output_heads: dict[str, int],
-) -> SIRENModelConfig:
+) -> SIRENConfig:
     if not output_heads:
         raise ValueError("Model must have output heads.")
 
-    return SIRENModelConfig(
+    return SIRENConfig(
         output_heads=output_heads,
         hidden_dim=int(spec.get("hidden_dim", 1)),
         num_layers=int(spec.get("num_layers", 1)),
@@ -138,7 +138,7 @@ def build_model_config(
         return build_mlp_config(spec, output_heads)
     if model_name == "kan":
         return build_kan_config(spec, output_heads)
-    if kind == "siren":
+    if model_name == "siren":
         return build_siren_config(spec, output_heads)
 
     raise ValueError(f"Unknown model type: {model_name}")
@@ -396,10 +396,7 @@ def calculate_fosls_norm(
     return float(jnp.sum(interior_loss) + jnp.sum(boundary_loss))
 
 
-def calculate_dof(
-    input_dim: int,
-    model_cfg: AnyModelConfig
-) -> int:
+def calculate_dof(input_dim: int, model_cfg: AnyModelConfig):
     if isinstance(model_cfg, MLPConfig):
         '''
         Assume:

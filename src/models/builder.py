@@ -86,7 +86,7 @@ class KANConfig(BaseModelConfig):
 
 
 @dataclass(frozen=True)
-class SIRENModelConfig(BaseModelConfig):
+class SIRENConfig(BaseModelConfig):
     """Configuration for a SIREN model (sinusoidal activations).
 
     Implements the configuration parameters used by the SIREN module.
@@ -106,7 +106,7 @@ class SIRENModelConfig(BaseModelConfig):
         assert self.w0_hidden > 0, "w0_hidden must be strictly positive"
 
 
-AnyModelConfig: TypeAlias = MLPConfig | KANConfig | SIRENModelConfig
+AnyModelConfig: TypeAlias = MLPConfig | KANConfig | SIRENConfig
 
 
 def build_model(cfg: AnyModelConfig) -> BuiltModelAdapter:
@@ -136,7 +136,7 @@ def build_model(cfg: AnyModelConfig) -> BuiltModelAdapter:
             )
         )
 
-    if isinstance(cfg, SIRENModelConfig):
+    if isinstance(cfg, SIRENConfig):
         cfg.validate()
         return BuiltModelAdapter(
             SIREN(
