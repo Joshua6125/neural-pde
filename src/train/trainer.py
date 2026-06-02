@@ -1,4 +1,6 @@
 import inspect
+import math
+from collections import deque
 from dataclasses import dataclass
 from typing import Any, Callable
 
@@ -61,13 +63,14 @@ class Trainer:
             self,
             params: Any,
             integration_key: jax.Array,
-        ) -> tuple[jnp.ndarray, tuple[jnp.ndarray, jnp.ndarray, jax.Array]]:
+        ) -> tuple[jnp.ndarray, tuple[Any, Any, jax.Array]]:
         interior_fn, boundary_fn = self.method.loss_functions(params)
-        total, interior, boundary = self.integrator.integrate(
+        interior, boundary = self.integrator.integrate(
             interior_fn,
             boundary_fn,
             integration_key,
         )
+        total = self.method.aggregate_loss(interior, boundary)
         # Split key to ensure next time we have other sample points
         next_key, _ = jr.split(integration_key)
 
@@ -95,6 +98,53 @@ class Trainer:
             next_integration_key,
         )
 
+    @staticmethod
+    def _tree_sum(tree):
+        leaves = jax.tree_util.tree_leaves(tree)
+        return sum(float(jnp.sum(leaf)) for leaf in leaves) if leaves else 0.0
+
+    @staticmethod
+    def _invoke_callback(
+            callback: Callable[..., None],
+            metrics: TrainStepMetrics,
+            previous_state: TrainState,
+        ) -> None:
+        """Call callbacks that accept either one or two positional arguments."""
+        signature = inspect.signature(callback)
+        positional_params = [
+            parameter
+            for parameter in signature.parameters.values()
+            if parameter.kind in (
+                inspect.Parameter.POSITIONAL_ONLY,
+                inspect.Parameter.POSITIONAL_OR_KEYWORD,
+            )
+        ]
+
+        if any(parameter.kind == inspect.Parameter.VAR_POSITIONAL for parameter in signature.parameters.values()):
+            callback(metrics, previous_state)
+        elif len(positional_params) >= 2:
+            callback(metrics, previous_state)
+        elif len(positional_params) == 1:
+            callback(metrics)
+        else:
+            callback()
+
+    def _has_converged(self, loss_window: deque[float]) -> bool:
+        """Check whether the rolling loss window has flattened out."""
+        if not loss_window:
+            return False
+
+        losses = tuple(loss_window)
+        if not all(math.isfinite(loss) for loss in losses):
+            return False
+
+        mean_loss = sum(losses) / len(losses)
+        mean_abs_loss = sum(abs(loss) for loss in losses) / len(losses)
+        tolerance = self.train_cfg.convergence_rel_tol * mean_abs_loss
+        max_deviation = max(abs(loss - mean_loss) for loss in losses)
+        # print(f"convergence: {max_deviation} - {tolerance}")
+        return max_deviation <= tolerance
+
     def fit(
             self,
             sample_input: jnp.ndarray | None = None,
@@ -119,18 +169,16 @@ class Trainer:
             assert sample_input is not None
             state = self.init_state(sample_input)
 
-        callback_uses_state = False
-        if callback is not None:
-            try:
-                callback_uses_state = len(inspect.signature(callback).parameters) >= 2
-            except (TypeError, ValueError):
-                callback_uses_state = False
+        if self.train_cfg.convergence_check and self.train_cfg.convergence_window_size <= 0:
+            raise ValueError("convergence_window_size must be positive when convergence_check is enabled")
 
-        # Account for previous training time
-        start_time = time.time() - state.total_training_time
+        loss_window: deque[float] = deque(maxlen=self.train_cfg.convergence_window_size)
 
+        start_time = time.time()
         history: list[TrainStepMetrics] = []
         for epoch in range(1, self.train_cfg.epochs + 1):
+            train_time_start = time.time() - state.total_training_time
+
             previous_state = state
             params, opt_state, total_loss, interior_loss, boundary_loss, integration_key = self._train_step_fn(
                 state.params,
@@ -138,37 +186,47 @@ class Trainer:
                 state.integration_key,
             )
 
+            total_training_time = time.time() - train_time_start if epoch > 1 else 0.0
+
             state = TrainState(
                 step=state.step + 1,
                 params=params,
                 opt_state=opt_state,
                 integration_key=integration_key,
-                total_training_time=time.time() - start_time
+                total_training_time=total_training_time,
             )
 
-            # We only want to convert floats if we want to log
-            should_log = epoch % self.train_cfg.log_every == 0
-            should_materialise_metrics = should_log or callback is not None
-            metrics = None
-            if should_materialise_metrics:
+            should_log = self.train_cfg.log_every > 0 and epoch % self.train_cfg.log_every == 0
+
+            if should_log:
                 metrics = TrainStepMetrics(
                     step=epoch,
                     total_loss=float(total_loss),
-                    interior_loss=float(interior_loss),
-                    boundary_loss=float(boundary_loss),
-                    training_time=state.total_training_time,
+                    interior_loss=self._tree_sum(interior_loss),
+                    boundary_loss=self._tree_sum(boundary_loss),
+                    training_time=total_training_time,
                 )
 
-            if should_log:
-                print(f"Training progress: {epoch}/{self.train_cfg.epochs}")
-                assert metrics is not None
-                history.append(metrics)
+                if should_log:
+                    print(f"Training progress: {epoch}/{self.train_cfg.epochs},",
+                          f"{total_training_time:.2f}/{self.train_cfg.max_training_time:.2f}s",
+                          f"({time.time() - start_time:.2f}s total elapsed)")
 
-            if callback is not None:
-                assert metrics is not None
-                if callback_uses_state:
-                    callback(metrics, previous_state)
-                else:
-                    callback(metrics)
+                    history.append(metrics)
+
+                if callback is not None:
+                    self._invoke_callback(callback, metrics, previous_state)
+
+            if self.train_cfg.convergence_check:
+                loss_window.append(float(total_loss))
+                if len(loss_window) > self.train_cfg.convergence_window_size:
+                    loss_window.popleft()
+
+                if len(loss_window) == self.train_cfg.convergence_window_size and self._has_converged(loss_window):
+                    return state, history
+
+            # Stop training if max training time has been hit.
+            if state.total_training_time > self.train_cfg.max_training_time:
+                return state, history
 
         return state, history

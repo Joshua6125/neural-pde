@@ -3,10 +3,10 @@ from typing import Mapping
 import flax.linen as nn
 import jax.numpy as jnp
 from flax import nnx
-from jaxkan.models.KAN import KAN
+from jaxkan.models.KAN import KAN as nnxKAN
 
 
-class KANModel(nn.Module):
+class KAN(nn.Module):
     """Linen-compatible wrapper around jaxKAN's NNX KAN model.
 
     The public behaviour matches ``MLP``:
@@ -18,9 +18,9 @@ class KANModel(nn.Module):
     num_layers: int
     output_heads: Mapping[str, int]
     input_dim: int
-    grid_size: int = 5
-    degree: int = 3
-    model_type: str = "efficient"  # aliases: "efficient" | "cheby" | "original"
+    grid_size: int = 5 # Used in "original", "base", and "spline"
+    degree: int = 3 #
+    model_type: str = "efficient"  # aliases: "efficient" | "cheby" | "chebychev" | "original" | "base" | "spline"
     seed: int = 42
 
     def validate(self) -> None:
@@ -46,7 +46,7 @@ class KANModel(nn.Module):
         self.validate()
         layer_type, required_parameters = self._kan_hparams()
         self.kan = nnx.bridge.to_linen(
-            KAN,
+            nnxKAN,
             self._layer_dims(),
             layer_type=layer_type,
             required_parameters=required_parameters,
@@ -85,7 +85,7 @@ class KANModel(nn.Module):
         if model_type == "original":
             return "base", {"k": self.degree, "G": self.grid_size}
 
-        if model_type == "cheby":
+        if model_type in {"cheby", "chebychev"}:
             return "chebyshev", {"D": self.degree, "flavor": "default"}
 
         if model_type == "efficient":
@@ -93,9 +93,6 @@ class KANModel(nn.Module):
 
         if model_type in {"base", "spline"}:
             return model_type, {"k": self.degree, "G": self.grid_size}
-
-        if model_type == "chebyshev":
-            return "chebyshev", {"D": self.degree, "flavor": "default"}
 
         raise ValueError(
             "Unknown model_type. Supported values: "

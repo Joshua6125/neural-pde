@@ -190,13 +190,10 @@ def test_quadrature_integrate_combined_1d(config_quadrature_1d, test_functions_1
     interior_func = const_func['func']
     boundary_func = lambda pts, normals: jnp.ones(pts.shape[0])
 
-    total_loss, interior_loss, boundary_loss = integrator.integrate(
+    interior_loss, boundary_loss = integrator.integrate(
         interior_func, boundary_func
     )
-
-    # Verify: total = interior + boundary
-    assert jnp.allclose(total_loss, interior_loss + boundary_loss, atol=1e-14)
-
+    
     # Verify interior matches direct call
     assert jnp.allclose(interior_loss, const_func['integral'], atol=const_func['tolerance'])
 

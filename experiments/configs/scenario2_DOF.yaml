@@ -1,0 +1,124 @@
+# ----------------
+# Ensure the following lines are always part of the config
+# ----------------
+script_name: gaussian_pulse_dof
+generate_data: true
+make_plots: true
+
+# ----------------
+# Problem parameters
+# ----------------
+iterations: 10
+
+problem_params:
+  T: 1.0
+  c: 1.0
+
+training:
+  epochs: 500000
+  max_training_time: 900.0
+  learning_rate:
+    kind: exponential_decay
+    init_value: 1.0e-4
+    transition_steps: 1000
+    decay_rate: 0.95
+    staircase: true
+  log_every: 500
+  seed: 42
+  optimiser: "adamw"
+  convergence_check: False
+
+integration:
+  kind: "monte_carlo"
+  spatial_dim: 1
+  x_min: 0.0
+  x_max: 1.0
+  t_min: 0.0
+  t_max: 1.0
+  monte_carlo:
+    interior_samples: 160000
+    boundary_samples: 80000
+
+combinations: [
+  # Should be [method, model]
+  ["pinn", "mlp"],
+  ["fosls", "mlp"],
+  ["fosls", "kan"]
+]
+
+models:
+  mlp:
+    - {hidden_dim: 8,    num_layers: 2}   # ~1e2
+    - {hidden_dim: 16,   num_layers: 2}
+    - {hidden_dim: 16,   num_layers: 3}   # ~6e2
+    - {hidden_dim: 32,   num_layers: 3}   # ~2e3
+    - {hidden_dim: 32,   num_layers: 4}
+    - {hidden_dim: 64,   num_layers: 4}
+    - {hidden_dim: 64,   num_layers: 5}   # ~1.7e4
+    - {hidden_dim: 128,  num_layers: 5}   # ~6.7e4
+    - {hidden_dim: 256,  num_layers: 5}   # ~2.6e5
+    # - {hidden_dim: 512,  num_layers: 5}   # ~1.1e6
+    # - {hidden_dim: 1024, num_layers: 5}   # ~4.2e6
+    # - {hidden_dim: 1600, num_layers: 5}   # ~1.0e7
+  kan:
+    - {hidden_dim: 4,   num_layers: 2, input_dim: 2, degree: 3}   # ~1e2
+    - {hidden_dim: 8,   num_layers: 2, input_dim: 2, degree: 3}   # ~4e2
+    - {hidden_dim: 16,  num_layers: 2, input_dim: 2, degree: 3}
+    - {hidden_dim: 16,  num_layers: 3, input_dim: 2, degree: 3}   # ~2e3
+    - {hidden_dim: 32,  num_layers: 3, input_dim: 2, degree: 3}   # ~9e3
+    - {hidden_dim: 32,  num_layers: 4, input_dim: 2, degree: 3}
+    - {hidden_dim: 64,  num_layers: 4, input_dim: 2, degree: 3}
+    - {hidden_dim: 64,  num_layers: 5, input_dim: 2, degree: 3}   # ~6.7e4
+    - {hidden_dim: 128, num_layers: 5, input_dim: 2, degree: 3}   # ~2.6e5
+    # - {hidden_dim: 256, num_layers: 5, input_dim: 2, degree: 3}   # ~1.1e6
+    # - {hidden_dim: 512, num_layers: 5, input_dim: 2, degree: 3}   # ~4.2e6
+    # - {hidden_dim: 800, num_layers: 5, input_dim: 2, degree: 3}   # ~1.0e7
+
+methods:
+  pinn:
+    output_heads:
+      u: 1
+    ic_weight: 1.0
+    bc_weight: 100.0
+  gpinn:
+    output_heads:
+      u: 1
+    ic_weight: 1.0
+    bc_weight: 100.0
+    residual_grad_weight: 1e-2
+  fosls:
+    output_heads:
+      v: 1
+      sigma: 1
+    ic_weight: 1.0
+  vpinn:
+    output_heads:
+      u: 1
+    ic_weight: 1.0
+    bc_weight: 100.0
+    n_test_functions: 10
+
+# ----------------
+# Data analysis parameters
+# ----------------
+
+plot_integration:
+  kind: "quadrature"
+  spatial_dim: 1
+  x_min: 0.0
+  x_max: 1.0
+  t_min: 0.0
+  t_max: 1.0
+  quadrature:
+    degree: 50
+
+plot_loss:
+  grid_resolution: 1000
+  show_error: True
+  error_low: 0 # percent
+  error_high: 100 # percent
+
+plot_specific_t:
+  show_error: True
+  error_low: 0 # percent
+  error_high: 100 # percent

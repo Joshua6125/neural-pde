@@ -43,10 +43,6 @@ class PINNLoss(Loss):
         bc_weight: float = 1.0,
     ):
         self.u_model = u_model
-        self.c = c
-        self.f = f
-        self.u0 = u0
-        self.ut0 = ut0
         self.ic_weight = ic_weight
         self.bc_weight = bc_weight
 

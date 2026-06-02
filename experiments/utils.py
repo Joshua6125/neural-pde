@@ -1,14 +1,15 @@
 from typing import Callable, cast
 from omegaconf import DictConfig
 
-from src.loss_functions import PINNConfig, gPINNConfig, SLSConfig, FOSLSConfig, AlgorithmConfig
-from src.models import MLPModelConfig, KANModelConfig, SIRENModelConfig, AnyModelConfig
+from src.loss_functions import PINNConfig, gPINNConfig, vPINNConfig, FOSLSConfig, AlgorithmConfig, FOSLSLoss
+from src.models import MLPConfig, KANConfig, SIRENConfig, AnyModelConfig
 from src.train import TrainConfig
-from src.integration import MonteCarloConfig, QuadratureConfig, AnyIntegrationConfig
+from src.integration import MonteCarloConfig, QuadratureConfig, AnyIntegrationConfig, NDCubeIntegration
 
 import optax
 import jax.numpy as jnp
 import jax
+import diffrax
 
 
 def build_integration_config(data: DictConfig) -> AnyIntegrationConfig:
@@ -24,17 +25,21 @@ def build_integration_config(data: DictConfig) -> AnyIntegrationConfig:
     # choose config class and allowed keys
     if integration_type == "monte_carlo":
         return MonteCarloConfig(
-            dim=int(data.get("dim", 2)),
+            spatial_dim=int(data.get("spatial_dim", 1)),
             x_min=float(data.get("x_min", 0.0)),
-            x_max=float(data.get("x_max", 0.0)),
+            x_max=float(data.get("x_max", 1.0)),
+            t_min=float(data.get("t_min", 0.0)),
+            t_max=float(data.get("t_max", 1.0)),
             boundary_samples=int(specific_data.get("boundary_samples", 1)),
             interior_samples=int(specific_data.get("interior_samples", 1)),
         )
     elif integration_type == "quadrature":
         return QuadratureConfig(
-            dim=int(data.get("dim", 2)),
+            spatial_dim=int(data.get("spatial_dim", 1)),
             x_min=float(data.get("x_min", 0.0)),
-            x_max=float(data.get("x_max", 0.0)),
+            x_max=float(data.get("x_max", 1.0)),
+            t_min=float(data.get("t_min", 0.0)),
+            t_max=float(data.get("t_max", 1.0)),
             degree=int(specific_data.get("degree", 1)),
             adaptive_integration=bool(specific_data.get("adaptive_integration", False))
         )
@@ -81,12 +86,12 @@ def build_learning_rate_schedule(spec: DictConfig) -> optax.Schedule:
 def build_mlp_config(
     spec: DictConfig,
     output_heads: dict[str, int],
-) -> MLPModelConfig:
+) -> MLPConfig:
 
     if not output_heads:
         raise ValueError("Model must have output heads.")
 
-    return MLPModelConfig(
+    return MLPConfig(
         output_heads=output_heads,
         hidden_dim=int(spec.get("hidden_dim", 1)),
         num_layers=int(spec.get("num_layers", 1)),
@@ -96,12 +101,12 @@ def build_mlp_config(
 def build_kan_config(
     spec: DictConfig,
     output_heads: dict[str, int],
-) -> KANModelConfig:
+) -> KANConfig:
 
     if not output_heads:
         raise ValueError("Model must have output heads.")
 
-    return KANModelConfig(
+    return KANConfig(
         output_heads=output_heads,
         hidden_dim=int(spec.get("hidden_dim", 1)),
         num_layers=int(spec.get("num_layers", 1)),
@@ -125,20 +130,18 @@ def build_siren_config(
 
 
 def build_model_config(
+    model_name: str,
     spec: DictConfig,
     output_heads: dict[str, int],
 ) -> AnyModelConfig:
-
-    kind = spec.get("name", None)
-
-    if kind == "mlp":
+    if model_name == "mlp":
         return build_mlp_config(spec, output_heads)
-    if kind == "kan":
+    if model_name == "kan":
         return build_kan_config(spec, output_heads)
     if kind == "siren":
         return build_siren_config(spec, output_heads)
 
-    raise ValueError(f"Unknown model type: {kind}")
+    raise ValueError(f"Unknown model type: {model_name}")
 
 
 def build_pinn_config(
@@ -174,20 +177,6 @@ def build_gpinn_config(
     )
 
 
-def build_sls_config(
-    model: AnyModelConfig,
-    wave_functions: dict,
-) -> SLSConfig:
-    return SLSConfig(
-        model=model,
-        f=wave_functions.get("f", 0.0),
-        g=wave_functions.get("g", 0.0),
-        v0=wave_functions.get("v0", 0.0),
-        sigma0=wave_functions.get("sigma0", 0.0),
-        v_boundary=wave_functions.get("v_boundary", 0.0)
-    )
-
-
 def build_fosls_config(
     spec: DictConfig,
     model: AnyModelConfig,
@@ -204,23 +193,56 @@ def build_fosls_config(
     )
 
 
+def build_vpinn_config(
+    spec: DictConfig,
+    model: AnyModelConfig,
+    wave_functions: dict,
+    integration_data: DictConfig | None = None,
+) -> vPINNConfig:
+    domain_min = None
+    domain_max = None
+
+    if integration_data:
+        t_min = float(integration_data.get("t_min", 0.0))
+        t_max = float(integration_data.get("t_max", 1.0))
+        x_min = float(integration_data.get("x_min", 0.0))
+        x_max = float(integration_data.get("x_max", 1.0))
+        spatial_dim = int(integration_data.get("spatial_dim", 1))
+
+        domain_min = jnp.array([t_min] + [x_min] * spatial_dim)
+        domain_max = jnp.array([t_max] + [x_max] * spatial_dim)
+
+    return vPINNConfig(
+        model=model,
+        c=wave_functions.get("c", 1.0),
+        f=wave_functions.get("f", 0.0),
+        u0=wave_functions.get("u0", 0.0),
+        ut0=wave_functions.get("ut0", 0.0),
+        ic_weight=float(spec.get("ic_weight", 1.0)),
+        bc_weight=float(spec.get("bc_weight", 1.0)),
+        n_test_functions=int(spec.get("n_test_functions", 10)),
+        domain_min=domain_min,
+        domain_max=domain_max,
+    )
+
+
 def build_method_config(
+    method_name: str,
     data: DictConfig,
     model: AnyModelConfig,
-    wave_functions: dict
+    wave_functions: dict,
+    integration_data: DictConfig | None = None,
 ) -> AlgorithmConfig:
-    kind = data.get("name", None)
-
-    if kind == "pinn":
+    if method_name == "pinn":
         return build_pinn_config(data, model, wave_functions)
-    if kind == "gpinn":
+    if method_name == "gpinn":
         return build_gpinn_config(data, model, wave_functions)
-    if kind == "sls":
-        return build_sls_config(model, wave_functions)
-    if kind == "fosls":
+    if method_name == "vpinn":
+        return build_vpinn_config(data, model, wave_functions, integration_data)
+    if method_name == "fosls":
         return build_fosls_config(data, model, wave_functions)
 
-    raise ValueError(f"Unknown method type: {kind}")
+    raise ValueError(f"Unknown method type: {method_name}")
 
 
 def build_trainer_config(
@@ -232,34 +254,202 @@ def build_trainer_config(
 
     return TrainConfig(
         epochs=int(spec.get("epochs", 1)),
+        max_training_time=float(spec.get("max_training_time", 100.0)),
         learning_rate=lr,
         optimiser=str(spec.get("optimiser", "adamw")),
         seed=int(spec.get("seed", 42)),
         log_every=int(spec.get("log_every", 50)),
-        use_jit=bool(spec.get("use_jit", True))
+        use_jit=bool(spec.get("use_jit", True)),
+        convergence_check=bool(spec.get("convergence_check", False)),
+        convergence_window_size=int(spec.get("convergence_window_size", 1000)),
+        convergence_rel_tol=float(spec.get("convergence_rel_tol", 1e-3))
     )
 
 
-def make_first_order_model(model_apply, method_kind: str):
+def make_first_order_model(params, model_apply, method_kind: str):
     """
-    Wraps the standard model_apply to always return the first-order vector
-    representation: (v, sigma) using autodiff if it's a second-order model (e.g. PINN).
-    If it's already a first-order model (SLS/FOSLS), it leaves it alone.
+    Wraps the standard model_apply to always return the first-order vector (v, sigma)
     """
-    if method_kind in ["sls", "fosls"]:
+    if method_kind in ["fosls"]:
         # output is already dict with v and sigma
-        def wrapped_apply(params, t, x):
-            out = model_apply(params, jnp.array([t, x]))
-            return jnp.concatenate([out["v"], out["sigma"]], axis=-1)
-        return wrapped_apply
+        def fosls_apply(x: jnp.ndarray) -> jnp.ndarray:
+            out = model_apply(params, x)
+            return jnp.concatenate([jnp.atleast_1d(out["v"]), jnp.atleast_1d(out["sigma"])], axis=-1)
+        return fosls_apply
 
-    # For PINN/gPINN: model_apply returns dict with u, we need v = u_t, sigma = u_x
-    def u_fn(params, t, x):
-        return model_apply(params, jnp.array([t, x]))["u"][0]
+    # For other models model_apply returns dict with u, we need v = u_t, sigma = u_x
+    def u_fn(x):
+        return jnp.squeeze(model_apply(params, x)["u"])
 
-    def wrapped_apply(params, t, x):
-        v = jax.grad(u_fn, argnums=1)(params, t, x) # Differentiate t
-        sigma = jax.grad(u_fn, argnums=2)(params, t, x) # Differentiate x
-        return jnp.array([v, sigma])
+    def wrapped_apply(x):
+        grad = jax.grad(u_fn)(x)
+        v = grad[0]
+        sigma = grad[1:]
+        return jnp.concatenate([jnp.atleast_1d(v), jnp.atleast_1d(sigma)], axis=-1)
 
     return wrapped_apply
+
+
+def make_second_order_model(model_apply, method_kind: str, u0_fn=None):
+    """
+    Wraps the model_apply to always return the second-order variable (u).
+    """
+    if u0_fn is None:
+        u0_fn = lambda x: jnp.zeros_like(x)
+
+    if method_kind in ["fosls"]:
+        def fosls_apply(params, x_in):
+            x_in = jnp.asarray(x_in)
+            t = x_in[0]
+            x = jnp.atleast_1d(x_in[1])
+
+            def vector_field(time, u_val, args):
+                model_input = jnp.concatenate([jnp.atleast_1d(time), x])
+                out = model_apply(params, model_input)
+                return jnp.atleast_1d(out["v"])
+
+            # 1) Evaluate the initial condition at t=0 instead of t
+            u0 = u0_fn((jnp.zeros_like(jnp.atleast_1d(x[0])), x))
+
+            def return_initial(*_):
+                return u0
+
+            def run_integration(*_):
+                term = diffrax.ODETerm(vector_field)
+                solver = diffrax.Tsit5()
+                sol = diffrax.diffeqsolve(
+                    term,
+                    solver,
+                    t0=0.0,
+                    t1=t,
+                    dt0=None,
+                    stepsize_controller=diffrax.PIDController(rtol=1e-8, atol=1e-8),
+                    y0=u0,
+                    max_steps=1000
+                )
+                assert sol.ys is not None
+                return sol.ys[-1]
+
+            u_final = jax.lax.cond(t == 0.0, return_initial, run_integration)
+            return jnp.atleast_1d(u_final)
+
+        return fosls_apply
+
+    # For PINN/gPINN/vPINN: model_apply returns dict with u directly
+    def u_fn(params, x_in):
+        return jnp.squeeze(model_apply(params, x_in)["u"])
+
+    def wrapped_apply(params, x):
+        u_val = u_fn(params, x)
+        return jnp.atleast_1d(u_val)
+
+    return wrapped_apply
+
+
+def create_evaluation_domain(cfg: DictConfig) -> jnp.ndarray:
+    """Creates a deterministic space-time grid for evaluation."""
+    t_min = float(cfg.get("integration", {}).get("t_min", 0.0))
+    t_max = float(cfg.get("integration", {}).get("t_max", 1.0))
+    x_min = float(cfg.get("integration", {}).get("x_min", 0.0))
+    x_max = float(cfg.get("integration", {}).get("x_max", 1.0))
+
+    t_grid = jnp.linspace(t_min, t_max, cfg.plot_params.get("t_grid", 100))
+    x_grid = jnp.linspace(x_min, x_max, cfg.plot_params.get("x_grid", 100))
+
+    T, X = jnp.meshgrid(t_grid, x_grid, indexing='ij')
+
+    return jnp.stack([T.flatten(), X.flatten()], axis=-1)
+
+
+def calculate_fosls_norm(
+    model_apply_fn: Callable,
+    params,
+    method_kind: str,
+    f_fn: Callable,
+    g_fn: Callable,
+    v0_fn: Callable,
+    sigma0_fn: Callable,
+    integrator: NDCubeIntegration,
+    ic_weight: float = 1.0,
+) -> float:
+    """
+    Evaluates the FOSLS norm using the provided integrator.
+    """
+
+    first_order_fn = make_first_order_model(params, model_apply_fn, method_kind)
+
+    loss_obj = FOSLSLoss(
+        model=first_order_fn,
+        f=f_fn,
+        g=g_fn,
+        v0=v0_fn,
+        sigma0=sigma0_fn,
+        v_boundary=0.0,
+        ic_weight=ic_weight,
+    )
+
+    interior_loss, boundary_loss = integrator.integrate(
+        interior_func=loss_obj.loss_interior,
+        boundary_func=loss_obj.loss_boundary
+    )
+
+    return float(jnp.sum(interior_loss) + jnp.sum(boundary_loss))
+
+
+def calculate_dof(
+    input_dim: int,
+    model_cfg: AnyModelConfig
+) -> int:
+    if isinstance(model_cfg, MLPConfig):
+        '''
+        Assume:
+        input dimension: p
+        Output dimension: q
+        hidden layers: n
+        neurons in each hidden layer: k
+
+        input -> hidden
+        weights: pk
+        biases: k
+
+        hidden -> hidden
+        n - 1 transitions with each k^2 + k so (n - 1)(k^2 + k)
+
+        hidden -> output
+        weights: kq
+        biases: q
+
+        total:
+        pk + k + (n - 1)(k^2 + k) + kq + q
+        '''
+        p = input_dim
+        q = len(model_cfg.output_heads)
+        n = model_cfg.num_layers
+        k = model_cfg.hidden_dim
+
+        return p*k + k + (n - 1)*(k**2 + k) + k*q + q
+
+    if isinstance(model_cfg, KANConfig):
+        '''
+        Assume:
+        input dimension: p
+        Output dimension: q
+        hidden layers: n
+        neurons in each hidden layer: k
+        degree: d
+
+        Each function of degree d has (d + 1) coeffcients.
+
+        Number of edges is pk + (n - 1)k^2 + kq
+
+        total:
+        (d + 1)(pk + (n - 1)k^2 + kq) + kn + q
+        '''
+        p = input_dim
+        q = len(model_cfg.output_heads)
+        n = model_cfg.num_layers
+        k = model_cfg.hidden_dim
+        d = model_cfg.degree
+
+        return (d + 1)*(p*k + (n - 1)*k**2 + k*q) + k*n + q
+

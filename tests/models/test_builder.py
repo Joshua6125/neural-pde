@@ -18,9 +18,9 @@ _require_jaxkan()
 
 from src.models import (
     MLP,
-    KANModel,
-    MLPModelConfig,
-    KANModelConfig,
+    KAN,
+    MLPConfig,
+    KANConfig,
     build_model,
 )
 
@@ -28,41 +28,41 @@ from src.models import (
 pytestmark = pytest.mark.models
 
 
-class TestMLPModelConfigValidation:
-    """Test MLPModelConfig.validate behaviour."""
+class TestMLPConfigValidation:
+    """Test MLPConfig.validate behaviour."""
 
     def test_validate_succeeds_for_valid_config(self):
-        """A valid MLPModelConfig validates without raising."""
-        cfg = MLPModelConfig(hidden_dim=32, num_layers=2, output_heads={"u": 1})
+        """A valid MLPConfig validates without raising."""
+        cfg = MLPConfig(hidden_dim=32, num_layers=2, output_heads={"u": 1})
         cfg.validate()
 
     def test_validate_raises_for_non_positive_hidden_dim(self):
         """hidden_dim <= 0 raises AssertionError."""
-        cfg = MLPModelConfig(hidden_dim=0, num_layers=2)
+        cfg = MLPConfig(hidden_dim=0, num_layers=2)
         with pytest.raises(AssertionError, match="hidden_dim must be strictly positive"):
             cfg.validate()
 
     def test_validate_raises_for_non_positive_num_layers(self):
         """num_layers <= 0 raises AssertionError."""
-        cfg = MLPModelConfig(hidden_dim=8, num_layers=0)
+        cfg = MLPConfig(hidden_dim=8, num_layers=0)
         with pytest.raises(AssertionError, match="num_layers must be strictly positive"):
             cfg.validate()
 
     def test_validate_raises_for_empty_output_heads(self):
         """Empty output_heads raises AssertionError."""
-        cfg = MLPModelConfig(hidden_dim=8, num_layers=1, output_heads={})
+        cfg = MLPConfig(hidden_dim=8, num_layers=1, output_heads={})
         with pytest.raises(AssertionError, match="output_heads"):
             cfg.validate()
 
     def test_validate_raises_for_empty_head_name(self):
         """Empty output head name raises AssertionError."""
-        cfg = MLPModelConfig(hidden_dim=8, num_layers=1, output_heads={"": 1})
+        cfg = MLPConfig(hidden_dim=8, num_layers=1, output_heads={"": 1})
         with pytest.raises(AssertionError, match="output head names must be non-empty"):
             cfg.validate()
 
     def test_validate_raises_for_non_positive_head_dim(self):
         """Output head dim <= 0 raises AssertionError."""
-        cfg = MLPModelConfig(hidden_dim=8, num_layers=1, output_heads={"u": 0})
+        cfg = MLPConfig(hidden_dim=8, num_layers=1, output_heads={"u": 0})
         with pytest.raises(
             AssertionError,
             match="each output head dimension must be strictly positive",
@@ -71,17 +71,17 @@ class TestMLPModelConfigValidation:
 
     def test_config_is_frozen(self):
         """Frozen dataclass prevents mutation of fields."""
-        cfg = MLPModelConfig()
+        cfg = MLPConfig()
         with pytest.raises((AttributeError, Exception)):
             cfg.hidden_dim = 99  # type: ignore[misc]
 
 
-class TestKANModelConfigValidation:
-    """Test KANModelConfig.validate behaviour."""
+class TestKANConfigValidation:
+    """Test KANConfig.validate behaviour."""
 
     def test_validate_succeeds_for_valid_config(self):
-        """A valid KANModelConfig validates without raising."""
-        cfg = KANModelConfig(
+        """A valid KANConfig validates without raising."""
+        cfg = KANConfig(
             hidden_dim=32,
             num_layers=2,
             output_heads={"u": 1},
@@ -94,37 +94,37 @@ class TestKANModelConfigValidation:
 
     def test_validate_raises_for_non_positive_hidden_dim(self):
         """hidden_dim <= 0 raises AssertionError."""
-        cfg = KANModelConfig(hidden_dim=0)
+        cfg = KANConfig(hidden_dim=0)
         with pytest.raises(AssertionError, match="hidden_dim must be strictly positive"):
             cfg.validate()
 
     def test_validate_raises_for_non_positive_num_layers(self):
         """num_layers <= 0 raises AssertionError."""
-        cfg = KANModelConfig(num_layers=0)
+        cfg = KANConfig(num_layers=0)
         with pytest.raises(AssertionError, match="num_layers must be strictly positive"):
             cfg.validate()
 
     def test_validate_raises_for_non_positive_input_dim(self):
         """input_dim <= 0 raises AssertionError."""
-        cfg = KANModelConfig(input_dim=0)
+        cfg = KANConfig(input_dim=0)
         with pytest.raises(AssertionError, match="input_dim must be strictly positive"):
             cfg.validate()
 
     def test_validate_raises_for_non_positive_grid_size(self):
         """grid_size <= 0 raises AssertionError."""
-        cfg = KANModelConfig(grid_size=0)
+        cfg = KANConfig(grid_size=0)
         with pytest.raises(AssertionError, match="grid_size must be strictly positive"):
             cfg.validate()
 
     def test_validate_raises_for_non_positive_degree(self):
         """degree <= 0 raises AssertionError."""
-        cfg = KANModelConfig(degree=0)
+        cfg = KANConfig(degree=0)
         with pytest.raises(AssertionError, match="degree must be strictly positive"):
             cfg.validate()
 
     def test_config_is_frozen(self):
         """Frozen dataclass prevents mutation of fields."""
-        cfg = KANModelConfig()
+        cfg = KANConfig()
         with pytest.raises((AttributeError, Exception)):
             cfg.grid_size = 99  # type: ignore[misc]
 
@@ -133,20 +133,20 @@ class TestBuildModel:
     """Test build_model dispatch and error handling."""
 
     def test_build_model_returns_mlp_for_mlp_config(self):
-        """MLPModelConfig dispatches to MLP."""
-        cfg = MLPModelConfig(hidden_dim=16, num_layers=2, output_heads={"u": 1})
+        """MLPConfig dispatches to MLP."""
+        cfg = MLPConfig(hidden_dim=16, num_layers=2, output_heads={"u": 1})
         model = build_model(cfg)
         assert isinstance(model._module, MLP)
 
     def test_build_model_returns_kan_for_kan_config(self):
-        """KANModelConfig dispatches to KANModel."""
-        cfg = KANModelConfig(hidden_dim=16, num_layers=2, output_heads={"u": 1}, input_dim=1)
+        """KANConfig dispatches to KAN."""
+        cfg = KANConfig(hidden_dim=16, num_layers=2, output_heads={"u": 1}, input_dim=1)
         model = build_model(cfg)
-        assert isinstance(model._module, KANModel)
+        assert isinstance(model._module, KAN)
 
     def test_build_model_validates_config_before_building(self):
         """Invalid config fields raise via validate during build_model."""
-        cfg = MLPModelConfig(hidden_dim=0)
+        cfg = MLPConfig(hidden_dim=0)
         with pytest.raises(AssertionError, match="hidden_dim must be strictly positive"):
             build_model(cfg)
 
@@ -160,7 +160,7 @@ class TestBuildModel:
             build_model(UnknownConfig())  # type: ignore[arg-type]
 
     def test_build_model_kan_custom_parameters(self):
-        cfg = KANModelConfig(hidden_dim=16, num_layers=2, output_heads={"u": 1}, input_dim=4)
+        cfg = KANConfig(hidden_dim=16, num_layers=2, output_heads={"u": 1}, input_dim=4)
         model = build_model(cfg)
         assert model._module.hidden_dim == 16
         assert model._module.num_layers == 2

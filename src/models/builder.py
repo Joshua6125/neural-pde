@@ -3,7 +3,7 @@ from typing import Literal, TypeAlias, Mapping, Protocol, Any, cast
 from typing_extensions import runtime_checkable
 
 from .mlp import MLP
-from .kan import KANModel
+from .kan import KAN
 from .siren import SIREN
 
 import jax
@@ -11,7 +11,7 @@ import jax.numpy as jnp
 import flax.linen as nn
 
 
-# AnyBuiltModel: TypeAlias = MLP | KANModel
+# AnyBuiltModel: TypeAlias = MLP | KAN
 
 
 @runtime_checkable
@@ -48,7 +48,7 @@ class BaseModelConfig:
 
 
 @dataclass(frozen=True)
-class MLPModelConfig(BaseModelConfig):
+class MLPConfig(BaseModelConfig):
     """Configuration for the built-in fully connected model."""
 
     kind: Literal["mlp"] = "mlp"
@@ -62,9 +62,9 @@ class MLPModelConfig(BaseModelConfig):
 
 
 @dataclass(frozen=True)
-class KANModelConfig(BaseModelConfig):
+class KANConfig(BaseModelConfig):
     """Configuration for KAN model."""
-
+    # TODO: Should look at this. Should probably fix it with fourier rather than chebyshev
     kind: Literal["kan"] = "kan"
     hidden_dim: int = 64
     num_layers: int = 4
@@ -106,12 +106,12 @@ class SIRENModelConfig(BaseModelConfig):
         assert self.w0_hidden > 0, "w0_hidden must be strictly positive"
 
 
-AnyModelConfig: TypeAlias = MLPModelConfig | KANModelConfig | SIRENModelConfig
+AnyModelConfig: TypeAlias = MLPConfig | KANConfig | SIRENModelConfig
 
 
 def build_model(cfg: AnyModelConfig) -> BuiltModelAdapter:
     """Build model from declarative model config."""
-    if isinstance(cfg, MLPModelConfig):
+    if isinstance(cfg, MLPConfig):
         cfg.validate()
         return BuiltModelAdapter(
             MLP(
@@ -121,10 +121,10 @@ def build_model(cfg: AnyModelConfig) -> BuiltModelAdapter:
             )
         )
 
-    if isinstance(cfg, KANModelConfig):
+    if isinstance(cfg, KANConfig):
         cfg.validate()
         return BuiltModelAdapter(
-            KANModel(
+            KAN(
                 hidden_dim=cfg.hidden_dim,
                 num_layers=cfg.num_layers,
                 output_heads=cfg.output_heads,

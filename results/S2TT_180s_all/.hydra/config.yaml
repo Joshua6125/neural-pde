@@ -1,0 +1,90 @@
+script_name: gaussian_pulse
+generate_data: true
+make_plots: true
+iterations: 3
+problem_params:
+  T: 1.0
+  c: 1.0
+training:
+  epochs: 100000000
+  max_training_time: 180.0
+  learning_rate:
+    kind: exponential_decay
+    init_value: 0.0001
+    transition_steps: 1000
+    decay_rate: 0.95
+    staircase: true
+  seed: 42
+  log_every: 2000
+  optimiser: adamw
+integration:
+  kind: monte_carlo
+  spatial_dim: 1
+  x_min: 0.0
+  x_max: 1.0
+  t_min: 0.0
+  t_max: 1.0
+  monte_carlo:
+    interior_samples: 160000
+    boundary_samples: 100000
+callback_integration:
+  kind: quadrature
+  spatial_dim: 1
+  x_min: 0.0
+  x_max: 1.0
+  t_min: 0.0
+  t_max: 1.0
+  quadrature:
+    degree: 50
+combinations:
+- - pinn
+  - mlp
+- - fosls
+  - mlp
+- - vpinn
+  - mlp
+- - gpinn
+  - mlp
+models:
+  mlp:
+    hidden_dim: 64
+    num_layers: 5
+  kan:
+    hidden_dim: 64
+    num_layers: 5
+    input_dim: 2
+methods:
+  pinn:
+    output_heads:
+      u: 1
+    ic_weight: 1.0
+    bc_weight: 100.0
+  gpinn:
+    output_heads:
+      u: 1
+    ic_weight: 1.0
+    bc_weight: 10.0
+    residual_grad_weight: 0.01
+  fosls:
+    output_heads:
+      v: 1
+      sigma: 1
+    ic_weight: 1.0
+  vpinn:
+    output_heads:
+      u: 1
+    ic_weight: 1.0
+    bc_weight: 10.0
+    n_test_functions: 400
+plot_params:
+  t_grid: 100
+  x_grid: 100
+plot_fosls_loss:
+  show_error: true
+  error_low: 0
+  error_high: 100
+  size_windowed_average: 100
+plot_specific_t:
+  show_error: true
+  error_low: 0
+  error_high: 100

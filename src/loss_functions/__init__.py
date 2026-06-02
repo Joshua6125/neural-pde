@@ -11,14 +11,14 @@ from typing import TypeAlias
 from .base import AlgorithmConfig, Loss
 from .fosls import FOSLS, FOSLSConfig, FOSLSLoss
 from .pinn import PINN, PINNConfig, PINNLoss
-from .sls import SLS, SLSConfig, SLSLoss
 from .gpinn import gPINN, gPINNConfig, gPINNLoss
+from .vpinn import vPINN, vPINNConfig, vPINNLoss
 
 from ..models import BuiltModelProtocol
 
 
-AlgorithmConfigType: TypeAlias = PINNConfig | SLSConfig | gPINNConfig | FOSLSConfig
-LossAlgorithm: TypeAlias = PINN | SLS | gPINN | FOSLS
+AlgorithmConfigType: TypeAlias = PINNConfig | gPINNConfig | FOSLSConfig | vPINNConfig
+LossAlgorithm: TypeAlias = PINN | gPINN | FOSLS | vPINN
 
 
 def build_algorithm(config: AlgorithmConfig, model: BuiltModelProtocol) -> LossAlgorithm:
@@ -30,7 +30,7 @@ def build_algorithm(config: AlgorithmConfig, model: BuiltModelProtocol) -> LossA
     Parameters
     ----------
     config : AlgorithmConfig
-        Algorithm configuration (PINNConfig, SLSConfig, gPINNConfig)
+        Algorithm configuration (PINNConfig, gPINNConfig)
     model : BuiltModelProtocol
         Already-built neural network model from build_model()
 
@@ -46,12 +46,12 @@ def build_algorithm(config: AlgorithmConfig, model: BuiltModelProtocol) -> LossA
     """
     if isinstance(config, PINNConfig):
         return PINN(model=model, config=config)
-    elif isinstance(config, SLSConfig):
-        return SLS(model=model, config=config)
     elif isinstance(config, gPINNConfig):
         return gPINN(model=model, config=config)
     elif isinstance(config, FOSLSConfig):
         return FOSLS(model=model, config=config)
+    elif isinstance(config, vPINNConfig):
+        return vPINN(model=model, config=config)
     else:
         raise ValueError(f"Unknown algorithm config type: {type(config).__name__}")
 
@@ -64,10 +64,6 @@ __all__ = [
     "PINN",
     "PINNConfig",
     "PINNLoss",
-    # SLS
-    "SLS",
-    "SLSConfig",
-    "SLSLoss",
     # gPINN
     "gPINN",
     "gPINNConfig",
@@ -76,6 +72,10 @@ __all__ = [
     "FOSLS",
     "FOSLSConfig",
     "FOSLSLoss",
+    # vPINN
+    "vPINN",
+    "vPINNConfig",
+    "vPINNLoss",
     # Factory
     "build_algorithm",
     # Type alias

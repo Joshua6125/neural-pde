@@ -1,23 +1,23 @@
 from .mlp import MLP
-from .kan import KANModel
+from .kan import KAN
 from .siren import SIREN
 from .builder import (
     BuiltModelAdapter,
     BuiltModelProtocol,
     AnyModelConfig,
-    MLPModelConfig,
-    KANModelConfig,
-    SIRENModelConfig,
+    MLPConfig,
+    KANConfig,
+    SIRENConfig,
     build_model,
 )
 
 __all__ = [
     "MLP",
-    "KANModel",
+    "KAN",
     "SIREN",
-    "MLPModelConfig",
-    "KANModelConfig",
-    "SIRENModelConfig",
+    "MLPConfig",
+    "KANConfig",
+    "SIRENConfig",
     "AnyModelConfig",
     "BuiltModelProtocol",
     "BuiltModelAdapter",
