@@ -1,0 +1,117 @@
+# ----------------
+# Ensure the following lines are always part of the config
+# ----------------
+script_name: gaussian_bump
+generate_data: true
+make_plots: true
+
+# ----------------
+# Problem parameters
+# ----------------
+iterations: 2
+
+problem_params:
+  T: 1.0
+  c: 1.0
+
+training:
+  epochs: 100000
+  max_training_time: 60.0
+  learning_rate:
+    kind: exponential_decay
+    init_value: 1.0e-4
+    transition_steps: 1000
+    decay_rate: 0.95
+    staircase: true
+  seed: 42
+  log_every: 200
+  optimiser: "adamw"
+  convergence_check: False
+
+integration:
+  kind: "monte_carlo"
+  spatial_dim: 1
+  x_min: 0.0
+  x_max: 1.0
+  t_min: 0.0
+  t_max: 1.0
+  monte_carlo:
+    interior_samples: 160000
+    boundary_samples: 80000
+
+callback_integration:
+  kind: "quadrature"
+  spatial_dim: 1
+  x_min: 0.0
+  x_max: 1.0
+  t_min: 0.0
+  t_max: 1.0
+  quadrature:
+    degree: 50
+
+combinations: [
+  # Should be [method, model]
+  ["pinn", "mlp"],
+  ["pinn", "siren"],
+  ["fosls", "mlp"],
+  ["fosls", "kan"],
+  ["fosls", "siren"],
+  # ["gpinn", "mlp"]
+]
+
+models:
+  mlp:
+    hidden_dim: 64
+    num_layers: 5
+  kan:
+    hidden_dim: 64
+    num_layers: 5
+    input_dim: 2
+  siren:
+    hidden_dim: 64
+    num_layers: 5
+    w0: 30.0
+    w0_hidden: 1.0
+
+methods:
+  pinn:
+    output_heads:
+      u: 1
+    ic_weight: 1.0
+    bc_weight: 100.0
+  gpinn:
+    output_heads:
+      u: 1
+    ic_weight: 1.0
+    bc_weight: 10.0
+    residual_grad_weight: 1e-2
+  fosls:
+    output_heads:
+      v: 1
+      sigma: 1
+    ic_weight: 1.0
+  vpinn:
+    output_heads:
+      u: 1
+    ic_weight: 1.0
+    bc_weight: 10.0
+    n_test_functions: 400
+
+# ----------------
+# Data analysis parameters
+# ----------------
+
+plot_params:
+  t_grid: 100
+  x_grid: 100
+
+plot_fosls_loss:
+  show_error: True
+  error_low: 0 # percent
+  error_high: 100 # percent
+  size_windowed_average: 10000 # In epochs
+
+plot_specific_t:
+  show_error: False
+  error_low: 0 # percent
+  error_high: 100 # percent
