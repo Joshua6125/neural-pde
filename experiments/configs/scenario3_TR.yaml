@@ -8,15 +8,15 @@ make_plots: true
 # ----------------
 # Problem parameters
 # ----------------
-iterations: 3
+iterations: 10
 
 problem_params:
   T: 1.0
   c: 1.0
 
 training:
-  epochs: 100000000
-  max_training_time: 180.0
+  epochs: 500000
+  max_training_time: 900.0
   learning_rate:
     kind: exponential_decay
     init_value: 1.0e-4
@@ -26,6 +26,7 @@ training:
   seed: 42
   log_every: 2000
   optimiser: "adamw"
+  convergence_check: False
 
 integration:
   kind: "monte_carlo"
@@ -36,7 +37,7 @@ integration:
   t_max: 1.0
   monte_carlo:
     interior_samples: 160000
-    boundary_samples: 100000
+    boundary_samples: 80000
 
 callback_integration:
   kind: "quadrature"
@@ -53,7 +54,7 @@ combinations: [
   ["pinn", "mlp"],
   ["fosls", "mlp"],
   ["vpinn", "mlp"],
-  ["gpinn", "mlp"]
+  # ["gpinn", "mlp"]
 ]
 
 models:
