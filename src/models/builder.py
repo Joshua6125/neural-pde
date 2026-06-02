@@ -4,7 +4,7 @@ from typing_extensions import runtime_checkable
 
 from .mlp import MLP
 from .kan import KAN
-from .siren import SIREN
+from .ffmlp import FFMLP
 
 import jax
 import jax.numpy as jnp
@@ -86,27 +86,25 @@ class KANConfig(BaseModelConfig):
 
 
 @dataclass(frozen=True)
-class SIRENConfig(BaseModelConfig):
-    """Configuration for a SIREN model (sinusoidal activations).
+class FFMLPConfig(BaseModelConfig):
+    """Configuration for a Fourier Feature MLP.
 
-    Implements the configuration parameters used by the SIREN module.
+    Implements the configuration parameters used by the FFMLP module.
     """
 
-    kind: Literal["siren"] = "siren"
+    kind: Literal["ffmlp"] = "ffmlp"
     hidden_dim: int = 64
     num_layers: int = 4
-    w0: float = 30.0
-    w0_hidden: float = 1.0
+    num_fourier_features: int = 64
+    fourier_scale: float = 5.0
 
     def validate(self) -> None:
         super().validate()
         assert self.hidden_dim > 0, "hidden_dim must be strictly positive"
         assert self.num_layers > 0, "num_layers must be strictly positive"
-        assert self.w0 > 0, "w0 must be strictly positive"
-        assert self.w0_hidden > 0, "w0_hidden must be strictly positive"
 
 
-AnyModelConfig: TypeAlias = MLPConfig | KANConfig | SIRENConfig
+AnyModelConfig: TypeAlias = MLPConfig | KANConfig | FFMLPConfig
 
 
 def build_model(cfg: AnyModelConfig) -> BuiltModelAdapter:
@@ -136,15 +134,15 @@ def build_model(cfg: AnyModelConfig) -> BuiltModelAdapter:
             )
         )
 
-    if isinstance(cfg, SIRENConfig):
+    if isinstance(cfg, FFMLPConfig):
         cfg.validate()
         return BuiltModelAdapter(
-            SIREN(
+            FFMLP(
                 hidden_dim=cfg.hidden_dim,
                 num_layers=cfg.num_layers,
                 output_heads=cfg.output_heads,
-                w0=cfg.w0,
-                w0_hidden=cfg.w0_hidden,
+                num_fourier_features=cfg.num_fourier_features,
+                fourier_scale=cfg.fourier_scale
             )
         )
 

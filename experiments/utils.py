@@ -2,7 +2,7 @@ from typing import Callable, cast
 from omegaconf import DictConfig
 
 from src.loss_functions import PINNConfig, gPINNConfig, vPINNConfig, FOSLSConfig, AlgorithmConfig, FOSLSLoss
-from src.models import MLPConfig, KANConfig, SIRENConfig, AnyModelConfig
+from src.models import MLPConfig, KANConfig, FFMLPConfig, AnyModelConfig
 from src.train import TrainConfig
 from src.integration import MonteCarloConfig, QuadratureConfig, AnyIntegrationConfig, NDCubeIntegration
 
@@ -113,19 +113,19 @@ def build_kan_config(
         input_dim=int(spec.get("input_dim", 1)),
     )
 
-def build_siren_config(
+def build_ffmlp_config(
     spec: DictConfig,
     output_heads: dict[str, int],
-) -> SIRENConfig:
+) -> FFMLPConfig:
     if not output_heads:
         raise ValueError("Model must have output heads.")
 
-    return SIRENConfig(
+    return FFMLPConfig(
         output_heads=output_heads,
         hidden_dim=int(spec.get("hidden_dim", 1)),
         num_layers=int(spec.get("num_layers", 1)),
-        w0=float(spec.get("w0", 30.0)),
-        w0_hidden=float(spec.get("w0_hidden", 1.0)),
+        num_fourier_features=int(spec.get("num_fourier_features", 64)),
+        fourier_scale=float(spec.get("fourier_scale", 5.0)),
     )
 
 
@@ -138,8 +138,8 @@ def build_model_config(
         return build_mlp_config(spec, output_heads)
     if model_name == "kan":
         return build_kan_config(spec, output_heads)
-    if model_name == "siren":
-        return build_siren_config(spec, output_heads)
+    if model_name == "ffmlp":
+        return build_ffmlp_config(spec, output_heads)
 
     raise ValueError(f"Unknown model type: {model_name}")
 

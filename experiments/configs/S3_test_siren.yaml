@@ -8,7 +8,7 @@ make_plots: true
 # ----------------
 # Problem parameters
 # ----------------
-iterations: 2
+iterations: 1
 
 problem_params:
   T: 1.0
@@ -16,7 +16,7 @@ problem_params:
 
 training:
   epochs: 100000
-  max_training_time: 60.0
+  max_training_time: 30.0
   learning_rate:
     kind: exponential_decay
     init_value: 1.0e-4
