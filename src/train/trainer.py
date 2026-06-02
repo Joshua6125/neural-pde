@@ -197,7 +197,7 @@ class Trainer:
             )
 
             should_log = self.train_cfg.log_every > 0 and epoch % self.train_cfg.log_every == 0
-
+            # print(epoch, should_log)
             if should_log:
                 metrics = TrainStepMetrics(
                     step=epoch,
@@ -207,12 +207,11 @@ class Trainer:
                     training_time=total_training_time,
                 )
 
-                if should_log:
-                    print(f"Training progress: {epoch}/{self.train_cfg.epochs},",
-                          f"{total_training_time:.2f}/{self.train_cfg.max_training_time:.2f}s",
-                          f"({time.time() - start_time:.2f}s total elapsed)")
+                print(f"Training progress: {epoch}/{self.train_cfg.epochs},",
+                        f"{total_training_time:.2f}/{self.train_cfg.max_training_time:.2f}s",
+                        f"({time.time() - start_time:.2f}s total elapsed)")
 
-                    history.append(metrics)
+                history.append(metrics)
 
                 if callback is not None:
                     self._invoke_callback(callback, metrics, previous_state)
