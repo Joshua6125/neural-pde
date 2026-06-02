@@ -23,7 +23,7 @@ training:
     transition_steps: 1000
     decay_rate: 0.95
     staircase: true
-  log_every: 500
+  log_every: 200
   seed: 42
   optimiser: "adamw"
   convergence_check: False
