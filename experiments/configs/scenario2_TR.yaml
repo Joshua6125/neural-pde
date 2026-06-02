@@ -24,7 +24,7 @@ training:
     decay_rate: 0.95
     staircase: true
   seed: 42
-  log_every: 2000
+  log_every: 500
   optimiser: "adamw"
   convergence_check: False
 
@@ -102,7 +102,7 @@ plot_fosls_loss:
   show_error: True
   error_low: 0 # percent
   error_high: 100 # percent
-  size_windowed_average: 100 # In epochs
+  size_windowed_average: 10000 # In epochs
 
 plot_specific_t:
   show_error: False
