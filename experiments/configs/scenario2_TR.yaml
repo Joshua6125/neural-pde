@@ -15,7 +15,7 @@ problem_params:
   c: 1.0
 
 training:
-  epochs: 500000
+  epochs: 200000
   max_training_time: 900.0
   learning_rate:
     kind: exponential_decay
@@ -54,17 +54,12 @@ combinations: [
   ["pinn", "mlp"],
   ["fosls", "mlp"],
   ["vpinn", "mlp"],
-  # ["gpinn", "mlp"]
 ]
 
 models:
   mlp:
     hidden_dim: 64
     num_layers: 5
-  kan:
-    hidden_dim: 64
-    num_layers: 5
-    input_dim: 2
 
 methods:
   pinn:
@@ -72,12 +67,6 @@ methods:
       u: 1
     ic_weight: 1.0
     bc_weight: 100.0
-  gpinn:
-    output_heads:
-      u: 1
-    ic_weight: 1.0
-    bc_weight: 10.0
-    residual_grad_weight: 1e-2
   fosls:
     output_heads:
       v: 1
