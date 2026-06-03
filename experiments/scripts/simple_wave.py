@@ -8,6 +8,8 @@ from utils import (
     build_integration_config,
     build_trainer_config,
     calculate_fosls_norm,
+    calculate_true_l2_error,
+    calculate_true_v_error,
     make_second_order_model
 )
 from src.trainer import TrainState, TrainStepMetrics, run_training
@@ -24,9 +26,8 @@ import pickle
 import dataclasses
 import jax
 
-
 class ProblemDefinition:
-    """Analytical problem definition of a simple wave equation."""
+    """Analytical problem definition of the wave equation from Experiment 5.1."""
 
     def __init__(self, cfg: DictConfig):
         """
@@ -35,43 +36,50 @@ class ProblemDefinition:
         cfg : DictConfig
             The overridden experiment configuration.
         """
-
+        # Experiment 5.1 uses the unit cube Q = (0,1) x (0,1)
         self.x_min = float(cfg.integration.get("x_min", 0.0))
         self.x_max = float(cfg.integration.get("x_max", 1.0))
         self.T = float(cfg.problem_params.get("T", 1.0))
-        self.c = float(cfg.problem_params.get("c", 1.0))
         self.cfg = cfg
 
     def solution_u(self, t: jnp.ndarray, x: jnp.ndarray) -> jnp.ndarray:
-        """Compute the manufactured analytical solution."""
+        """Compute the manufactured analytical solution u(t, x) = 0.5 * t^2 * sin(pi * x)."""
         t_array = jnp.asarray(t)
         x_array = jnp.asarray(x)
 
-        t_term = jnp.sin(jnp.pi * t_array / self.T)
-        x_term = jnp.sin(jnp.pi * (x_array - self.x_min) / (self.x_max - self.x_min))
-        result = t_term * x_term
+        # Scaling spatial coordinates dynamically to the domain limits
+        x_scaled = (x_array - self.x_min) / (self.x_max - self.x_min)
 
-        return jnp.where(jnp.isclose(t_array / self.T, 1.0, atol=1e-10), 0.0, result)
+        return 0.5 * (t_array ** 2) * jnp.sin(jnp.pi * x_scaled)
 
     def solution_v(self, t: jnp.ndarray, x: jnp.ndarray) -> jnp.ndarray:
-        """Time derivative of the manufactured analytical solution."""
-        return (
-            jnp.pi / self.T
-        ) * jnp.cos(jnp.pi * t / self.T) * jnp.sin(jnp.pi * (x - self.x_min) / (self.x_max - self.x_min))
+        """Time derivative of the analytical solution (v = dt u)."""
+        t_array = jnp.asarray(t)
+        x_array = jnp.asarray(x)
+        x_scaled = (x_array - self.x_min) / (self.x_max - self.x_min)
+
+        return t_array * jnp.sin(jnp.pi * x_scaled)
 
     def solution_sigma(self, t: jnp.ndarray, x: jnp.ndarray) -> jnp.ndarray:
-        """Spatial derivative of the manufactured analytical solution."""
-        return (
-            jnp.sin(jnp.pi * t / self.T)
-            * jnp.cos(jnp.pi * (x - self.x_min) / (self.x_max - self.x_min))
-            * (jnp.pi / (self.x_max - self.x_min))
-        )
+        """Spatial derivative of the analytical solution (sigma = dx u)."""
+        t_array = jnp.asarray(t)
+        x_array = jnp.asarray(x)
+        x_scaled = (x_array - self.x_min) / (self.x_max - self.x_min)
+        dx_factor = jnp.pi / (self.x_max - self.x_min)
+
+        return 0.5 * (t_array ** 2) * jnp.cos(jnp.pi * x_scaled) * dx_factor
 
     def source_f(self, t: jnp.ndarray, x: jnp.ndarray) -> jnp.ndarray:
-        """Closed-form source term for the manufactured PDE."""
-        u = self.solution_u(t, x)
-        coeff = -jnp.pi**2 / self.T**2 + self.c**2 * jnp.pi**2 / (self.x_max - self.x_min)**2
-        return coeff * u
+        """Closed-form source term (f = dtt u - dxx u)."""
+        t_array = jnp.asarray(t)
+        x_array = jnp.asarray(x)
+        x_scaled = (x_array - self.x_min) / (self.x_max - self.x_min)
+        dx_factor = jnp.pi / (self.x_max - self.x_min)
+
+        dtt_u = jnp.sin(jnp.pi * x_scaled)
+        dxx_u = -0.5 * (t_array ** 2) * jnp.sin(jnp.pi * x_scaled) * (dx_factor ** 2)
+
+        return dtt_u - dxx_u
 
     def source_g(self, t: jnp.ndarray, x: jnp.ndarray) -> jnp.ndarray:
         """Zero vector source used by the SLS formulation."""
@@ -193,13 +201,35 @@ class RunTraining:
             print(f"[{i}/{total_runs}] Training configuration: Model={model.kind}, Method={method.kind}")
 
             built_model = build_model(model)
-            current_run_evals = []
+            current_run_evals = {
+                "fosls_loss": [],
+                "true_v_error": [],
+                "true_l2_error": []
+            }
 
             def eval_callback(metrics: TrainStepMetrics, state: TrainState):
+                true_l2_error = calculate_true_l2_error(
+                    model_apply_fn=built_model.apply,
+                    params=state.params,
+                    method_kind=method.kind,
+                    v_sol=self.problem.solution_v,
+                    sigma_sol=self.problem.solution_sigma,
+                    integrator=integrator
+                )
+
+                true_v_error = calculate_true_v_error(
+                    model_apply_fn=built_model.apply,
+                    params=state.params,
+                    method_kind=method.kind,
+                    v_sol=self.problem.solution_v,
+                    sigma_sol=self.problem.solution_sigma,
+                    integrator=integrator
+                )
+
                 if method.kind == "fosls":
-                    eval_data = metrics.total_loss
+                    total_loss = metrics.total_loss
                 else:
-                    eval_data = calculate_fosls_norm(
+                    total_loss = calculate_fosls_norm(
                         model_apply_fn=built_model.apply,
                         params=state.params,
                         method_kind=method.kind,
@@ -209,7 +239,10 @@ class RunTraining:
                         sigma0_fn=self.sigma0,
                         integrator=integrator
                     )
-                current_run_evals.append(eval_data)
+
+                current_run_evals["fosls_loss"].append(total_loss)
+                current_run_evals["true_l2_error"].append(true_l2_error)
+                current_run_evals["true_v_error"].append(true_v_error)
 
             start_time = time.time()
             try:
@@ -234,7 +267,6 @@ class RunTraining:
             with open(os.path.join(evals_dir, f"{name}_iter{iteration}.pkl"), "wb") as f:
                 pickle.dump(current_run_evals, f)
 
-            final_loss = logged_metrics[-1].total_loss if logged_metrics else "N/A"
             print(f"  -> Success! Time: {elapsed_time:.1f}s\n")
 
 
@@ -273,7 +305,7 @@ class DataProcessor:
         else:
             print(f"Warning: Evals directory not found at {self.evals_dir}")
 
-    def plot_fosls_loss(self, ylabel: str, title: str, filename: str, cutoff_time: float|None=None):
+    def plot_vs_time(self, ylabel: str, title: str, filename: str, y_type: str, cutoff_time: float|None=None):
         import matplotlib.pyplot as plt
 
         if not self.evals_data:
@@ -283,14 +315,16 @@ class DataProcessor:
             print(f"No metrics data found. Cannot plot {title}.")
             return
 
-        plot_config = self.problem.cfg.get("plot_fosls_loss", {})
+        plot_config = self.problem.cfg.get(f"plot_{y_type}", {})
         show_error = bool(plot_config.get("show_error", True))
         error_low = max(0, min(100, int(plot_config.get("error_low", 0))))
         error_high = max(0, min(100, int(plot_config.get("error_high", 100))))
         grid_resolution = max(2, int(plot_config.get("grid_resolution", 1000)))
 
         plt.figure(figsize=(10, 6))
-        for name, all_vals in self.evals_data.items():
+        for name, evals in self.evals_data.items():
+            all_vals = [evals[k][y_type] for k in range(len(evals))]
+
             metrics = self.metrics_data[name]
 
             all_training_times = [[m.training_time for m in run_metrics] for run_metrics in metrics]
@@ -307,7 +341,7 @@ class DataProcessor:
             for run_times, run_vals in zip(all_training_times, all_vals):
                 run_times_arr = np.array(run_times)
                 run_vals_arr = np.array(run_vals)
-                
+
                 if cutoff_time:
                     valid_run_times = run_times_arr < cutoff_time
                     run_times_arr = np.ma.masked_where(valid_run_times, run_times_arr)
@@ -414,6 +448,8 @@ class DataProcessor:
             print("No predictions found. Cannot plot specific times.")
             return
 
+        plt.plot(x_vals, self.problem.solution_u(jnp.atleast_1d(time), x_vals))
+
         plt.xlabel("x")
         plt.ylabel("u(x)")
         plt.title(f"Error of predicted displacement at t={time}s")
@@ -460,11 +496,26 @@ def run(
     if make_plots:
         print("[PHASE 2] Processing Data and Generating Plots...")
         processor = DataProcessor(problem, output_dir)
-        processor.plot_fosls_loss(
+        processor.plot_vs_time(
             ylabel="FOSLS Norm",
             title="FOSLS Norm vs Training Time",
             filename="fosls_norm_plot.png",
-            cutoff_time=100.0
+            y_type="fosls_loss",
+            # cutoff_time=100.0
+        )
+        processor.plot_vs_time(
+            ylabel="True L2 Error",
+            title="True L2 Error vs Training Time",
+            filename="true_ls_error.png",
+            y_type="true_l2_error",
+            # cutoff_time=100.0
+        )
+        processor.plot_vs_time(
+            ylabel="True V Error",
+            title="True V Error vs Training Time",
+            filename="true_v_error.png",
+            y_type="true_v_error",
+            # cutoff_time=100.0
         )
         processor.plot_specific_times(0.0)
         processor.plot_specific_times(0.333)

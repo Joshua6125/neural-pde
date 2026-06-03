@@ -284,7 +284,7 @@ class DataProcessor:
         else:
             print(f"Warning: Evals directory not found at {self.evals_dir}")
 
-    def plot_fosls_loss(self, ylabel: str, title: str, filename: str):
+    def plot_fosls_loss(self, ylabel: str, title: str, filename: str, cutoff_time: float|None = None):
         import matplotlib.pyplot as plt
 
         if not self.evals_data:
@@ -308,12 +308,21 @@ class DataProcessor:
 
             min_time = min(times[0] for times in all_training_times if len(times) > 0)
             max_time = max(times[-1] for times in all_training_times if len(times) > 0)
+
+            if cutoff_time:
+                max_time = min(cutoff_time, max_time)
+
             common_time_grid = np.linspace(min_time, max_time, grid_resolution)
 
             interpolated_runs = []
             for run_times, run_vals in zip(all_training_times, all_vals):
                 run_times_arr = np.array(run_times)
                 run_vals_arr = np.array(run_vals)
+
+                if cutoff_time:
+                    valid_run_times = run_times_arr < cutoff_time
+                    run_times_arr = np.ma.masked_where(valid_run_times, run_times_arr)
+                    run_vals_arr = np.ma.masked_where(valid_run_times, run_vals_arr)
 
                 interp_vals = np.interp(common_time_grid, run_times_arr, run_vals_arr)
                 interpolated_runs.append(interp_vals)
@@ -469,7 +478,8 @@ def run(
         processor.plot_fosls_loss(
             ylabel="FOSLS Norm",
             title="FOSLS Norm vs Training Time",
-            filename="fosls_norm_plot.png"
+            filename="fosls_norm_plot.png",
+            cutoff_time=100.0
         )
         processor.plot_specific_times(0.0)
         processor.plot_specific_times(0.333)

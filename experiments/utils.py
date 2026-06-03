@@ -307,8 +307,7 @@ def make_second_order_model(model_apply, method_kind: str, u0_fn=None):
                     t1=t,
                     dt0=None,
                     stepsize_controller=diffrax.PIDController(rtol=1e-8, atol=1e-8),
-                    y0=u0,
-                    max_steps=1000
+                    y0=u0
                 )
                 assert sol.ys is not None
                 return sol.ys[-1]
@@ -327,21 +326,6 @@ def make_second_order_model(model_apply, method_kind: str, u0_fn=None):
         return jnp.atleast_1d(u_val)
 
     return wrapped_apply
-
-
-def create_evaluation_domain(cfg: DictConfig) -> jnp.ndarray:
-    """Creates a deterministic space-time grid for evaluation."""
-    t_min = float(cfg.get("integration", {}).get("t_min", 0.0))
-    t_max = float(cfg.get("integration", {}).get("t_max", 1.0))
-    x_min = float(cfg.get("integration", {}).get("x_min", 0.0))
-    x_max = float(cfg.get("integration", {}).get("x_max", 1.0))
-
-    t_grid = jnp.linspace(t_min, t_max, cfg.plot_params.get("t_grid", 100))
-    x_grid = jnp.linspace(x_min, x_max, cfg.plot_params.get("x_grid", 100))
-
-    T, X = jnp.meshgrid(t_grid, x_grid, indexing='ij')
-
-    return jnp.stack([T.flatten(), X.flatten()], axis=-1)
 
 
 def calculate_fosls_norm(
@@ -377,6 +361,117 @@ def calculate_fosls_norm(
     )
 
     return float(jnp.sum(interior_loss) + jnp.sum(boundary_loss))
+
+
+def calculate_true_l2_error(
+    model_apply_fn,
+    params,
+    method_kind,
+    v_sol,
+    sigma_sol,
+    integrator,
+):
+    first_order_fn = make_first_order_model(
+        params,
+        model_apply_fn,
+        method_kind,
+    )
+
+    def interior_error(x):
+        pred = first_order_fn(x)
+
+        v_pred = jnp.ravel(jnp.asarray(pred[0]))
+        sigma_pred = jnp.ravel(jnp.asarray(pred[1:]))
+
+        v_true = jnp.ravel(jnp.asarray(v_sol(x[0], x[1:])))
+        sigma_true = jnp.ravel(jnp.asarray(sigma_sol(x[0], x[1:])))
+
+        return (
+            jnp.sum((v_true - v_pred) ** 2)
+            + jnp.sum((sigma_true - sigma_pred) ** 2)
+        )
+
+    interior, _ = integrator.integrate(
+        interior_func=jax.vmap(interior_error),
+        boundary_func=lambda x, _: jnp.zeros(x.shape[0], dtype=x.dtype),
+    )
+
+    return float(jnp.sum(interior))
+
+
+def calculate_true_v_error(
+    model_apply_fn,
+    params,
+    method_kind,
+    v_sol,
+    sigma_sol,
+    integrator,
+):
+    first_order_fn = make_first_order_model(
+        params,
+        model_apply_fn,
+        method_kind,
+    )
+
+    def error_field(x):
+        pred = first_order_fn(x)
+
+        v_pred = jnp.ravel(jnp.asarray(pred[0]))
+        sigma_pred = jnp.ravel(jnp.asarray(pred[1:]))
+
+        v_true = jnp.ravel(jnp.asarray(v_sol(x[0], x[1:])))
+        sigma_true = jnp.ravel(jnp.asarray(sigma_sol(x[0], x[1:])))
+
+        return jnp.concatenate([
+            v_true - v_pred,
+            sigma_true - sigma_pred,
+        ])
+
+    jac_error = jax.jacfwd(error_field)
+
+    def interior_error(x):
+        e = error_field(x)
+        J = jac_error(x)
+
+        e_v = e[0]
+        e_sigma = e[1:]
+
+        # J[row, variable]
+        dt_e_v = J[0, 0]
+
+        grad_e_v = J[0, 1:]
+
+        dt_e_sigma = J[1:, 0]
+
+        div_e_sigma = jnp.trace(J[1:, 1:])
+
+        residual_1 = dt_e_v - div_e_sigma
+        residual_2 = dt_e_sigma - grad_e_v
+
+        l2_part = e_v**2 + jnp.sum(e_sigma**2)
+        graph_part = residual_1**2 + jnp.sum(residual_2**2)
+
+        return l2_part + graph_part
+
+    def boundary_error(x_boundary, normal_vector):
+        def point_error(x):
+            e = error_field(x)
+
+            e_v = e[0]
+            e_sigma = e[1:]
+
+            return e_v**2 + jnp.sum(e_sigma**2)
+
+        errors = jax.vmap(point_error)(x_boundary)
+        is_initial_face = normal_vector[:, 0] < 0
+        return jnp.where(is_initial_face, errors, 0.0)
+
+    interior, boundary = integrator.integrate(
+        interior_func=jax.vmap(interior_error),
+        boundary_func=boundary_error,
+    )
+
+    return float(jnp.sum(interior) + jnp.sum(boundary))
 
 
 def calculate_dof(
@@ -435,4 +530,5 @@ def calculate_dof(
         d = model_cfg.degree
 
         return (d + 1)*(p*k + (n - 1)*k**2 + k*q) + k*n + q
+
 
