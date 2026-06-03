@@ -281,7 +281,7 @@ class DataProcessor:
             model_kind, method_kind = name.split("-")
 
             dof_points = []
-            loss_medians = []
+            loss_central = []
             loss_lows = []
             loss_highs = []
 
@@ -319,16 +319,37 @@ class DataProcessor:
                         ic_weight=ic_weight
                     )
                     run_losses.append(loss)
-                    loss_lows.append(np.percentile(run_losses, error_low))
-                    loss_highs.append(np.percentile(run_losses, error_high))
 
-                loss_medians.append(np.mean(run_losses))
+                if not run_losses:
+                    print(f"Warning: No losses computed for {name} at DOF {dof}. Skipping.")
+                    continue
+
+                loss_central.append(np.median(run_losses))
+                loss_lows.append(np.percentile(run_losses, error_low))
+                loss_highs.append(np.percentile(run_losses, error_high))
                 dof_points.append(dof)
-            print(dof_points, loss_medians)
-            line = plt.plot(dof_points, loss_medians, 'o-', label=name)[0]
 
-            if show_error and len(dof_points) > 0:
-                plt.fill_between(dof_points, loss_lows, loss_highs, color=line.get_color(), alpha=0.3)
+            print(dof_points, loss_central)
+            print(loss_lows, loss_highs)
+
+            if len(dof_points) == 0:
+                continue
+
+            line = plt.plot(dof_points, loss_central, 'o-', label=name)[0]
+
+            if show_error:
+                lower_error = np.asarray(loss_central) - np.asarray(loss_lows)
+                upper_error = np.asarray(loss_highs) - np.asarray(loss_central)
+                plt.errorbar(
+                    dof_points,
+                    loss_central,
+                    yerr=np.vstack([lower_error, upper_error]),
+                    fmt='none',
+                    ecolor=line.get_color(),
+                    elinewidth=1.2,
+                    capsize=4,
+                    alpha=0.8,
+                )
 
         plt.xscale("log")
         plt.yscale("log")
