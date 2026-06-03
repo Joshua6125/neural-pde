@@ -6,6 +6,8 @@ from utils import (
     build_method_config,
     build_integration_config,
     build_trainer_config,
+    calculate_true_l2_error,
+    calculate_true_v_error,
     make_second_order_model,
     calculate_fosls_norm
 )
@@ -209,13 +211,35 @@ class RunTraining:
             print(f"[{i}/{total_runs}] Training configuration: Model={model.kind}, Method={method.kind}")
 
             built_model = build_model(model)
-            current_run_evals = []
+            current_run_evals = {
+                "fosls_loss": [],
+                "true_v_error": [],
+                "true_l2_error": []
+            }
 
             def eval_callback(metrics: TrainStepMetrics, state: TrainState):
+                true_l2_error = calculate_true_l2_error(
+                    model_apply_fn=built_model.apply,
+                    params=state.params,
+                    method_kind=method.kind,
+                    v_sol=self.problem.exact_v,
+                    sigma_sol=self.problem.exact_sigma,
+                    integrator=integrator
+                )
+
+                true_v_error = calculate_true_v_error(
+                    model_apply_fn=built_model.apply,
+                    params=state.params,
+                    method_kind=method.kind,
+                    v_sol=self.problem.exact_v,
+                    sigma_sol=self.problem.exact_sigma,
+                    integrator=integrator
+                )
+
                 if method.kind == "fosls":
-                    eval_data = metrics.total_loss
+                    total_loss = metrics.total_loss
                 else:
-                    eval_data = calculate_fosls_norm(
+                    total_loss = calculate_fosls_norm(
                         model_apply_fn=built_model.apply,
                         params=state.params,
                         method_kind=method.kind,
@@ -225,7 +249,10 @@ class RunTraining:
                         sigma0_fn=self.sigma0,
                         integrator=integrator
                     )
-                current_run_evals.append(eval_data)
+
+                current_run_evals["fosls_loss"].append(total_loss)
+                current_run_evals["true_l2_error"].append(true_l2_error)
+                current_run_evals["true_v_error"].append(true_v_error)
 
             start_time = time.time()
             final_state, logged_metrics = run_training(
@@ -284,7 +311,7 @@ class DataProcessor:
         else:
             print(f"Warning: Evals directory not found at {self.evals_dir}")
 
-    def plot_fosls_loss(self, ylabel: str, title: str, filename: str, cutoff_time: float|None = None):
+    def plot_vs_time(self, ylabel: str, title: str, filename: str, y_type: str, cutoff_time: float|None=None):
         import matplotlib.pyplot as plt
 
         if not self.evals_data:
@@ -294,14 +321,16 @@ class DataProcessor:
             print(f"No metrics data found. Cannot plot {title}.")
             return
 
-        plot_config = self.problem.cfg.get("plot_fosls_loss", {})
+        plot_config = self.problem.cfg.get(f"plot_{y_type}", {})
         show_error = bool(plot_config.get("show_error", True))
         error_low = max(0, min(100, int(plot_config.get("error_low", 0))))
         error_high = max(0, min(100, int(plot_config.get("error_high", 100))))
         grid_resolution = max(2, int(plot_config.get("grid_resolution", 1000)))
 
         plt.figure(figsize=(10, 6))
-        for name, all_vals in self.evals_data.items():
+        for name, evals in self.evals_data.items():
+            all_vals = [evals[k][y_type] for k in range(len(evals))]
+
             metrics = self.metrics_data[name]
 
             all_training_times = [[m.training_time for m in run_metrics] for run_metrics in metrics]
@@ -475,11 +504,26 @@ def run(
     if make_plots:
         print("[PHASE 2] Processing Data and Generating Plots...")
         processor = DataProcessor(problem, output_dir)
-        processor.plot_fosls_loss(
+        processor.plot_vs_time(
             ylabel="FOSLS Norm",
             title="FOSLS Norm vs Training Time",
             filename="fosls_norm_plot.png",
-            cutoff_time=100.0
+            y_type="fosls_loss",
+            # cutoff_time=100.0
+        )
+        processor.plot_vs_time(
+            ylabel="True L2 Error",
+            title="True L2 Error vs Training Time",
+            filename="true_ls_error.png",
+            y_type="true_l2_error",
+            # cutoff_time=100.0
+        )
+        processor.plot_vs_time(
+            ylabel="True V Error",
+            title="True V Error vs Training Time",
+            filename="true_v_error.png",
+            y_type="true_v_error",
+            # cutoff_time=100.0
         )
         processor.plot_specific_times(0.0)
         processor.plot_specific_times(0.333)
