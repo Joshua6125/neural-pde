@@ -15,7 +15,7 @@ problem_params:
   c: 1.0
 
 training:
-  epochs: 500000
+  epochs: 200000
   max_training_time: 900.0
   learning_rate:
     kind: exponential_decay
@@ -23,7 +23,7 @@ training:
     transition_steps: 1000
     decay_rate: 0.95
     staircase: true
-  log_every: 200
+  log_every: 2000
   seed: 42
   optimiser: "adamw"
   convergence_check: False
@@ -48,7 +48,7 @@ combinations: [
 
 models:
   mlp:
-    - {hidden_dim: 8,    num_layers: 2}   # 200k epochs
+    - {hidden_dim: 8,    num_layers: 2}   # 200k epochs 20 min
     - {hidden_dim: 16,   num_layers: 2}   # 300k epochs
     - {hidden_dim: 16,   num_layers: 3}   # 300k epochs
     - {hidden_dim: 32,   num_layers: 3}   # 400k epochs
