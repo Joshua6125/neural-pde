@@ -16,7 +16,7 @@ problem_params:
 
 training:
   epochs: 200000
-  max_training_time: 900.0
+  max_training_time: 1200.0
   learning_rate:
     kind: exponential_decay
     init_value: 1.0e-4
@@ -27,6 +27,7 @@ training:
   log_every: 500
   optimiser: "adamw"
   convergence_check: False
+  use_jit: True
 
 integration:
   kind: "monte_carlo"
@@ -36,8 +37,8 @@ integration:
   t_min: 0.0
   t_max: 1.0
   monte_carlo:
-    interior_samples: 160000
-    boundary_samples: 80000
+    interior_samples: 20000
+    boundary_samples: 2000
 
 callback_integration:
   kind: "quadrature"

@@ -27,6 +27,7 @@ training:
   seed: 42
   optimiser: "adamw"
   convergence_check: False
+  use_jit: True
 
 integration:
   kind: "monte_carlo"
@@ -36,8 +37,8 @@ integration:
   t_min: 0.0
   t_max: 1.0
   monte_carlo:
-    interior_samples: 160000
-    boundary_samples: 80000
+    interior_samples: 20000
+    boundary_samples: 2000
 
 combinations: [
   # Should be [method, model]
@@ -52,9 +53,9 @@ models:
     - {hidden_dim: 32,   num_layers: 3}
     - {hidden_dim: 32,   num_layers: 4}
     - {hidden_dim: 64,   num_layers: 4}
-    # - {hidden_dim: 64,   num_layers: 5}
-    # - {hidden_dim: 128,  num_layers: 5}
-    # - {hidden_dim: 256,  num_layers: 5}
+    - {hidden_dim: 64,   num_layers: 5}
+    - {hidden_dim: 128,  num_layers: 5}
+    - {hidden_dim: 256,  num_layers: 5}
 
 methods:
   fosls:

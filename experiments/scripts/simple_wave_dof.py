@@ -44,15 +44,18 @@ class ProblemDefinition:
         self.cfg = cfg
 
     def solution_u(self, t: jnp.ndarray, x: jnp.ndarray) -> jnp.ndarray:
-        """Compute the manufactured analytical solution."""
+        """Manufactured analytical solution of the simple wave equation."""
         t_array = jnp.asarray(t)
         x_array = jnp.asarray(x)
+
+        # Apply boundary conditions - u(t, 0) = u(t, 1) = 0
+        is_boundary = jnp.isclose(x_array, self.x_min) | jnp.isclose(x_array, self.x_max)
 
         t_term = jnp.sin(jnp.pi * t_array / self.T)
         x_term = jnp.sin(jnp.pi * (x_array - self.x_min) / (self.x_max - self.x_min))
         result = t_term * x_term
 
-        return jnp.where(jnp.isclose(t_array / self.T, 1.0, atol=1e-10), 0.0, result)
+        return jnp.where(is_boundary, 0.0, result)
 
     def solution_v(self, t: jnp.ndarray, x: jnp.ndarray) -> jnp.ndarray:
         """Time derivative of the manufactured analytical solution."""
@@ -124,15 +127,15 @@ class RunTraining:
         }
 
     def _read_combinations(self) -> list[tuple[list[AnyModelConfig], AlgorithmConfig]]:
-        combinations = self.cfg.get("combinations", ())
+        combinations = self.cfg["combinations"]
 
-        all_models = self.cfg.get("models", "")
-        all_methods = self.cfg.get("methods", "")
+        all_models = self.cfg["models"]
+        all_methods = self.cfg["methods"]
 
         pairs = []
         for method_name, model_name in combinations:
-            method = all_methods.get(method_name, {})
-            heads = method.get("output_heads", "")
+            method = all_methods[method_name]
+            heads = method["output_heads"]
 
             # We want to save all configs
             model_versions = all_models.get(model_name, {})
@@ -148,7 +151,7 @@ class RunTraining:
                 method,
                 model_config,
                 self.wave_functions,
-                self.cfg.get("integration")
+                self.cfg["integration"]
             )
 
             pairs.append((models_list, method_config))
@@ -167,10 +170,10 @@ class RunTraining:
         """Train all model-method combinations"""
         sample_input = self.problem.get_sample_input()
 
-        integrator_data = self.cfg.get("integration", "")
+        integrator_data = self.cfg["integration"]
         integrator_config = build_integration_config(integrator_data)
 
-        trainer_data = self.cfg.get("training")
+        trainer_data = self.cfg["training"]
         base_trainer_config = build_trainer_config(trainer_data)
 
         # Adjust seed based on iteration
@@ -184,7 +187,7 @@ class RunTraining:
 
         print(f"--- Starting Training Phase (Iteration {iteration+1}) ---")
         print(f"Total configurations to train: {total_runs}")
-        init_lr = self.cfg.get("training", {}).get("learning_rate", {}).get("init_value", "Unknown")
+        init_lr = self.cfg["training"]["learning_rate"]["init_value"]
         print(f"Epochs: {trainer_config.epochs}, Initial LR: {init_lr}, Seed: {trainer_config.seed}\n")
 
         models_dir = os.path.join(self.output_dir, "models")

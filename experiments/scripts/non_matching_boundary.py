@@ -156,8 +156,8 @@ class RunTraining:
         """Train all model-method combinations"""
         sample_input = self.problem.get_sample_input()
 
-        integrator_data = self.cfg.get("integration", "")
-        integrator_config = build_integration_config(integrator_data)
+        integrator_data = self.cfg["integration"]
+        train_integrator_config = build_integration_config(integrator_data)
 
         trainer_data = self.cfg.get("training")
         base_trainer_config = build_trainer_config(trainer_data)
@@ -176,8 +176,8 @@ class RunTraining:
         init_lr = self.cfg.get("training", {}).get("learning_rate", {}).get("init_value", "Unknown")
         print(f"Epochs: {trainer_config.epochs}, Initial LR: {init_lr}, Seed: {trainer_config.seed}\n")
 
-        integrator_config = build_integration_config(self.cfg.callback_integration)
-        integrator = get_integrator(integrator_config)
+        eval_integrator_config = build_integration_config(self.cfg.callback_integration)
+        eval_integrator = get_integrator(eval_integrator_config)
 
         models_dir = os.path.join(self.output_dir, "models")
         logs_dir = os.path.join(self.output_dir, "logs")
@@ -203,7 +203,7 @@ class RunTraining:
                     method_kind=method.kind,
                     v_sol=self.problem.exact_v,
                     sigma_sol=self.problem.exact_sigma,
-                    integrator=integrator
+                    integrator=eval_integrator
                 )
 
                 true_v_error = calculate_true_v_error(
@@ -212,7 +212,7 @@ class RunTraining:
                     method_kind=method.kind,
                     v_sol=self.problem.exact_v,
                     sigma_sol=self.problem.exact_sigma,
-                    integrator=integrator
+                    integrator=eval_integrator
                 )
 
                 if method.kind == "fosls":
@@ -226,7 +226,7 @@ class RunTraining:
                         g_fn=self.g,
                         v0_fn=self.v0,
                         sigma0_fn=self.sigma0,
-                        integrator=integrator
+                        integrator=eval_integrator
                     )
 
                 current_run_evals["fosls_loss"].append(total_loss)
@@ -236,7 +236,7 @@ class RunTraining:
             start_time = time.time()
             final_state, logged_metrics = run_training(
                 method,
-                integrator_config,
+                train_integrator_config,
                 model,
                 trainer_config,
                 sample_input,

@@ -27,6 +27,7 @@ training:
   log_every: 200
   optimiser: "adamw"
   convergence_check: False
+  use_jit: True
 
 integration:
   kind: "monte_carlo"

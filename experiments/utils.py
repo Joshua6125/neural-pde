@@ -13,10 +13,7 @@ import diffrax
 
 
 def build_integration_config(data: DictConfig) -> AnyIntegrationConfig:
-    integration_type = (
-        data.get("kind")
-        or "monte_carlo" # Default to Monte Carlo
-    )
+    integration_type = data["kind"]
 
     specific_data = data.get(integration_type, {})
     if not isinstance(specific_data, DictConfig):
@@ -25,22 +22,22 @@ def build_integration_config(data: DictConfig) -> AnyIntegrationConfig:
     # choose config class and allowed keys
     if integration_type == "monte_carlo":
         return MonteCarloConfig(
-            spatial_dim=int(data.get("spatial_dim", 1)),
-            x_min=float(data.get("x_min", 0.0)),
-            x_max=float(data.get("x_max", 1.0)),
-            t_min=float(data.get("t_min", 0.0)),
-            t_max=float(data.get("t_max", 1.0)),
-            boundary_samples=int(specific_data.get("boundary_samples", 1)),
-            interior_samples=int(specific_data.get("interior_samples", 1)),
+            spatial_dim=int(data["spatial_dim"]),
+            x_min=float(data["x_min"]),
+            x_max=float(data["x_max"]),
+            t_min=float(data["t_min"]),
+            t_max=float(data["t_max"]),
+            boundary_samples=int(specific_data["boundary_samples"]),
+            interior_samples=int(specific_data["interior_samples"]),
         )
     elif integration_type == "quadrature":
         return QuadratureConfig(
-            spatial_dim=int(data.get("spatial_dim", 1)),
-            x_min=float(data.get("x_min", 0.0)),
-            x_max=float(data.get("x_max", 1.0)),
-            t_min=float(data.get("t_min", 0.0)),
-            t_max=float(data.get("t_max", 1.0)),
-            degree=int(specific_data.get("degree", 1)),
+            spatial_dim=int(data["spatial_dim"]),
+            x_min=float(data["x_min"]),
+            x_max=float(data["x_max"]),
+            t_min=float(data["t_min"]),
+            t_max=float(data["t_max"]),
+            degree=int(specific_data["degree"]),
             adaptive_integration=bool(specific_data.get("adaptive_integration", False))
         )
     else:
@@ -93,8 +90,8 @@ def build_mlp_config(
 
     return MLPConfig(
         output_heads=output_heads,
-        hidden_dim=int(spec.get("hidden_dim", 1)),
-        num_layers=int(spec.get("num_layers", 1)),
+        hidden_dim=int(spec["hidden_dim"]),
+        num_layers=int(spec["num_layers"]),
     )
 
 
@@ -108,9 +105,9 @@ def build_kan_config(
 
     return KANConfig(
         output_heads=output_heads,
-        hidden_dim=int(spec.get("hidden_dim", 1)),
-        num_layers=int(spec.get("num_layers", 1)),
-        input_dim=int(spec.get("input_dim", 1)),
+        hidden_dim=int(spec["hidden_dim"]),
+        num_layers=int(spec["num_layers"]),
+        input_dim=int(spec["input_dim"]),
     )
 
 
@@ -236,16 +233,13 @@ def build_trainer_config(
     lr = learning_rate if not learning_rate is None else build_learning_rate_schedule(spec.get("learning_rate", {}))
 
     return TrainConfig(
-        epochs=int(spec.get("epochs", 1)),
-        max_training_time=float(spec.get("max_training_time", 100.0)),
+        epochs=int(spec["epochs"]),
+        max_training_time=float(spec["max_training_time"]),
         learning_rate=lr,
-        optimiser=str(spec.get("optimiser", "adamw")),
-        seed=int(spec.get("seed", 42)),
-        log_every=int(spec.get("log_every", 50)),
-        use_jit=bool(spec.get("use_jit", True)),
-        convergence_check=bool(spec.get("convergence_check", False)),
-        convergence_window_size=int(spec.get("convergence_window_size", 1000)),
-        convergence_rel_tol=float(spec.get("convergence_rel_tol", 1e-3))
+        optimiser=str(spec["optimiser"]),
+        seed=int(spec["seed"]),
+        log_every=int(spec["log_every"]),
+        use_jit=bool(spec["use_jit"]),
     )
 
 

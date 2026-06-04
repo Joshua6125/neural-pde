@@ -42,7 +42,7 @@ class TrainConfig:
     seed: int = 0
     log_every: int = 0
     use_jit: bool = True
-    convergence_check: bool = True
+    convergence_check: bool = False
     convergence_window_size: int = 100
     # convergence_abs_tol: float = 1e-6
     convergence_rel_tol: float = 1e-3
