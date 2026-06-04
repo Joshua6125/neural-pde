@@ -54,44 +54,22 @@ class ProblemDefinition:
         return jnp.zeros((1,), dtype=x.dtype)
 
     def exact_v(self, t: jnp.ndarray, x: jnp.ndarray) -> jnp.ndarray:
-        """
-        Piecewise-constant exact v.
-
-        T2: x >= t and x + t >= 1 -> -1
-        T4: x <= t and x + t <= 1 -> +1
-        else -> 0
-        """
         in_T2 = jnp.logical_and(x >= t, x + t >= 1.0)
         in_T4 = jnp.logical_and(x <= t, x + t <= 1.0)
-
         return jnp.where(
             in_T2,
-            -jnp.ones_like(x),
-            jnp.where(in_T4, jnp.ones_like(x), jnp.zeros_like(x)),
+            -jnp.ones_like(t),
+            jnp.where(in_T4, jnp.ones_like(t), jnp.zeros_like(t)),
         )
 
     def exact_sigma(self, t: jnp.ndarray, x: jnp.ndarray) -> jnp.ndarray:
-        """
-        Piecewise-constant exact sigma.
-
-        T1: t <= 0.5 and t <= x <= 1-t -> +1
-        T3: t >= 0.5 and 1-t <= x <= t -> -1
-        else                           -> 0
-        """
-        in_T1 = jnp.logical_and(
-            t <= 0.5,
-            jnp.logical_and(x >= t, x <= 1.0 - t),
-        )
-
-        in_T3 = jnp.logical_and(
-            t >= 0.5,
-            jnp.logical_and(x >= 1.0 - t, x <= t),
-        )
+        in_T1 = jnp.logical_and(t <= 0.5, jnp.logical_and(x >= t, x <= 1.0 - t))
+        in_T3 = jnp.logical_and(t >= 0.5, jnp.logical_and(x >= 1.0 - t, x <= t))
 
         return jnp.where(
             in_T1,
-            jnp.ones_like(x),
-            jnp.where(in_T3, -jnp.ones_like(x), jnp.zeros_like(x)),
+            jnp.ones_like(t),
+            jnp.where(in_T3, -jnp.ones_like(t), jnp.zeros_like(t))
         )
 
     def exact_u(self, t: jnp.ndarray, x: jnp.ndarray) -> jnp.ndarray:

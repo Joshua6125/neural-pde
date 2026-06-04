@@ -20,6 +20,6 @@ class vPINNConfig(AlgorithmConfig):
     ut0: float | Callable[[jnp.ndarray], jnp.ndarray] = 0.0
     ic_weight: float = 1.0
     bc_weight: float = 1.0
-    n_test_functions: int = 10
+    n_test_functions: int = 400
     domain_min: jnp.ndarray | None = None
     domain_max: jnp.ndarray | None = None
