@@ -54,8 +54,9 @@ class ProblemDefinition:
         return jnp.zeros((1,), dtype=x.dtype)
 
     def exact_v(self, t: jnp.ndarray, x: jnp.ndarray) -> jnp.ndarray:
-        in_T2 = jnp.logical_and(x >= t, x + t >= 1.0)
-        in_T4 = jnp.logical_and(x <= t, x + t <= 1.0)
+        in_T2 = jnp.logical_and(t >= x, t + x >= 1.0)
+        in_T4 = jnp.logical_and(t <= x, t + x <= 1.0)
+
         return jnp.where(
             in_T2,
             -jnp.ones_like(t),
@@ -63,8 +64,8 @@ class ProblemDefinition:
         )
 
     def exact_sigma(self, t: jnp.ndarray, x: jnp.ndarray) -> jnp.ndarray:
-        in_T1 = jnp.logical_and(t <= 0.5, jnp.logical_and(x >= t, x <= 1.0 - t))
-        in_T3 = jnp.logical_and(t >= 0.5, jnp.logical_and(x >= 1.0 - t, x <= t))
+        in_T1 = jnp.logical_and(x <= t, x + t <= 1.0)
+        in_T3 = jnp.logical_and(x >= t, x + t >= 1.0)
 
         return jnp.where(
             in_T1,
