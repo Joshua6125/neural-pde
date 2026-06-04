@@ -264,7 +264,7 @@ class DataProcessor:
             [self.problem.initial_sigma(jnp.array(v[1]))]
         )
 
-        plt.figure(figsize=(10, 6))
+        plt.figure(figsize=(10, 7))
 
         all_models_cfg = self.problem.cfg.models
         all_methods_cfg = self.problem.cfg.methods
@@ -342,10 +342,12 @@ class DataProcessor:
 
         plt.xscale("log")
         plt.yscale("log")
-        plt.xlabel("Degrees of Freedom (DOF)")
-        plt.ylabel(ylabel)
-        plt.title(title)
-        plt.legend()
+        plt.xlabel("Degrees of Freedom (DOF)", fontsize=22)
+        plt.ylabel(ylabel, fontsize=22)
+        plt.title(title, fontsize=24)
+        plt.legend(fontsize=22)
+        plt.xticks(fontsize=20)
+        plt.yticks(fontsize=20)
         plt.grid(True, which="both", ls="-", alpha=0.5)
 
         plots_dir = os.path.join(self.results_dir, "plots")
@@ -389,8 +391,8 @@ def run(
         print("[PHASE 2] Processing Data and Generating Plots...")
         processor = DataProcessor(problem, output_dir)
         processor.plot_dof_vs_loss(
-            ylabel="FOSLS Norm",
-            title="FOSLS Norm Convergence (DOF Sweep)",
+            ylabel="Error Estimator",
+            title="Error Estimator Convergence vs DOF",
             filename="fosls_norm_vs_dof.png"
         )
         print("[PHASE 2] Complete.\n")

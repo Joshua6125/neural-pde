@@ -1,7 +1,7 @@
 # ----------------
 # Ensure the following lines are always part of the config
 # ----------------
-script_name: simple_wave
+script_name: non_matching_boundary
 generate_data: true
 make_plots: true
 
@@ -16,7 +16,7 @@ problem_params:
 
 training:
   epochs: 200000
-  max_training_time: 180.0
+  max_training_time: 20.0
   learning_rate:
     kind: exponential_decay
     init_value: 1.0e-4
@@ -24,7 +24,7 @@ training:
     decay_rate: 0.95
     staircase: true
   seed: 42
-  log_every: 500
+  log_every: 200
   optimiser: "adamw"
   convergence_check: False
 
@@ -51,20 +51,15 @@ callback_integration:
 
 combinations: [
   # Should be [method, model]
-  # ["pinn", "mlp"],
+  ["pinn", "mlp"],
   ["fosls", "mlp"],
-  # ["vpinn", "mlp"],
-  # ["gpinn", "mlp"]
+  ["vpinn", "mlp"],
 ]
 
 models:
   mlp:
     hidden_dim: 64
     num_layers: 5
-  kan:
-    hidden_dim: 64
-    num_layers: 5
-    input_dim: 2
 
 methods:
   pinn:
@@ -72,12 +67,6 @@ methods:
       u: 1
     ic_weight: 1.0
     bc_weight: 100.0
-  gpinn:
-    output_heads:
-      u: 1
-    ic_weight: 1.0
-    bc_weight: 10.0
-    residual_grad_weight: 1e-2
   fosls:
     output_heads:
       v: 1
@@ -102,15 +91,9 @@ plot_fosls_loss:
   show_error: True
   error_low: 0 # percent
   error_high: 100 # percent
-  # size_windowed_average: 10000 # In epochs
-
-plot_true_error:
-  show_error: True
-  error_low: 0 # percent
-  error_high: 100 # percent
-  # size_windowed_average: 10000 # In epochs
+  size_windowed_average: 100 # In epochs
 
 plot_specific_t:
-  show_error: False
+  show_error: True
   error_low: 0 # percent
   error_high: 100 # percent

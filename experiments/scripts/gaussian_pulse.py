@@ -276,7 +276,7 @@ class DataProcessor:
         error_high = max(0, min(100, int(plot_config.get("error_high", 100))))
         grid_resolution = max(2, int(plot_config.get("grid_resolution", 1000)))
 
-        plt.figure(figsize=(10, 6))
+        plt.figure(figsize=(10, 7))
         for name, all_vals in self.evals_data.items():
             metrics = self.metrics_data[name]
 

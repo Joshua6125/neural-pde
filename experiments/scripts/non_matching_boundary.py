@@ -305,7 +305,7 @@ class DataProcessor:
         error_high = max(0, min(100, int(plot_config.get("error_high", 100))))
         grid_resolution = max(2, int(plot_config.get("grid_resolution", 1000)))
 
-        plt.figure(figsize=(10, 6))
+        plt.figure(figsize=(10, 7))
         for name, evals in self.evals_data.items():
             all_vals = [evals[k][y_type] for k in range(len(evals))]
 
@@ -346,10 +346,12 @@ class DataProcessor:
                 plt.fill_between(common_time_grid, low_val, high_val, color=line.get_color(), alpha=0.3)
 
         plt.yscale("log")
-        plt.xlabel("Training Time (seconds)")
-        plt.ylabel(ylabel)
-        plt.title(title)
-        plt.legend()
+        plt.xlabel("Training Time (seconds)", fontsize=22)
+        plt.ylabel(ylabel, fontsize=22)
+        plt.title(title, fontsize=24)
+        plt.legend(fontsize=22, bbox_to_anchor=(1.0, 0.5))
+        plt.xticks(fontsize=20)
+        plt.yticks(fontsize=20)
         plt.grid(True)
 
         plots_dir = os.path.join(self.results_dir, "plots")

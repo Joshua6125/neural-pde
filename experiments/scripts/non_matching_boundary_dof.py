@@ -280,7 +280,7 @@ class DataProcessor:
         error_low = max(0, min(100, int(plot_config.get("error_low", 25))))
         error_high = max(0, min(100, int(plot_config.get("error_high", 75))))
 
-        plt.figure(figsize=(10, 6))
+        plt.figure(figsize=(10, 7))
 
         all_models_cfg = self.problem.cfg.models
         all_methods_cfg = self.problem.cfg.methods
@@ -354,10 +354,12 @@ class DataProcessor:
 
         plt.xscale("log")
         plt.yscale("log")
-        plt.xlabel("Degrees of Freedom (DOF)")
-        plt.ylabel(ylabel)
-        plt.title(title)
-        plt.legend()
+        plt.xlabel("Degrees of Freedom (DOF)", fontsize=22)
+        plt.ylabel(ylabel, fontsize=22)
+        plt.title(title, fontsize=24)
+        plt.legend(fontsize=22)
+        plt.xticks(fontsize=20)
+        plt.yticks(fontsize=20)
         plt.grid(True, which="both", ls="-", alpha=0.5)
 
         plots_dir = os.path.join(self.results_dir, "plots")
@@ -390,7 +392,7 @@ class DataProcessor:
             [self.problem.exact_sigma(jnp.array(v[0]), jnp.array(v[1]))]
         )
 
-        plt.figure(figsize=(10, 6))
+        plt.figure(figsize=(10, 7))
 
         all_models_cfg = self.problem.cfg.models
         all_methods_cfg = self.problem.cfg.methods
@@ -468,10 +470,12 @@ class DataProcessor:
 
         plt.xscale("log")
         plt.yscale("log")
-        plt.xlabel("Degrees of Freedom (DOF)")
-        plt.ylabel(ylabel)
-        plt.title(title)
-        plt.legend()
+        plt.xlabel("Degrees of Freedom (DOF)", fontsize=22)
+        plt.ylabel(ylabel, fontsize=22)
+        plt.title(title, fontsize=24)
+        plt.legend(fontsize=22)
+        plt.xticks(fontsize=20)
+        plt.yticks(fontsize=20)
         plt.grid(True, which="both", ls="-", alpha=0.5)
 
         plots_dir = os.path.join(self.results_dir, "plots")
@@ -515,13 +519,13 @@ def run(
         print("[PHASE 2] Processing Data and Generating Plots...")
         processor = DataProcessor(problem, output_dir)
         processor.plot_dof_vs_loss(
-            ylabel="FOSLS Norm",
-            title="FOSLS Norm Convergence (DOF Sweep)",
+            ylabel="Error Estimator",
+            title="Error Estimator Convergence vs DOF",
             filename="fosls_norm_vs_dof.png"
         )
         processor.plot_dof_vs_true_error(
             ylabel="True error",
-            title="FOSLS True Error Convergence (DOF Sweep)",
+            title="True Error Convergence vs DOF",
             filename="fosls_true_error_vs_dof.png"
         )
         print("[PHASE 2] Complete.\n")
