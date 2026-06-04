@@ -16,7 +16,7 @@ problem_params:
 
 training:
   epochs: 200000
-  max_training_time: 900.0
+  max_training_time: 1200.0
   learning_rate:
     kind: exponential_decay
     init_value: 1.0e-4
