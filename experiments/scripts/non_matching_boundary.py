@@ -483,11 +483,11 @@ def run(
         print("[PHASE 2] Processing Data and Generating Plots...")
         processor = DataProcessor(problem, output_dir)
         processor.plot_vs_time(
-            ylabel="FOSLS Norm",
-            title="FOSLS Norm vs Training Time",
+            ylabel="Error Estimator",
+            title="Error Estimator vs Training Time",
             filename="fosls_norm_plot.png",
             y_type="fosls_loss",
-            # cutoff_time=100.0
+            cutoff_time=80.0
         )
         processor.plot_vs_time(
             ylabel="True L2 Error",
@@ -501,7 +501,7 @@ def run(
             title="True V Error vs Training Time",
             filename="true_v_error.png",
             y_type="true_v_error",
-            # cutoff_time=100.0
+            cutoff_time=80.0
         )
         processor.plot_specific_times(0.0)
         processor.plot_specific_times(0.333)

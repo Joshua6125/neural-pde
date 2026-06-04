@@ -321,7 +321,7 @@ class DataProcessor:
         error_high = max(0, min(100, int(plot_config.get("error_high", 100))))
         grid_resolution = max(2, int(plot_config.get("grid_resolution", 1000)))
 
-        plt.figure(figsize=(10, 6))
+        plt.figure(figsize=(10, 7))
         for name, evals in self.evals_data.items():
             all_vals = [evals[k][y_type] for k in range(len(evals))]
 
@@ -362,10 +362,12 @@ class DataProcessor:
                 plt.fill_between(common_time_grid, low_val, high_val, color=line.get_color(), alpha=0.3)
 
         plt.yscale("log")
-        plt.xlabel("Training Time (seconds)")
-        plt.ylabel(ylabel)
-        plt.title(title)
-        plt.legend()
+        plt.xlabel("Training Time (seconds)", fontsize=22)
+        plt.ylabel(ylabel, fontsize=22)
+        plt.title(title, fontsize=24)
+        plt.legend(fontsize=22)
+        plt.xticks(fontsize=20)
+        plt.yticks(fontsize=20)
         plt.grid(True)
 
         plots_dir = os.path.join(self.results_dir, "plots")
@@ -389,8 +391,6 @@ class DataProcessor:
         error_high = min(100, max(0, int(plot_loss_config.get("error_high", 100))))
 
         x_vals = jnp.linspace(self.problem.x_min, self.problem.x_max, 50)
-
-        exact_sol = self.problem.solution_u(jnp.atleast_1d(time), jnp.array(x_vals))
 
         combinations = self.problem.cfg.get("combinations", [])
         all_models = self.problem.cfg.get("models", {})
@@ -426,8 +426,7 @@ class DataProcessor:
                     params = pickle.load(f)
 
                 pred_vector = batched_apply(params, batch_inputs)
-                error_pred = np.abs(exact_sol - pred_vector)
-                combo_predictions.append(np.asarray(error_pred).squeeze())
+                combo_predictions.append(np.asarray(pred_vector).squeeze())
 
             if not combo_predictions:
                 continue
@@ -448,12 +447,18 @@ class DataProcessor:
             print("No predictions found. Cannot plot specific times.")
             return
 
-        plt.plot(x_vals, self.problem.solution_u(jnp.atleast_1d(time), x_vals))
+        plt.plot(
+            x_vals,
+            self.problem.solution_u(jnp.atleast_1d(time), x_vals),
+            label="Exact solution",
+            linestyle="--",
+            color="black",
+        )
 
-        plt.xlabel("x")
-        plt.ylabel("u(x)")
-        plt.title(f"Error of predicted displacement at t={time}s")
-        plt.legend()
+        plt.xlabel("x", fontsize=12)
+        plt.ylabel("u(x)", fontsize=12)
+        plt.title(f"Error of predicted displacement at t={time}s", fontsize=12)
+        plt.legend(fontsize=12)
         plt.grid(True)
 
         plots_dir = os.path.join(self.results_dir, "plots")
@@ -497,25 +502,25 @@ def run(
         print("[PHASE 2] Processing Data and Generating Plots...")
         processor = DataProcessor(problem, output_dir)
         processor.plot_vs_time(
-            ylabel="FOSLS Norm",
-            title="FOSLS Norm vs Training Time",
+            ylabel="Error Estimator",
+            title="Error Estimator vs Training Time",
             filename="fosls_norm_plot.png",
             y_type="fosls_loss",
-            # cutoff_time=100.0
+            cutoff_time=80.0
         )
         processor.plot_vs_time(
             ylabel="True L2 Error",
             title="True L2 Error vs Training Time",
             filename="true_ls_error.png",
             y_type="true_l2_error",
-            # cutoff_time=100.0
+            cutoff_time=80.0
         )
         processor.plot_vs_time(
-            ylabel="True V Error",
-            title="True V Error vs Training Time",
+            ylabel="True Error",
+            title="True Error vs Training Time",
             filename="true_v_error.png",
             y_type="true_v_error",
-            # cutoff_time=100.0
+            cutoff_time=80.0
         )
         processor.plot_specific_times(0.0)
         processor.plot_specific_times(0.333)

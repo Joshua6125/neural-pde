@@ -60,10 +60,6 @@ models:
   mlp:
     hidden_dim: 64
     num_layers: 5
-  kan:
-    hidden_dim: 64
-    num_layers: 5
-    input_dim: 2
 
 methods:
   pinn:

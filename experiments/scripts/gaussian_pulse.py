@@ -315,10 +315,12 @@ class DataProcessor:
                 plt.fill_between(common_time_grid, low_val, high_val, color=line.get_color(), alpha=0.3)
 
         plt.yscale("log")
-        plt.xlabel("Training Time (seconds)")
-        plt.ylabel(ylabel)
-        plt.title(title)
-        plt.legend()
+        plt.xlabel("Training Time (seconds)", fontsize=22)
+        plt.ylabel(ylabel, fontsize=22)
+        plt.title(title, fontsize=24)
+        plt.legend(fontsize=22, bbox_to_anchor=(1.0, 0.5))
+        plt.xticks(fontsize=20)
+        plt.yticks(fontsize=20)
         plt.grid(True)
 
         plots_dir = os.path.join(self.results_dir, "plots")
@@ -397,14 +399,6 @@ class DataProcessor:
             print("No predictions found. Cannot plot specific times.")
             return
 
-        # plt.plot(
-        #     x_vals,
-        #     self.problem.exact_u(jnp.atleast_1d(time), jnp.array(x_vals)),
-        #     label="Exact solution",
-        #     linestyle="--",
-        #     color="black",
-        # )
-
         plt.xlabel("x")
         plt.ylabel("u(x)")
         plt.title(f"Predicted displacement at t={time}s")
@@ -452,10 +446,10 @@ def run(
         print("[PHASE 2] Processing Data and Generating Plots...")
         processor = DataProcessor(problem, output_dir)
         processor.plot_fosls_loss(
-            ylabel="FOSLS Norm",
-            title="FOSLS Norm vs Training Time",
+            ylabel="Error Estimator",
+            title="Error Estimator vs Training Time",
             filename="fosls_norm_plot.png",
-            cutoff_time=100.0
+            cutoff_time=80.0
         )
         processor.plot_specific_times(0.0)
         processor.plot_specific_times(0.333)
