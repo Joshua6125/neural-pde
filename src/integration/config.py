@@ -22,7 +22,8 @@ class QuadratureConfig(IntegrationConfigBase):
     """Configuration for Gauss-Legendre quadrature integration."""
 
     integration_method: Literal["quadrature"] = "quadrature"
-    degree: int = 100
+    degree: int = 5
+    grid_size: int = 1000
     adaptive_integration: bool = False
 
     def validate(self) -> None:

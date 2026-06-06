@@ -9,7 +9,7 @@ import optax
 import pytest
 
 from src.integration import NDCubeIntegration
-from src.loss_functions import SLS, SLSConfig, PINN, PINNConfig
+from src.loss_functions import PINN, PINNConfig
 from src.models import MLPConfig, build_model
 from src.train import TrainConfig, TrainingMethod
 
@@ -179,17 +179,3 @@ def real_pinn_method():
     model = build_model(cfg.model)
     return PINN(model=model, config=cfg)
 
-
-@pytest.fixture
-def real_sls_method():
-    """Real SLS method with a lightweight neural network model."""
-    cfg = SLSConfig(
-        model=MLPConfig(hidden_dim=8, num_layers=2, output_heads={"v": 1, "sigma": 1}),
-        f=0.0,
-        g=0.0,
-        v0=0.0,
-        sigma0=0.0,
-        v_boundary=0.0,
-    )
-    model = build_model(cfg.model)
-    return SLS(model=model, config=cfg)

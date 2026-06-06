@@ -17,11 +17,13 @@ from src.integration.config import MonteCarloConfig, QuadratureConfig
 def config_quadrature_1d():
     """1D Gauss-Legendre quadrature configuration."""
     return QuadratureConfig(
-        dim=1,
+        spatial_dim=1,
+        t_min=0.0,
+        t_max=1.0,
         x_min=0.0,
         x_max=1.0,
-        degree=20,
-        adaptive_integration=False,
+        degree=3,
+        grid_size=50,
     )
 
 
@@ -29,11 +31,13 @@ def config_quadrature_1d():
 def config_quadrature_2d():
     """2D Gauss-Legendre quadrature configuration."""
     return QuadratureConfig(
-        dim=2,
+        spatial_dim=2,
+        t_min=0.0,
+        t_max=1.0,
         x_min=0.0,
         x_max=1.0,
-        degree=15,
-        adaptive_integration=False,
+        degree=4,
+        grid_size=10,
     )
 
 
@@ -41,11 +45,13 @@ def config_quadrature_2d():
 def config_quadrature_3d():
     """3D Gauss-Legendre quadrature configuration."""
     return QuadratureConfig(
-        dim=3,
+        spatial_dim=3,
+        t_min=0.0,
+        t_max=1.0,
         x_min=0.0,
         x_max=1.0,
-        degree=8,
-        adaptive_integration=False,
+        degree=6,
+        grid_size=4,
     )
 
 
@@ -55,7 +61,9 @@ def config_quadrature_3d():
 def config_monte_carlo_1d():
     """1D Monte Carlo configuration."""
     return MonteCarloConfig(
-        dim=1,
+        spatial_dim=1,
+        t_min=0.0,
+        t_max=1.0,
         x_min=0.0,
         x_max=1.0,
         interior_samples=500000,
@@ -67,7 +75,9 @@ def config_monte_carlo_1d():
 def config_monte_carlo_2d():
     """2D Monte Carlo configuration."""
     return MonteCarloConfig(
-        dim=2,
+        spatial_dim=2,
+        t_min=0.0,
+        t_max=1.0,
         x_min=0.0,
         x_max=1.0,
         interior_samples=5000000,
@@ -79,9 +89,9 @@ def config_monte_carlo_2d():
 def config_monte_carlo_3d():
     """3D Monte Carlo configuration."""
     return MonteCarloConfig(
-        dim=3,
-        x_min=0.0,
-        x_max=1.0,
+        spatial_dim=3,
+        t_min=0.0,
+        t_max=1.0,
         interior_samples=10000000,
         boundary_samples=1000000,
     )
@@ -94,10 +104,10 @@ def config_quadrature_custom(request):
     """Create custom quadrature config via pytest parametrize."""
     params = getattr(request, 'param', {})
     return QuadratureConfig(
-        dim=params.get('dim', 1),
+        spatial_dim=params.get('dim', 1),
         x_min=params.get('x_min', 0.0),
         x_max=params.get('x_max', 1.0),
-        degree=params.get('degree', 20),
+        degree=params.get('degree', 5),
         adaptive_integration=params.get('adaptive', False),
     )
 
@@ -107,7 +117,7 @@ def config_monte_carlo_custom(request):
     """Create custom Monte Carlo config via pytest parametrize."""
     params = getattr(request, 'param', {})
     return MonteCarloConfig(
-        dim=params.get('dim', 1),
+        spatial_dim=params.get('dim', 1),
         x_min=params.get('x_min', 0.0),
         x_max=params.get('x_max', 1.0),
         interior_samples=params.get('interior_samples', 10000),
