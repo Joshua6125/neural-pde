@@ -1,5 +1,4 @@
 from glob import glob
-from itertools import product
 from collections import defaultdict
 from omegaconf import DictConfig
 from utils import (
@@ -11,19 +10,19 @@ from utils import (
     calculate_fosls_norm,
     calculate_true_v_error
 )
-from src.trainer import TrainState, TrainStepMetrics, run_training
+from src.trainer import run_training
 from src.models import AnyModelConfig, build_model
 from src.loss_functions import AlgorithmConfig
 from src.integration import get_integrator
 
 import jax.numpy as jnp
 import numpy as np
+import pandas as pd
 
 import time
 import os
 import pickle
 import dataclasses
-import jax
 
 
 class ProblemDefinition:
@@ -264,6 +263,8 @@ class DataProcessor:
         all_models_cfg = self.problem.cfg.models
         all_methods_cfg = self.problem.cfg.methods
 
+        all_csv = []
+
         for name in sorted(self.model_params.keys()):
             model_kind, method_kind = name.split("-")
 
@@ -312,6 +313,16 @@ class DataProcessor:
                 error_highs.append(np.percentile(run_errors, error_high))
                 dof_points.append(dof)
 
+                all_csv.append(
+                    pd.DataFrame({
+                        "plot-name": name,
+                        "dof": dof,
+                        "median": error_central,
+                        "low": error_lows,
+                        "high": error_highs,
+                    })
+                )
+
             if len(dof_points) == 0:
                 continue
 
@@ -345,8 +356,22 @@ class DataProcessor:
         os.makedirs(plots_dir, exist_ok=True)
         plot_path = os.path.join(plots_dir, filename)
         plt.savefig(plot_path)
-        plt.close()
         print(f"Plot saved to {plot_path}")
+
+        csv_dir = os.path.join(self.results_dir, "csv")
+        os.makedirs(csv_dir, exist_ok=True)
+        csv_path = os.path.join(csv_dir, filename.replace(".png", ".csv"))
+        all_csv = pd.concat(all_csv, ignore_index=True)
+        all_csv.to_csv(csv_path, index=False)
+        print(f"CSV saved to {csv_path}")
+
+        pdf_dir = os.path.join(self.results_dir, "pdf")
+        os.makedirs(pdf_dir, exist_ok=True)
+        pdf_path = os.path.join(pdf_dir, filename.replace(".png", ".pdf"))
+        plt.savefig(pdf_path)
+        print(f"PDF-plot saved to {pdf_path}")
+
+        plt.close()
 
     def plot_dof_vs_loss(self, ylabel: str, title: str, filename: str):
         import matplotlib.pyplot as plt
@@ -375,6 +400,8 @@ class DataProcessor:
 
         all_models_cfg = self.problem.cfg.models
         all_methods_cfg = self.problem.cfg.methods
+
+        all_csv = []
 
         for name in sorted(self.model_params.keys()):
             model_kind, method_kind = name.split("-")
@@ -428,6 +455,16 @@ class DataProcessor:
                 loss_highs.append(np.percentile(run_losses, error_high))
                 dof_points.append(dof)
 
+                all_csv.append(
+                    pd.DataFrame({
+                        "plot-name": name,
+                        "dof": dof,
+                        "median": loss_central,
+                        "low": loss_lows,
+                        "high": loss_highs,
+                    })
+                )
+
             if len(dof_points) == 0:
                 continue
 
@@ -461,8 +498,22 @@ class DataProcessor:
         os.makedirs(plots_dir, exist_ok=True)
         plot_path = os.path.join(plots_dir, filename)
         plt.savefig(plot_path)
-        plt.close()
         print(f"Plot saved to {plot_path}")
+
+        csv_dir = os.path.join(self.results_dir, "csv")
+        os.makedirs(csv_dir, exist_ok=True)
+        csv_path = os.path.join(csv_dir, filename.replace(".png", ".csv"))
+        all_csv = pd.concat(all_csv, ignore_index=True)
+        all_csv.to_csv(csv_path, index=False)
+        print(f"CSV saved to {csv_path}")
+
+        pdf_dir = os.path.join(self.results_dir, "pdf")
+        os.makedirs(pdf_dir, exist_ok=True)
+        pdf_path = os.path.join(pdf_dir, filename.replace(".png", ".pdf"))
+        plt.savefig(pdf_path)
+        print(f"PDF-plot saved to {pdf_path}")
+
+        plt.close()
 
 
 def run(

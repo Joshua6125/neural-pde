@@ -1,5 +1,4 @@
 from glob import glob
-from itertools import product
 from collections import defaultdict
 from omegaconf import DictConfig
 from utils import (
@@ -19,6 +18,7 @@ from src.integration import get_integrator
 
 import jax.numpy as jnp
 import numpy as np
+import pandas as pd
 
 import time
 import os
@@ -315,6 +315,8 @@ class DataProcessor:
             print(f"No metrics data found. Cannot plot {title}.")
             return
 
+        all_csv = []
+
         plot_config = self.problem.cfg.get(f"plot_{y_type}", {})
         show_error = bool(plot_config.get("show_error", True))
         error_low = max(0, min(100, int(plot_config.get("error_low", 0))))
@@ -356,10 +358,21 @@ class DataProcessor:
 
             line = plt.plot(common_time_grid, median_val, label=name)[0]
 
+            low_val = np.percentile(interpolated_matrix, error_low, axis=0)
+            high_val = np.percentile(interpolated_matrix, error_high, axis=0)
+
             if show_error:
-                low_val = np.percentile(interpolated_matrix, error_low, axis=0)
-                high_val = np.percentile(interpolated_matrix, error_high, axis=0)
                 plt.fill_between(common_time_grid, low_val, high_val, color=line.get_color(), alpha=0.3)
+
+            all_csv.append(
+                pd.DataFrame({
+                    "plot-name": name,
+                    "time": common_time_grid,
+                    "median": median_val,
+                    "low": low_val,
+                    "high": high_val,
+                })
+            )
 
         plt.yscale("log")
         plt.xlabel("Training Time (seconds)", fontsize=22)
@@ -374,8 +387,22 @@ class DataProcessor:
         os.makedirs(plots_dir, exist_ok=True)
         plot_path = os.path.join(plots_dir, filename)
         plt.savefig(plot_path)
-        plt.close()
         print(f"Plot saved to {plot_path}")
+
+        csv_dir = os.path.join(self.results_dir, "csv")
+        os.makedirs(csv_dir, exist_ok=True)
+        csv_path = os.path.join(csv_dir, filename.replace(".png", ".csv"))
+        all_csv = pd.concat(all_csv, ignore_index=True)
+        all_csv.to_csv(csv_path, index=False)
+        print(f"CSV saved to {csv_path}")
+
+        pdf_dir = os.path.join(self.results_dir, "pdf")
+        os.makedirs(pdf_dir, exist_ok=True)
+        pdf_path = os.path.join(pdf_dir, filename.replace(".png", ".pdf"))
+        plt.savefig(pdf_path)
+        print(f"PDF-plot saved to {pdf_path}")
+
+        plt.close()
 
     def plot_specific_times(self, time: float):
         import matplotlib.pyplot as plt
@@ -502,25 +529,25 @@ def run(
         print("[PHASE 2] Processing Data and Generating Plots...")
         processor = DataProcessor(problem, output_dir)
         processor.plot_vs_time(
-            ylabel="Error Estimator",
+            ylabel="Error Estimator $\eta$",
             title="Error Estimator vs Training Time",
             filename="fosls_norm_plot.png",
             y_type="fosls_loss",
-            cutoff_time=80.0
+            # cutoff_time=80.0
         )
         processor.plot_vs_time(
             ylabel="True L2 Error",
             title="True L2 Error vs Training Time",
             filename="true_ls_error.png",
             y_type="true_l2_error",
-            cutoff_time=80.0
+            # cutoff_time=80.0
         )
         processor.plot_vs_time(
             ylabel="True Error",
             title="True Error vs Training Time",
             filename="true_v_error.png",
             y_type="true_v_error",
-            cutoff_time=80.0
+            # cutoff_time=80.0
         )
         processor.plot_specific_times(0.0)
         processor.plot_specific_times(0.333)
