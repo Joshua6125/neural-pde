@@ -38,6 +38,7 @@ def build_integration_config(data: DictConfig) -> AnyIntegrationConfig:
             t_min=float(data["t_min"]),
             t_max=float(data["t_max"]),
             degree=int(specific_data["degree"]),
+            grid_size=int(specific_data["grid_size"]),
             adaptive_integration=bool(specific_data.get("adaptive_integration", False))
         )
     else:

@@ -307,6 +307,7 @@ class DataProcessor:
                 interpolated_runs.append(interp_vals)
 
             interpolated_matrix = np.vstack(interpolated_runs)
+            interpolated_matrix = np.sqrt(interpolated_matrix)
 
             median_val = np.median(interpolated_matrix, axis=0)
 
@@ -474,10 +475,10 @@ def run(
         print("[PHASE 2] Processing Data and Generating Plots...")
         processor = DataProcessor(problem, output_dir)
         processor.plot_fosls_loss(
-            ylabel="Error Estimator",
-            title="Error Estimator vs Training Time",
-            filename="fosls_norm_plot.png",
-            # cutoff_time=80.0
+            ylabel="Error estimator $\\eta$",
+            title="Error Estimator $\\eta$ vs Training Time",
+            filename="error_estimator_vs_training_time_scenario_2.png",
+            cutoff_time=200.0
         )
         processor.plot_specific_times(0.0)
         processor.plot_specific_times(0.333)

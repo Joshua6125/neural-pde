@@ -336,6 +336,10 @@ class DataProcessor:
             if len(dof_points) == 0:
                 continue
 
+            loss_central = np.sqrt(loss_central)
+            loss_lows = np.sqrt(loss_lows)
+            loss_highs = np.sqrt(loss_highs)
+
             line = plt.plot(dof_points, loss_central, 'o-', label=name)[0]
 
             if show_error:
@@ -417,9 +421,9 @@ def run(
         print("[PHASE 2] Processing Data and Generating Plots...")
         processor = DataProcessor(problem, output_dir)
         processor.plot_dof_vs_loss(
-            ylabel="Error Estimator",
-            title="Error Estimator Convergence vs DOF",
-            filename="fosls_norm_vs_dof.png"
+            ylabel="Error estimator $\\eta$",
+            title="Error Estimator $\\eta$ Convergence vs DOF",
+            filename="error_estimator_vs_dof_scenario_2.png"
         )
         print("[PHASE 2] Complete.\n")
 

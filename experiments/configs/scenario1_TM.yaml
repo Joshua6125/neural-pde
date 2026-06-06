@@ -48,7 +48,8 @@ callback_integration:
   t_min: 0.0
   t_max: 1.0
   quadrature:
-    degree: 50
+    degree: 5
+    grid_size: 50
 
 combinations: [
   # Should be [method, model]
