@@ -273,7 +273,7 @@ class DataProcessor:
 
         all_models_cfg = self.problem.cfg.models
         all_methods_cfg = self.problem.cfg.methods
-        
+
         all_csv = []
 
         for name in sorted(self.model_params.keys()):
@@ -336,6 +336,10 @@ class DataProcessor:
 
             if len(dof_points) == 0:
                 continue
+
+            error_central = np.sqrt(error_central)
+            error_lows = np.sqrt(error_lows)
+            error_highs = np.sqrt(error_highs)
 
             line = plt.plot(dof_points, error_central, 'o-', label=name)[0]
 
@@ -479,6 +483,10 @@ class DataProcessor:
             if len(dof_points) == 0:
                 continue
 
+            loss_central = np.sqrt(loss_central)
+            loss_lows = np.sqrt(loss_lows)
+            loss_highs = np.sqrt(loss_highs)
+
             line = plt.plot(dof_points, loss_central, 'o-', label=name)[0]
 
             if show_error:
@@ -560,14 +568,14 @@ def run(
         print("[PHASE 2] Processing Data and Generating Plots...")
         processor = DataProcessor(problem, output_dir)
         processor.plot_dof_vs_loss(
-            ylabel="Error Estimator",
-            title="Error Estimator Convergence vs DOF",
-            filename="fosls_norm_vs_dof.png"
+            ylabel="Error estimator $\\eta$",
+            title="Error Estimator $\\eta$ Convergence vs DOF",
+            filename="error_estimator_vs_dof_scenario_1.png"
         )
         processor.plot_dof_vs_true_error(
-            ylabel="True error",
-            title="True Error Convergence vs DOF",
-            filename="fosls_true_error_vs_dof.png"
+            ylabel="$V$-norm error",
+            title="$V$-norm Error Convergence vs DOF",
+            filename="v_error_vs_dof_scenario_1.png"
         )
         print("[PHASE 2] Complete.\n")
 

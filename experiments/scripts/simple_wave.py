@@ -353,6 +353,7 @@ class DataProcessor:
                 interpolated_runs.append(interp_vals)
 
             interpolated_matrix = np.vstack(interpolated_runs)
+            interpolated_matrix = np.sqrt(interpolated_matrix)
 
             median_val = np.median(interpolated_matrix, axis=0)
 
@@ -529,25 +530,25 @@ def run(
         print("[PHASE 2] Processing Data and Generating Plots...")
         processor = DataProcessor(problem, output_dir)
         processor.plot_vs_time(
-            ylabel="Error Estimator $\eta$",
-            title="Error Estimator vs Training Time",
-            filename="fosls_norm_plot.png",
+            ylabel="Error estimator $\\eta$",
+            title="Error Estimator $\\eta$ vs Training Time",
+            filename="error_estimator_vs_training_time_scenario_1.png",
             y_type="fosls_loss",
-            # cutoff_time=80.0
+            cutoff_time=200.0
         )
         processor.plot_vs_time(
-            ylabel="True L2 Error",
-            title="True L2 Error vs Training Time",
-            filename="true_ls_error.png",
+            ylabel="$L^2$ error",
+            title="$L^2$ Error vs Training Time",
+            filename="l2_error_vs_training_time_scenario_1.png",
             y_type="true_l2_error",
-            # cutoff_time=80.0
+            cutoff_time=200.0
         )
         processor.plot_vs_time(
-            ylabel="True Error",
-            title="True Error vs Training Time",
-            filename="true_v_error.png",
+            ylabel="$V$-norm error",
+            title="$V$-norm Error vs Training Time",
+            filename="v_error_vs_training_time_scenario_1.png",
             y_type="true_v_error",
-            # cutoff_time=80.0
+            cutoff_time=200.0
         )
         processor.plot_specific_times(0.0)
         processor.plot_specific_times(0.333)
