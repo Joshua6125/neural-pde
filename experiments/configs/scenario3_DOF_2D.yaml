@@ -8,7 +8,7 @@ make_plots: true
 # ----------------
 # Problem parameters
 # ----------------
-iterations: 1
+iterations: 5
 
 problem_params:
   T: 1.0
