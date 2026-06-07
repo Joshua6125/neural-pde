@@ -41,16 +41,16 @@ class ProblemDefinition:
         return jnp.ones_like(x)
 
     def initial_v(self, x: jnp.ndarray) -> jnp.ndarray:
-        return jnp.ones_like(x)
+        return jnp.ones_like(1.0)
 
     def initial_sigma(self, x: jnp.ndarray) -> jnp.ndarray:
         return jnp.zeros_like(x)
 
     def source_f(self, t: jnp.ndarray, x: jnp.ndarray) -> jnp.ndarray:
-        return jnp.zeros_like(x)
+        return jnp.zeros_like(t)
 
     def source_g(self, t: jnp.ndarray, x: jnp.ndarray) -> jnp.ndarray:
-        return jnp.zeros((1,), dtype=x.dtype)
+        return jnp.zeros_like(x)
 
     def exact_v(self, t: jnp.ndarray, x: jnp.ndarray) -> jnp.ndarray:
         in_T2 = jnp.logical_and(t >= x, t + x >= 1.0)
@@ -73,7 +73,7 @@ class ProblemDefinition:
         )
 
     def get_sample_input(self) -> jnp.ndarray:
-        return jnp.asarray([[0.0, 0.5]], dtype=jnp.float32)
+        return jnp.zeros(self.cfg["integration"]["spatial_dim"] + 1, dtype=jnp.float32)
 
 
 class RunTraining:
@@ -95,14 +95,14 @@ class RunTraining:
         self.output_dir = output_dir
 
         # Define the simple wave equation lambdas
-        self.f = lambda v: self.problem.source_f(jnp.array(v[0]), jnp.array(v[1]))
-        self.g = lambda v: self.problem.source_g(jnp.array(v[0]), jnp.array(v[1]))
-        self.v0 = lambda v: self.problem.initial_v(jnp.array(v[1]))
+        self.f = lambda v: self.problem.source_f(jnp.array(v[0]), jnp.array(v[1:]))
+        self.g = lambda v: self.problem.source_g(jnp.array(v[0]), jnp.array(v[1:]))
+        self.v0 = lambda v: self.problem.initial_v(jnp.array(v[1:]))
         self.sigma0 = lambda v: jnp.array(
-            [self.problem.initial_sigma(jnp.array(v[1]))]
+            self.problem.initial_sigma(jnp.array(v[1:]))
         )
-        self.u0 = lambda v: self.problem.initial_u(jnp.array(v[1]))
-        self.ut0 = lambda v: self.problem.initial_v(jnp.array(v[1]))
+        self.u0 = lambda v: self.problem.initial_u(jnp.array(v[1:]))
+        self.ut0 = lambda v: self.problem.initial_v(jnp.array(v[1:]))
         self.c = float(cfg.problem_params.get("c", 1.0))
 
         self.wave_functions = {
@@ -244,6 +244,10 @@ class DataProcessor:
 
     def plot_dof_vs_true_error(self, ylabel: str, title: str, filename: str):
         import matplotlib.pyplot as plt
+
+        if self.problem.cfg["integration"]["spatial_dim"] > 1:
+            print("Can't plot true error for problems with spatial dimensions greater than one.")
+            return
 
         if not self.model_params:
             print(f"No model parameters found. Cannot plot {title}.")
