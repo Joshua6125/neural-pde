@@ -16,7 +16,7 @@ problem_params:
 
 training:
   epochs: 200000
-  max_training_time: 60.0
+  max_training_time: 1200.0
   learning_rate:
     kind: exponential_decay
     init_value: 1.0e-4
@@ -24,7 +24,7 @@ training:
     decay_rate: 0.95
     staircase: true
   seed: 42
-  log_every: 100
+  log_every: 500
   optimiser: "adamw"
   convergence_check: False
   use_jit: True
@@ -48,7 +48,8 @@ callback_integration:
   t_min: 0.0
   t_max: 1.0
   quadrature:
-    degree: 50
+    degree: 5
+    grid_size: 50
 
 combinations: [
   # Should be [method, model]
