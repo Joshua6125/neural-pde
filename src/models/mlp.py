@@ -27,7 +27,13 @@ class MLP(nn.Module):
         for _ in range(self.num_layers):
             h = jnp.tanh(nn.Dense(self.hidden_dim)(h))
 
-        return {
+        output = {
             name: nn.Dense(dim, name=name)(h)
             for name, dim in sorted(self.output_heads.items())
         }
+
+        if "v" in output:
+            boundary_func = jnp.prod(x[1:] * (1 - x[1:]), axis=-1, keepdims=True)
+            output["v"] = boundary_func * output["v"]
+
+        return output
