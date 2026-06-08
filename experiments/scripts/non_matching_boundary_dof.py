@@ -398,11 +398,11 @@ class DataProcessor:
         error_high = max(0, min(100, int(plot_config.get("error_high", 100))))
         show_fgk_results = bool(plot_config.get("show_fgk_results", False))
 
-        f = lambda v: self.problem.source_f(jnp.array(v[0]), jnp.array(v[1]))
-        g = lambda v: self.problem.source_g(jnp.array(v[0]), jnp.array(v[1]))
-        v0 = lambda v: self.problem.exact_v(jnp.array(v[0]), jnp.array(v[1]))
+        f = lambda v: self.problem.source_f(jnp.array(v[0]), jnp.array(v[1:]))
+        g = lambda v: self.problem.source_g(jnp.array(v[0]), jnp.array(v[1:]))
+        v0 = lambda v: self.problem.initial_v(jnp.array(v[1:]))
         sigma0 = lambda v: jnp.array(
-            [self.problem.exact_sigma(jnp.array(v[0]), jnp.array(v[1]))]
+            self.problem.initial_sigma(jnp.array(v[1:]))
         )
 
         plt.figure(figsize=(10, 7))
