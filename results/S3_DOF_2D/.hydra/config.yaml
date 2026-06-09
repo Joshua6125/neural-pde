@@ -1,0 +1,79 @@
+script_name: non_matching_boundary_dof
+generate_data: true
+make_plots: false
+iterations: 10
+problem_params:
+  T: 1.0
+  c: 1.0
+training:
+  epochs: 200000
+  max_training_time: 1200.0
+  learning_rate:
+    kind: exponential_decay
+    init_value: 0.0001
+    transition_steps: 1000
+    decay_rate: 0.95
+    staircase: true
+  log_every: 200
+  seed: 42
+  optimiser: adamw
+  convergence_check: false
+  use_jit: true
+integration:
+  kind: monte_carlo
+  spatial_dim: 2
+  x_min: 0.0
+  x_max: 1.0
+  t_min: 0.0
+  t_max: 1.0
+  monte_carlo:
+    interior_samples: 100000
+    boundary_samples: 10000
+combinations:
+- - fosls
+  - mlp
+models:
+  mlp:
+  - hidden_dim: 8
+    num_layers: 2
+  - hidden_dim: 16
+    num_layers: 2
+  - hidden_dim: 16
+    num_layers: 3
+  - hidden_dim: 32
+    num_layers: 3
+  - hidden_dim: 32
+    num_layers: 4
+  - hidden_dim: 64
+    num_layers: 4
+  - hidden_dim: 64
+    num_layers: 5
+  - hidden_dim: 128
+    num_layers: 5
+  - hidden_dim: 256
+    num_layers: 5
+methods:
+  fosls:
+    output_heads:
+      v: 1
+      sigma: 2
+    ic_weight: 1.0
+plot_integration:
+  kind: quadrature
+  spatial_dim: 1
+  x_min: 0.0
+  x_max: 1.0
+  t_min: 0.0
+  t_max: 1.0
+  quadrature:
+    degree: 5
+    grid_size: 100
+plot_loss:
+  grid_resolution: 1000
+  show_error: true
+  error_low: 0
+  error_high: 100
+plot_specific_t:
+  show_error: true
+  error_low: 0
+  error_high: 100

@@ -41,16 +41,16 @@ class ProblemDefinition:
         return jnp.ones_like(x)
 
     def initial_v(self, x: jnp.ndarray) -> jnp.ndarray:
-        return jnp.ones_like(x)
+        return jnp.ones_like(1.0)
 
     def initial_sigma(self, x: jnp.ndarray) -> jnp.ndarray:
         return jnp.zeros_like(x)
 
     def source_f(self, t: jnp.ndarray, x: jnp.ndarray) -> jnp.ndarray:
-        return jnp.zeros_like(x)
+        return jnp.zeros_like(t)
 
     def source_g(self, t: jnp.ndarray, x: jnp.ndarray) -> jnp.ndarray:
-        return jnp.zeros((1,), dtype=x.dtype)
+        return jnp.zeros_like(x)
 
     def exact_v(self, t: jnp.ndarray, x: jnp.ndarray) -> jnp.ndarray:
         in_T2 = jnp.logical_and(t >= x, t + x >= 1.0)
@@ -73,7 +73,7 @@ class ProblemDefinition:
         )
 
     def get_sample_input(self) -> jnp.ndarray:
-        return jnp.asarray([[0.0, 0.5]], dtype=jnp.float32)
+        return jnp.zeros(self.cfg["integration"]["spatial_dim"] + 1, dtype=jnp.float32)
 
 
 class RunTraining:
@@ -95,14 +95,14 @@ class RunTraining:
         self.output_dir = output_dir
 
         # Define the simple wave equation lambdas
-        self.f = lambda v: self.problem.source_f(jnp.array(v[0]), jnp.array(v[1]))
-        self.g = lambda v: self.problem.source_g(jnp.array(v[0]), jnp.array(v[1]))
-        self.v0 = lambda v: self.problem.initial_v(jnp.array(v[1]))
+        self.f = lambda v: self.problem.source_f(jnp.array(v[0]), jnp.array(v[1:]))
+        self.g = lambda v: self.problem.source_g(jnp.array(v[0]), jnp.array(v[1:]))
+        self.v0 = lambda v: self.problem.initial_v(jnp.array(v[1:]))
         self.sigma0 = lambda v: jnp.array(
-            [self.problem.initial_sigma(jnp.array(v[1]))]
+            self.problem.initial_sigma(jnp.array(v[1:]))
         )
-        self.u0 = lambda v: self.problem.initial_u(jnp.array(v[1]))
-        self.ut0 = lambda v: self.problem.initial_v(jnp.array(v[1]))
+        self.u0 = lambda v: self.problem.initial_u(jnp.array(v[1:]))
+        self.ut0 = lambda v: self.problem.initial_v(jnp.array(v[1:]))
         self.c = float(cfg.problem_params.get("c", 1.0))
 
         self.wave_functions = {
@@ -244,6 +244,10 @@ class DataProcessor:
 
     def plot_dof_vs_true_error(self, ylabel: str, title: str, filename: str):
         import matplotlib.pyplot as plt
+
+        if self.problem.cfg["integration"]["spatial_dim"] > 1:
+            print("Can't plot true error for problems with spatial dimensions greater than one.")
+            return
 
         if not self.model_params:
             print(f"No model parameters found. Cannot plot {title}.")
@@ -390,14 +394,15 @@ class DataProcessor:
 
         plot_config = self.problem.cfg.get("plot_loss", {})
         show_error = bool(plot_config.get("show_error", True))
-        error_low = max(0, min(100, int(plot_config.get("error_low", 25))))
-        error_high = max(0, min(100, int(plot_config.get("error_high", 75))))
+        error_low = max(0, min(100, int(plot_config.get("error_low", 0))))
+        error_high = max(0, min(100, int(plot_config.get("error_high", 100))))
+        show_fgk_results = bool(plot_config.get("show_fgk_results", False))
 
-        f = lambda v: self.problem.source_f(jnp.array(v[0]), jnp.array(v[1]))
-        g = lambda v: self.problem.source_g(jnp.array(v[0]), jnp.array(v[1]))
-        v0 = lambda v: self.problem.exact_v(jnp.array(v[0]), jnp.array(v[1]))
+        f = lambda v: self.problem.source_f(jnp.array(v[0]), jnp.array(v[1:]))
+        g = lambda v: self.problem.source_g(jnp.array(v[0]), jnp.array(v[1:]))
+        v0 = lambda v: self.problem.initial_v(jnp.array(v[1:]))
         sigma0 = lambda v: jnp.array(
-            [self.problem.exact_sigma(jnp.array(v[0]), jnp.array(v[1]))]
+            self.problem.initial_sigma(jnp.array(v[1:]))
         )
 
         plt.figure(figsize=(10, 7))
@@ -491,6 +496,72 @@ class DataProcessor:
                     capsize=4,
                     alpha=0.8,
                 )
+
+        if show_fgk_results:
+            dim = self.problem.cfg["integration"]["spatial_dim"]
+            if dim == 1:
+                # Results of https://github.com/tofuuhh/LSQwave with p = 3, theta = 0.25
+                results_p3a = [
+                    (356, 0.2205207347078896),
+                    (434, 0.21752136918622855),
+                    (512, 0.2154965091268629),
+                    (590, 0.21495487543638694),
+                    (668, 0.21481727662465125),
+                    (758, 0.21478341122680986),
+                    (932, 0.21477542959963877),
+                    (1148, 0.21477541458983024),
+                    (1376, 0.20685374255615316),
+                    (1832, 0.20685326542797697),
+                    (2258, 0.2779956392803145),
+                    (2324, 0.2768350739676748),
+                    (2402, 0.2763074127134874),
+                    (2480, 0.27616828910993296),
+                    (2654, 0.2761322663674554),
+                    (2876, 0.2761230720353234),
+                    (3314, 0.2761226383377439),
+                    (3884, 0.2761220599905832),
+                    (4718, 0.2761220589868747),
+                    (6014, 0.2739414630030092),
+                    (7676, 0.24504423886170654),
+                    (9368, 0.22910334420107953),
+                    (11354, 0.21846222376630187),
+                    (13724, 0.2045752405821188),
+                    (16472, 0.19791577740292457),
+                    (19916, 0.19486708756069515),
+                    (23942, 0.18007801896866835),
+                    (28550, 0.17163600882851635),
+                    (34298, 0.16227910082753827),
+                    (40856, 0.1547177020775136),
+                    (49676, 0.14749464353919867),
+                    (58766, 0.13793789251702865),
+                    (70310, 0.13225007906666864),
+                    (86102, 0.12689119878913102),
+                    (102032, 0.1209371535034433),
+                    (125054, 0.11360762181469047),
+                    (149846, 0.10472613983433904),
+                    (180650, 0.09909390010686457),
+                    (216362, 0.09347453846132486),
+                    (258518, 0.08978141797310364),
+                    (320600, 0.08614411388590222),
+                    (382874, 0.08221068277915955),
+                    (465356, 0.07653617492927707),
+                    (556154, 0.07154826967116175),
+                    (662594, 0.06711354236324558),
+                    (794576, 0.06405919657758019),
+                    (952682, 0.061829183079600884),
+                ]
+                plt.plot([r[0] for r in results_p3a], [r[1] for r in results_p3a], 's-',label="p = 3, adap")
+            if dim == 2:
+                # Results of https://github.com/tofuuhh/LSQwave with p = 3, theta = 1
+                results_p3 = [
+                    (1026, 0.5691697327897132),
+                    (6828, 0.41931694387879165),
+                    (49941, 0.34141628573010346),
+                    (382407, 0.27643823458504696)
+                ]
+                plt.plot([r[0] for r in results_p3], [r[1] for r in results_p3], 's-',label="p = 3")
+            else:
+                raise ValueError("No other dimension of FGK23 available.")
 
         plt.xscale("log")
         plt.yscale("log")

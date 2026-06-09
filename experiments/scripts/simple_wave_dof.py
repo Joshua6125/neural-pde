@@ -403,6 +403,7 @@ class DataProcessor:
         show_error = bool(plot_config.get("show_error", True))
         error_low = max(0, min(100, int(plot_config.get("error_low", 25))))
         error_high = max(0, min(100, int(plot_config.get("error_high", 75))))
+        show_fgk_results = bool(plot_config.get("show_fgk_results", False))
 
         f = lambda v: self.problem.source_f(jnp.array(v[0]), jnp.array(v[1]))
         g = lambda v: self.problem.source_g(jnp.array(v[0]), jnp.array(v[1]))
@@ -502,6 +503,37 @@ class DataProcessor:
                     capsize=4,
                     alpha=0.8,
                 )
+
+        if show_fgk_results:
+            if self.problem.cfg["integration"]["spatial_dim"] == 1:
+                # Results of https://github.com/tofuuhh/LSQwave with p = 1, theta = 1
+                results_p1 = [
+                    (52, 0.5756866371215883),
+                    (170, 0.29187518013493063),
+                    (610, 0.14555203128225203),
+                    (2306, 0.0730025008413866),
+                    (8962, 0.03664409901398263),
+                    (35330, 0.018360842574137087),
+                    (140290, 0.009186660103311175),
+                    (559106, 0.004593974156104411)
+                ]
+                plt.plot([r[0] for r in results_p1], [r[1] for r in results_p1], 's-',label="p = 1, FGK23")
+
+                # Results of https://github.com/tofuuhh/LSQwave with p = 1, theta = 1
+                results_p2 = [
+                    (170, 0.058319364244092314),
+                    (610, 0.016828815552101146),
+                    (2306, 0.004345226150800603),
+                    (8962, 0.0011133926412367256),
+                    (35330, 0.00028217278718509876),
+                    (140290, 7.105015195418527e-05),
+                    (559106, 1.7827563767345488e-05)
+                ]
+                plt.plot([r[0] for r in results_p2], [r[1] for r in results_p2], 's-',label="p = 2, FGK23")
+
+            else:
+                raise ValueError("No other dimension of FGK23 available.")
+
 
         plt.xscale("log")
         plt.yscale("log")
