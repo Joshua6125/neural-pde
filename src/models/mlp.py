@@ -33,8 +33,15 @@ class MLP(nn.Module):
         }
 
         if "v" in output:
+            p = 2.0
+            eps = 1e-12
             spatial_coords = x[..., 1:]
-            boundary_func = jnp.prod(spatial_coords * (1 - spatial_coords), axis=-1, keepdims=True)
+
+            a_left = jnp.clip(spatial_coords, eps, 1.0)
+            a_right = jnp.clip(1.0 - spatial_coords, eps, 1.0)
+
+            boundary_func = jnp.sum(a_left ** (-p) + a_right ** (-p), axis=-1, keepdims=True) ** (-1.0 / p)
+
             output["v"] = boundary_func * output["v"]
 
         return output
