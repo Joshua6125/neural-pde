@@ -498,7 +498,8 @@ class DataProcessor:
                 )
 
         if show_fgk_results:
-            if self.problem.cfg["integration"]["spatial_dim"] == 1:
+            dim = self.problem.cfg["integration"]["spatial_dim"]
+            if dim == 1:
                 # Results of https://github.com/tofuuhh/LSQwave with p = 3, theta = 0.25
                 results_p3a = [
                     (356, 0.2205207347078896),
@@ -550,6 +551,15 @@ class DataProcessor:
                     (952682, 0.061829183079600884),
                 ]
                 plt.plot([r[0] for r in results_p3a], [r[1] for r in results_p3a], 's-',label="p = 3, adap")
+            if dim == 2:
+                # Results of https://github.com/tofuuhh/LSQwave with p = 3, theta = 1
+                results_p3 = [
+                    (1026, 0.5691697327897132),
+                    (6828, 0.41931694387879165),
+                    (49941, 0.34141628573010346),
+                    (382407, 0.27643823458504696)
+                ]
+                plt.plot([r[0] for r in results_p3], [r[1] for r in results_p3], 's-',label="p = 3")
             else:
                 raise ValueError("No other dimension of FGK23 available.")
 
