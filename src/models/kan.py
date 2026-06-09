@@ -17,7 +17,6 @@ class KAN(nn.Module):
     hidden_dim: int
     num_layers: int
     output_heads: Mapping[str, int]
-    constrained_heads: list[str]
     input_dim: int
     grid_size: int = 5 # Used in "original", "base", and "spline"
     degree: int = 3 #
@@ -68,7 +67,7 @@ class KAN(nn.Module):
         outputs = self._split_output_heads(y)
 
         for head in outputs.keys():
-            if head in self.constrained_heads:
+            if head in ["u", "v"]: # TODO: Got meself some major tech debt for now, lol
                 p = 2.0
                 eps = 1e-12
                 spatial_coords = x[..., 1:]

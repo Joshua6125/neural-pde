@@ -20,7 +20,6 @@ class MLP(nn.Module):
     hidden_dim: int
     num_layers: int
     output_heads: Mapping[str, int]
-    constrained_heads: list[str]
 
     @nn.compact
     def __call__(self, x) -> dict[str, jnp.ndarray]:
@@ -34,7 +33,7 @@ class MLP(nn.Module):
         }
 
         for head in output.keys():
-            if head in self.constrained_heads:
+            if head in ["u", "v"]: # TODO: More tech debt here.
                 p = 2.0
                 eps = 1e-12
                 spatial_coords = x[..., 1:]
