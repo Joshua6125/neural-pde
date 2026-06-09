@@ -20,6 +20,7 @@ class MLP(nn.Module):
     hidden_dim: int
     num_layers: int
     output_heads: Mapping[str, int]
+    constrained_heads: list[str]
 
     @nn.compact
     def __call__(self, x) -> dict[str, jnp.ndarray]:
@@ -32,16 +33,17 @@ class MLP(nn.Module):
             for name, dim in sorted(self.output_heads.items())
         }
 
-        if "v" in output:
-            p = 2.0
-            eps = 1e-12
-            spatial_coords = x[..., 1:]
+        for head in output.keys():
+            if head in self.constrained_heads:
+                p = 2.0
+                eps = 1e-12
+                spatial_coords = x[..., 1:]
 
-            a_left = jnp.clip(spatial_coords, eps, 1.0)
-            a_right = jnp.clip(1.0 - spatial_coords, eps, 1.0)
+                a_left = jnp.clip(spatial_coords, eps, 1.0)
+                a_right = jnp.clip(1.0 - spatial_coords, eps, 1.0)
 
-            boundary_func = jnp.sum(a_left ** (-p) + a_right ** (-p), axis=-1, keepdims=True) ** (-1.0 / p)
+                boundary_func = jnp.sum(a_left ** (-p) + a_right ** (-p), axis=-1, keepdims=True) ** (-1.0 / p)
 
-            output["v"] = boundary_func * output["v"]
+                output[head] = boundary_func * output[head]
 
         return output

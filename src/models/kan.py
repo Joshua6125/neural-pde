@@ -17,6 +17,7 @@ class KAN(nn.Module):
     hidden_dim: int
     num_layers: int
     output_heads: Mapping[str, int]
+    constrained_heads: list[str]
     input_dim: int
     grid_size: int = 5 # Used in "original", "base", and "spline"
     degree: int = 3 #
@@ -66,8 +67,22 @@ class KAN(nn.Module):
 
         outputs = self._split_output_heads(y)
 
+        for head in outputs.keys():
+            if head in self.constrained_heads:
+                p = 2.0
+                eps = 1e-12
+                spatial_coords = x[..., 1:]
+
+                a_left = jnp.clip(spatial_coords, eps, 1.0)
+                a_right = jnp.clip(1.0 - spatial_coords, eps, 1.0)
+
+                boundary_func = jnp.sum(a_left ** (-p) + a_right ** (-p), axis=-1, keepdims=True) ** (-1.0 / p)
+
+                outputs[head] = boundary_func * outputs[head]
+
         if was_unbatched:
             return {name: value[0] for name, value in outputs.items()}
+
         return outputs
 
 
