@@ -50,7 +50,7 @@ class BaseModelConfig:
 class MLPConfig(BaseModelConfig):
     """Configuration for the built-in fully connected model."""
 
-    kind: Literal["mlp"] = "mlp"
+    kind: str = "mlp"
     hidden_dim: int = 64
     num_layers: int = 4
 
@@ -64,7 +64,7 @@ class MLPConfig(BaseModelConfig):
 class KANConfig(BaseModelConfig):
     """Configuration for KAN model."""
     # TODO: Should look at this. Should probably fix it with fourier rather than chebyshev
-    kind: Literal["kan"] = "kan"
+    kind: str = "kan"
     hidden_dim: int = 64
     num_layers: int = 4
     input_dim: int = 1

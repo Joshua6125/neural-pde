@@ -84,12 +84,14 @@ def build_learning_rate_schedule(spec: DictConfig) -> optax.Schedule:
 def build_mlp_config(
     spec: DictConfig,
     output_heads: dict[str, int],
+    model_name: str
 ) -> MLPConfig:
 
     if not output_heads:
         raise ValueError("Model must have output heads.")
 
     return MLPConfig(
+        kind=model_name,
         output_heads=output_heads,
         hidden_dim=int(spec["hidden_dim"]),
         num_layers=int(spec["num_layers"]),
@@ -99,12 +101,14 @@ def build_mlp_config(
 def build_kan_config(
     spec: DictConfig,
     output_heads: dict[str, int],
+    model_name: str
 ) -> KANConfig:
 
     if not output_heads:
         raise ValueError("Model must have output heads.")
 
     return KANConfig(
+        kind=model_name,
         output_heads=output_heads,
         hidden_dim=int(spec["hidden_dim"]),
         num_layers=int(spec["num_layers"]),
@@ -117,10 +121,10 @@ def build_model_config(
     spec: DictConfig,
     output_heads: dict[str, int],
 ) -> AnyModelConfig:
-    if model_name == "mlp":
-        return build_mlp_config(spec, output_heads)
-    if model_name == "kan":
-        return build_kan_config(spec, output_heads)
+    if model_name in ["mlp", "V0_mlp"]:
+        return build_mlp_config(spec, output_heads, model_name)
+    if model_name in ["kan", "V0_kan"]:
+        return build_kan_config(spec, output_heads, model_name)
 
     raise ValueError(f"Unknown model type: {model_name}")
 
