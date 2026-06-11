@@ -56,9 +56,9 @@ combinations: [
   # ["pinn", "mlp"],
   # ["fosls", "mlp"],
   # ["vpinn", "mlp"],
-  # ["pinn", "mlp_V0"],
-  ["fosls", "mlp_V0"],
-  ["vpinn", "mlp_V0"],
+  ["pinn", "mlp_V0"],
+  # ["fosls", "mlp_V0"],
+  # ["vpinn", "mlp_V0"],
 ]
 
 models:
