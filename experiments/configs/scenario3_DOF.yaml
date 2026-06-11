@@ -43,10 +43,21 @@ integration:
 combinations: [
   # Should be [method, model]
   ["fosls", "mlp"],
+  ["fosls", "mlp_V0"],
 ]
 
 models:
   mlp:
+    - {hidden_dim: 8,    num_layers: 2}
+    - {hidden_dim: 16,   num_layers: 2}
+    - {hidden_dim: 16,   num_layers: 3}
+    - {hidden_dim: 32,   num_layers: 3}
+    - {hidden_dim: 32,   num_layers: 4}
+    - {hidden_dim: 64,   num_layers: 4}
+    - {hidden_dim: 64,   num_layers: 5}
+    - {hidden_dim: 128,  num_layers: 5}
+    - {hidden_dim: 256,  num_layers: 5}
+  mlp_V0:
     - {hidden_dim: 8,    num_layers: 2}
     - {hidden_dim: 16,   num_layers: 2}
     - {hidden_dim: 16,   num_layers: 3}

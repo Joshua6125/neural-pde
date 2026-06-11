@@ -54,14 +54,23 @@ callback_integration:
 combinations: [
   # Should be [method, model]
   ["fosls", "mlp"],
+  ["fosls", "mlp_V0"],
   ["fosls", "kan"],
+  ["fosls", "kan_V0"]
 ]
 
 models:
   mlp:
     hidden_dim: 64
     num_layers: 5
+  mlp_V0:
+    hidden_dim: 64
+    num_layers: 5
   kan:
+    hidden_dim: 64
+    num_layers: 5
+    input_dim: 2
+  kan_V0:
     hidden_dim: 64
     num_layers: 5
     input_dim: 2

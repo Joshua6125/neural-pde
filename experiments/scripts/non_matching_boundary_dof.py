@@ -551,7 +551,7 @@ class DataProcessor:
                     (952682, 0.061829183079600884),
                 ]
                 plt.plot([r[0] for r in results_p3a], [r[1] for r in results_p3a], 's-',label="p = 3, adap")
-            if dim == 2:
+            elif dim == 2:
                 # Results of https://github.com/tofuuhh/LSQwave with p = 3, theta = 1
                 results_p3 = [
                     (1026, 0.5691697327897132),

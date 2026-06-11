@@ -433,7 +433,7 @@ class DataProcessor:
                 run_losses = []
 
                 current_model_cfg = None
-                heads = all_methods_cfg.get(method_kind, {}).get("output_heads", {"u": 1})
+                heads = all_methods_cfg[method_kind]["output_heads"]
 
                 for variant in all_models_cfg.get(model_kind, []):
                     test_cfg = build_model_config(model_kind, variant, heads)
