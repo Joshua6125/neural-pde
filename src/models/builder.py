@@ -36,6 +36,7 @@ class BuiltModelAdapter:
 @dataclass(frozen=True)
 class BaseModelConfig:
     kind: str
+    constrained: bool = False
     output_heads: Mapping[str, int] = field(default_factory=lambda:{"output": 1})
 
     def validate(self) -> None:
@@ -96,6 +97,7 @@ def build_model(cfg: AnyModelConfig) -> BuiltModelAdapter:
                 hidden_dim=cfg.hidden_dim,
                 num_layers=cfg.num_layers,
                 output_heads=cfg.output_heads,
+                constrained=cfg.constrained
             )
         )
 
@@ -107,6 +109,7 @@ def build_model(cfg: AnyModelConfig) -> BuiltModelAdapter:
                 num_layers=cfg.num_layers,
                 output_heads=cfg.output_heads,
                 input_dim=cfg.input_dim,
+                constrained=cfg.constrained,
                 grid_size=cfg.grid_size,
                 degree=cfg.degree,
                 model_type=cfg.model_type,

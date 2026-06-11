@@ -18,6 +18,7 @@ class KAN(nn.Module):
     num_layers: int
     output_heads: Mapping[str, int]
     input_dim: int
+    constrained: bool
     grid_size: int = 5 # Used in "original", "base", and "spline"
     degree: int = 3 #
     model_type: str = "efficient"  # aliases: "efficient" | "cheby" | "chebychev" | "original" | "base" | "spline"
