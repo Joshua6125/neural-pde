@@ -239,7 +239,7 @@ class RunTraining:
                         sigma0_fn=self.sigma0,
                         integrator=eval_integrator
                     )
-
+                    
                 current_run_evals["fosls_loss"].append(total_loss)
                 current_run_evals["true_l2_error"].append(true_l2_error)
                 current_run_evals["true_v_error"].append(true_v_error)

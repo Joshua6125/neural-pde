@@ -41,8 +41,10 @@ class MonteCarloIntegration(NDCubeIntegration):
         """Generate random samples uniformly in the domain interior."""
         self.key, subkey = jr.split(self.key)
 
+        eps = 1e-8
+
         # Sample uniform in [0, 1)^dim
-        samples = jr.uniform(subkey, shape=(self.interior_samples, self.dim))
+        samples = jr.uniform(subkey, shape=(self.interior_samples, self.dim), minval=eps)
 
         # Transform to [domain_min, domain_max]
         points = self.domain_min + samples * (self.domain_max - self.domain_min)
@@ -59,13 +61,13 @@ class MonteCarloIntegration(NDCubeIntegration):
             bound_max = self.domain_max[axis]
             area = self.time_face_area if axis == 0 else self.spatial_face_area
             weight_per_sample = area / self.boundary_samples
-            
+
             for is_max, boundary_value in [(False, bound_min), (True, bound_max)]:
                 self.key, subkey = jr.split(self.key)
 
                 # Sample random points on the (dim-1)-dimensional face
                 samples = jr.uniform(subkey, shape=(self.boundary_samples, self.dim - 1))
-                
+
                 # Transform free dimensions
                 free_min = jnp.concatenate([self.domain_min[:axis], self.domain_min[axis+1:]])
                 free_max = jnp.concatenate([self.domain_max[:axis], self.domain_max[axis+1:]])
@@ -116,11 +118,11 @@ class MonteCarloIntegration(NDCubeIntegration):
             boundary_data["normals"]
         )
         weights = boundary_data["weights"]
-        
+
         # Monte Carlo on boundary: sum(area_i / n_i * f)
         # We need to tensor multiply the weights correctly for possibly multi-dimensional output
         integral = jax.tree_util.tree_map(
-            lambda x: jnp.tensordot(weights, x, axes=([0], [0])), 
+            lambda x: jnp.tensordot(weights, x, axes=([0], [0])),
             func_values
         )
         return integral

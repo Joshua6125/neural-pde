@@ -197,7 +197,6 @@ class Trainer:
             )
 
             should_log = self.train_cfg.log_every > 0 and epoch % self.train_cfg.log_every == 0
-            # print(epoch, should_log)
             if should_log:
                 metrics = TrainStepMetrics(
                     step=epoch,

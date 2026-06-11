@@ -39,13 +39,6 @@ class MLP(nn.Module):
                 eps = 1e-12
                 spatial_coords = x[..., 1:]
 
-                # Should try the tanh approach as well.
-                # b_left = jnp.tanh(alpha * spatial_coords)
-                # b_right = jnp.tanh(alpha * (1.0 - spatial_coords))
-
-                # # Take the product across all spatial dimensions
-                # boundary_func = jnp.prod(b_left * b_right, axis=-1, keepdims=True)
-
                 a_left = jnp.clip(spatial_coords, eps, 1.0)
                 a_right = jnp.clip(1.0 - spatial_coords, eps, 1.0)
 
