@@ -9,7 +9,8 @@ from utils import (
     build_trainer_config,
     calculate_dof,
     calculate_fosls_norm,
-    calculate_true_v_error
+    calculate_true_v_error,
+    calculate_true_l2_error
 )
 from src.trainer import run_training
 from src.models import AnyModelConfig, build_model
@@ -253,7 +254,7 @@ class DataProcessor:
         else:
             print(f"Warning: Models directory not found at {self.models_dir}")
 
-    def plot_dof_vs_true_error(self, ylabel: str, title: str, filename: str):
+    def plot_dof_vs_true_error(self, ylabel: str, title: str, filename: str, l2=False):
         import matplotlib.pyplot as plt
 
         if not self.model_params:
@@ -305,14 +306,24 @@ class DataProcessor:
                 model_inst = build_model(current_model_cfg)
 
                 for params in runs_params:
-                    loss = calculate_true_v_error(
-                        model_inst.apply,
-                        params,
-                        method_kind,
-                        self.problem.solution_v,
-                        self.problem.solution_sigma,
-                        eval_integrator
-                    )
+                    if l2:
+                        loss = calculate_true_l2_error(
+                            model_inst.apply,
+                            params,
+                            method_kind,
+                            self.problem.solution_v,
+                            self.problem.solution_sigma,
+                            eval_integrator
+                        )
+                    else:
+                        loss = calculate_true_v_error(
+                            model_inst.apply,
+                            params,
+                            method_kind,
+                            self.problem.solution_v,
+                            self.problem.solution_sigma,
+                            eval_integrator
+                        )
                     run_errors.append(loss)
 
                 if not run_errors:
@@ -608,6 +619,12 @@ def run(
             ylabel="$V$-norm error",
             title="$V$-norm Error Convergence vs DOF",
             filename="v_error_vs_dof_scenario_1.png"
+        )
+        processor.plot_dof_vs_true_error(
+            ylabel="$L^2$-norm error",
+            title="$L^2$-norm Error Convergence vs DOF",
+            filename="l2_error_vs_dof_scenario_1.png",
+            l2=True
         )
         print("[PHASE 2] Complete.\n")
 

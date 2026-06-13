@@ -309,8 +309,15 @@ class DataProcessor:
 
         all_csv = []
 
-        plt.figure(figsize=(10, 7))
+        combinations = self.problem.cfg.get("combinations", ())
+
+        plt.figure(figsize=(11, 7))
         for name, evals in self.evals_data.items():
+            model, method = name.split('-')
+            if not [method, model] in combinations:
+                print(f"Not plotting {name}. Not in config.")
+                continue
+
             all_vals = [evals[k][y_type] for k in range(len(evals))]
 
             metrics = self.metrics_data[name]
@@ -361,6 +368,8 @@ class DataProcessor:
                 })
             )
 
+        plt.tick_params(axis='both', which='major', labelsize=20)
+        plt.tick_params(axis='both', which='minor', labelsize=16)
         plt.yscale("log")
         plt.xlabel("Training Time (seconds)", fontsize=22)
         plt.ylabel(ylabel, fontsize=22)
@@ -535,10 +544,10 @@ def run(
             y_type="true_v_error",
             cutoff_time=200.0
         )
-        processor.plot_specific_times(0.0)
-        processor.plot_specific_times(0.333)
-        processor.plot_specific_times(0.666)
-        processor.plot_specific_times(1.0)
+        # processor.plot_specific_times(0.0)
+        # processor.plot_specific_times(0.333)
+        # processor.plot_specific_times(0.666)
+        # processor.plot_specific_times(1.0)
         print("[PHASE 2] Complete.\n")
 
     print("Experiment pipeline finished successfully.")

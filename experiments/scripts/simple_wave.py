@@ -239,7 +239,7 @@ class RunTraining:
                         sigma0_fn=self.sigma0,
                         integrator=eval_integrator
                     )
-                    
+
                 current_run_evals["fosls_loss"].append(total_loss)
                 current_run_evals["true_l2_error"].append(true_l2_error)
                 current_run_evals["true_v_error"].append(true_v_error)
@@ -323,8 +323,16 @@ class DataProcessor:
         error_high = max(0, min(100, int(plot_config.get("error_high", 100))))
         grid_resolution = max(2, int(plot_config.get("grid_resolution", 1000)))
 
+        combinations = self.problem.cfg.get("combinations", ())
+
         plt.figure(figsize=(10, 7))
         for name, evals in self.evals_data.items():
+            model, method = name.split('-')
+            if not [method, model] in combinations:
+                print(f"Not plotting {name}. Not in config.")
+                continue
+
+
             all_vals = [evals[k][y_type] for k in range(len(evals))]
 
             metrics = self.metrics_data[name]
@@ -374,7 +382,8 @@ class DataProcessor:
                     "high": high_val,
                 })
             )
-
+        plt.tick_params(axis='both', which='major', labelsize=20)
+        plt.tick_params(axis='both', which='minor', labelsize=16)
         plt.yscale("log")
         plt.xlabel("Training Time (seconds)", fontsize=22)
         plt.ylabel(ylabel, fontsize=22)

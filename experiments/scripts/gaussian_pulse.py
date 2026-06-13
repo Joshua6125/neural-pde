@@ -279,8 +279,15 @@ class DataProcessor:
 
         all_csv = []
 
+        combinations = self.problem.cfg.get("combinations", ())
+
         plt.figure(figsize=(10, 7))
         for name, all_vals in self.evals_data.items():
+            model, method = name.split('-')
+            if not [method, model] in combinations:
+                print(f"Not plotting {name}. Not in config.")
+                continue
+
             metrics = self.metrics_data[name]
 
             all_training_times = [[m.training_time for m in run_metrics] for run_metrics in metrics]
@@ -333,7 +340,7 @@ class DataProcessor:
         plt.xlabel("Training Time (seconds)", fontsize=22)
         plt.ylabel(ylabel, fontsize=22)
         plt.title(title, fontsize=24)
-        plt.legend(fontsize=22, bbox_to_anchor=(1.0, 0.5))
+        plt.legend(fontsize=22) # bbox_to_anchor=(1.0, 0.5
         plt.xticks(fontsize=20)
         plt.yticks(fontsize=20)
         plt.grid(True)
