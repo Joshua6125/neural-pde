@@ -277,8 +277,6 @@ class DataProcessor:
         import matplotlib.pyplot as plt
         import numpy as np
         import pandas as pd
-        import os
-        import jax.numpy as jnp
 
         if not self.model_params:
             print(f"No model parameters found. Cannot plot {title}.")
@@ -319,7 +317,6 @@ class DataProcessor:
             metric_central = []
             metric_lows = []
             metric_highs = []
-            metric_stds = []
 
             sorted_dofs = sorted(self.model_params[name].keys())
             for dof in sorted_dofs:
