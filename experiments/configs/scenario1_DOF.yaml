@@ -97,8 +97,3 @@ plot_loss:
   error_low: 0 # percent
   error_high: 100 # percent
   show_fgk_results: True
-
-plot_specific_t:
-  show_error: True
-  error_low: 0 # percent
-  error_high: 100 # percent

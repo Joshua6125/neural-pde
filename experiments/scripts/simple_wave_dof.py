@@ -1,5 +1,4 @@
 from glob import glob
-from itertools import product
 from collections import defaultdict
 from omegaconf import DictConfig
 from utils import (
@@ -10,7 +9,7 @@ from utils import (
     calculate_dof,
     calculate_fosls_norm,
     calculate_true_v_error,
-    calculate_true_l2_error
+    calculate_true_l2_error,
 )
 from src.trainer import run_training
 from src.models import AnyModelConfig, build_model
@@ -18,8 +17,6 @@ from src.loss_functions import AlgorithmConfig
 from src.integration import get_integrator
 
 import jax.numpy as jnp
-import numpy as np
-import pandas as pd
 
 import time
 import os
@@ -50,7 +47,9 @@ class ProblemDefinition:
         x_array = jnp.asarray(x)
 
         # Apply boundary conditions - u(t, 0) = u(t, 1) = 0
-        is_boundary = jnp.isclose(x_array, self.x_min) | jnp.isclose(x_array, self.x_max)
+        is_boundary = jnp.isclose(x_array, self.x_min) | jnp.isclose(
+            x_array, self.x_max
+        )
 
         t_term = jnp.sin(jnp.pi * t_array / self.T)
         x_term = jnp.sin(jnp.pi * (x_array - self.x_min) / (self.x_max - self.x_min))
@@ -61,8 +60,10 @@ class ProblemDefinition:
     def solution_v(self, t: jnp.ndarray, x: jnp.ndarray) -> jnp.ndarray:
         """Time derivative of the manufactured analytical solution."""
         return (
-            jnp.pi / self.T
-        ) * jnp.cos(jnp.pi * t / self.T) * jnp.sin(jnp.pi * (x - self.x_min) / (self.x_max - self.x_min))
+            (jnp.pi / self.T)
+            * jnp.cos(jnp.pi * t / self.T)
+            * jnp.sin(jnp.pi * (x - self.x_min) / (self.x_max - self.x_min))
+        )
 
     def solution_sigma(self, t: jnp.ndarray, x: jnp.ndarray) -> jnp.ndarray:
         """Spatial derivative of the manufactured analytical solution."""
@@ -75,7 +76,10 @@ class ProblemDefinition:
     def source_f(self, t: jnp.ndarray, x: jnp.ndarray) -> jnp.ndarray:
         """Closed-form source term for the manufactured PDE."""
         u = self.solution_u(t, x)
-        coeff = -jnp.pi**2 / self.T**2 + self.c**2 * jnp.pi**2 / (self.x_max - self.x_min)**2
+        coeff = (
+            -jnp.pi**2 / self.T**2
+            + self.c**2 * jnp.pi**2 / (self.x_max - self.x_min) ** 2
+        )
         return coeff * u
 
     def source_g(self, t: jnp.ndarray, x: jnp.ndarray) -> jnp.ndarray:
@@ -152,7 +156,7 @@ class RunTraining:
                 method,
                 model_config,
                 self.wave_functions,
-                self.cfg["integration"]
+                self.cfg["integration"],
             )
 
             pairs.append((models_list, method_config))
@@ -179,8 +183,7 @@ class RunTraining:
 
         # Adjust seed based on iteration
         trainer_config = dataclasses.replace(
-            base_trainer_config,
-            seed=base_trainer_config.seed + iteration
+            base_trainer_config, seed=base_trainer_config.seed + iteration
         )
 
         pairs = self._read_combinations()
@@ -189,7 +192,9 @@ class RunTraining:
         print(f"--- Starting Training Phase (Iteration {iteration+1}) ---")
         print(f"Total configurations to train: {total_runs}")
         init_lr = self.cfg["training"]["learning_rate"]["init_value"]
-        print(f"Epochs: {trainer_config.epochs}, Initial LR: {init_lr}, Seed: {trainer_config.seed}\n")
+        print(
+            f"Epochs: {trainer_config.epochs}, Initial LR: {init_lr}, Seed: {trainer_config.seed}\n"
+        )
 
         models_dir = os.path.join(self.output_dir, "models")
         logs_dir = os.path.join(self.output_dir, "logs")
@@ -201,7 +206,9 @@ class RunTraining:
             for model in models:
                 dof = calculate_dof(2, model)
                 i += 1
-                print(f"[{i}/{total_runs}] Training configuration: Model={model.kind}, Method={method.kind}, dof={dof}")
+                print(
+                    f"[{i}/{total_runs}] Training configuration: Model={model.kind}, Method={method.kind}, dof={dof}"
+                )
 
                 start_time = time.time()
                 final_state, logged_metrics = run_training(
@@ -214,9 +221,13 @@ class RunTraining:
                 elapsed_time = time.time() - start_time
 
                 name = f"{model.kind}-{method.kind}"
-                with open(os.path.join(models_dir, f"{name}_{dof}_iter{iteration}.pkl"), "wb") as f:
+                with open(
+                    os.path.join(models_dir, f"{name}_{dof}_iter{iteration}.pkl"), "wb"
+                ) as f:
                     pickle.dump(final_state.params, f)
-                with open(os.path.join(logs_dir, f"{name}_{dof}_iter{iteration}.pkl"), "wb") as f:
+                with open(
+                    os.path.join(logs_dir, f"{name}_{dof}_iter{iteration}.pkl"), "wb"
+                ) as f:
                     pickle.dump(logged_metrics, f)
 
                 print(f"  -> Success! Time: {elapsed_time:.1f}s\n")
@@ -255,158 +266,27 @@ class DataProcessor:
             print(f"Warning: Models directory not found at {self.models_dir}")
 
     def plot_dof_vs_true_error(self, ylabel: str, title: str, filename: str, l2=False):
-        import matplotlib.pyplot as plt
-
-        if not self.model_params:
-            print(f"No model parameters found. Cannot plot {title}.")
-            return
-
-        eval_cfg_data = self.problem.cfg.get("plot_integration", self.problem.cfg.get("callback_integration"))
-        eval_cfg = build_integration_config(eval_cfg_data)
-        eval_integrator = get_integrator(eval_cfg)
-
-        plot_config = self.problem.cfg.get("plot_loss", {})
-        show_error = bool(plot_config.get("show_error", True))
-        error_low = max(0, min(100, int(plot_config.get("error_low", 25))))
-        error_high = max(0, min(100, int(plot_config.get("error_high", 75))))
-
-        plt.figure(figsize=(10, 7))
-
-        all_models_cfg = self.problem.cfg.models
-        all_methods_cfg = self.problem.cfg.methods
-
-        all_csv = []
-
-        for name in sorted(self.model_params.keys()):
-            model_kind, method_kind = name.split("-")
-
-            dof_points = []
-            error_central = []
-            error_lows = []
-            error_highs = []
-
-            sorted_dofs = sorted(self.model_params[name].keys())
-            for dof in sorted_dofs:
-                runs_params = self.model_params[name][dof]
-                run_errors = []
-
-                current_model_cfg = None
-                heads = all_methods_cfg.get(method_kind, {}).get("output_heads", {"u": 1})
-
-                for variant in all_models_cfg.get(model_kind, []):
-                    test_cfg = build_model_config(model_kind, variant, heads)
-                    if calculate_dof(2, test_cfg) == dof:
-                        current_model_cfg = test_cfg
-                        break
-
-                if current_model_cfg is None:
-                    print(f"Warning: Could not find config variant for {name} with DOF {dof}. Skipping.")
-                    continue
-
-                model_inst = build_model(current_model_cfg)
-
-                for params in runs_params:
-                    if l2:
-                        loss = calculate_true_l2_error(
-                            model_inst.apply,
-                            params,
-                            method_kind,
-                            self.problem.solution_v,
-                            self.problem.solution_sigma,
-                            eval_integrator
-                        )
-                    else:
-                        loss = calculate_true_v_error(
-                            model_inst.apply,
-                            params,
-                            method_kind,
-                            self.problem.solution_v,
-                            self.problem.solution_sigma,
-                            eval_integrator
-                        )
-                    run_errors.append(loss)
-
-                if not run_errors:
-                    print(f"Warning: No true errors computed for {name} at DOF {dof}. Skipping.")
-                    continue
-
-                error_central.append(np.median(run_errors))
-                error_lows.append(np.percentile(run_errors, error_low))
-                error_highs.append(np.percentile(run_errors, error_high))
-                dof_points.append(dof)
-
-                all_csv.append(
-                    pd.DataFrame({
-                        "plot-name": name,
-                        "dof": dof,
-                        "median": error_central,
-                        "low": error_lows,
-                        "high": error_highs,
-                    })
-                )
-
-            if len(dof_points) == 0:
-                continue
-
-            error_central = np.sqrt(error_central)
-            error_lows = np.sqrt(error_lows)
-            error_highs = np.sqrt(error_highs)
-
-            line = plt.plot(dof_points, error_central, 'o-', label=name)[0]
-
-            if show_error:
-                lower_error = np.asarray(error_central) - np.asarray(error_lows)
-                upper_error = np.asarray(error_highs) - np.asarray(error_central)
-                plt.errorbar(
-                    dof_points,
-                    error_central,
-                    yerr=np.vstack([lower_error, upper_error]),
-                    fmt='none',
-                    ecolor=line.get_color(),
-                    elinewidth=1.2,
-                    capsize=4,
-                    alpha=0.8,
-                )
-
-        plt.xscale("log")
-        plt.yscale("log")
-        plt.xlabel("Degrees of Freedom (DOF)", fontsize=22)
-        plt.ylabel(ylabel, fontsize=22)
-        plt.title(title, fontsize=24)
-        plt.legend(fontsize=22)
-        plt.xticks(fontsize=20)
-        plt.yticks(fontsize=20)
-        plt.grid(True, which="both", ls="-", alpha=0.5)
-
-        plots_dir = os.path.join(self.results_dir, "plots")
-        os.makedirs(plots_dir, exist_ok=True)
-        plot_path = os.path.join(plots_dir, filename)
-        plt.savefig(plot_path)
-        print(f"Plot saved to {plot_path}")
-
-        csv_dir = os.path.join(self.results_dir, "csv")
-        os.makedirs(csv_dir, exist_ok=True)
-        csv_path = os.path.join(csv_dir, filename.replace(".png", ".csv"))
-        all_csv = pd.concat(all_csv, ignore_index=True)
-        all_csv.to_csv(csv_path, index=False)
-        print(f"CSV saved to {csv_path}")
-
-        pdf_dir = os.path.join(self.results_dir, "pdf")
-        os.makedirs(pdf_dir, exist_ok=True)
-        pdf_path = os.path.join(pdf_dir, filename.replace(".png", ".pdf"))
-        plt.savefig(pdf_path)
-        print(f"PDF-plot saved to {pdf_path}")
-
-        plt.close()
+        self._plot_dof_metrics(ylabel, title, filename, mode="error", l2=l2)
 
     def plot_dof_vs_loss(self, ylabel: str, title: str, filename: str):
+        self._plot_dof_metrics(ylabel, title, filename, mode="loss")
+
+    def _plot_dof_metrics(
+        self, ylabel: str, title: str, filename: str, mode: str, l2=False, n_stats=10
+    ):
         import matplotlib.pyplot as plt
+        import numpy as np
+        import pandas as pd
+        import os
+        import jax.numpy as jnp
 
         if not self.model_params:
             print(f"No model parameters found. Cannot plot {title}.")
             return
 
-        eval_cfg_data = self.problem.cfg.get("plot_integration", self.problem.cfg.get("callback_integration"))
+        eval_cfg_data = self.problem.cfg.get(
+            "plot_integration", self.problem.cfg.get("callback_integration")
+        )
         eval_cfg = build_integration_config(eval_cfg_data)
         eval_integrator = get_integrator(eval_cfg)
 
@@ -416,108 +296,164 @@ class DataProcessor:
         error_high = max(0, min(100, int(plot_config.get("error_high", 75))))
         show_fgk_results = bool(plot_config.get("show_fgk_results", False))
 
-        f = lambda v: self.problem.source_f(jnp.array(v[0]), jnp.array(v[1]))
-        g = lambda v: self.problem.source_g(jnp.array(v[0]), jnp.array(v[1]))
-        v0 = lambda v: self.problem.solution_v(jnp.array(v[0]), jnp.array(v[1]))
-        sigma0 = lambda v: jnp.array(
-            [self.problem.solution_sigma(jnp.array(v[0]), jnp.array(v[1]))]
-        )
-
         plt.figure(figsize=(10, 7))
 
         all_models_cfg = self.problem.cfg.models
         all_methods_cfg = self.problem.cfg.methods
 
         all_csv = []
+        stats_records = []
+
+        f = lambda v: self.problem.source_f(jnp.array(v[0]), jnp.array(v[1]))
+        g = lambda v: self.problem.source_g(jnp.array(v[0]), jnp.array(v[1]))
+
+        v0 = lambda v: self.problem.solution_v(jnp.array(v[0]), jnp.array(v[1]))
+        sigma0 = lambda v: jnp.array(
+            [self.problem.solution_sigma(jnp.array(v[0]), jnp.array(v[1]))]
+        )
 
         for name in sorted(self.model_params.keys()):
             model_kind, method_kind = name.split("-")
 
             dof_points = []
-            loss_central = []
-            loss_lows = []
-            loss_highs = []
+            metric_central = []
+            metric_lows = []
+            metric_highs = []
+            metric_stds = []
 
             sorted_dofs = sorted(self.model_params[name].keys())
             for dof in sorted_dofs:
                 runs_params = self.model_params[name][dof]
-                run_losses = []
+                run_metrics = []
 
-                current_model_cfg = None
-                heads = all_methods_cfg[method_kind]["output_heads"]
-
-                for variant in all_models_cfg.get(model_kind, []):
-                    test_cfg = build_model_config(model_kind, variant, heads)
-                    if calculate_dof(2, test_cfg) == dof:
-                        current_model_cfg = test_cfg
-                        break
+                heads = all_methods_cfg.get(method_kind, {}).get(
+                    "output_heads", {"u": 1}
+                )
+                current_model_cfg = next(
+                    (
+                        test_cfg
+                        for variant in all_models_cfg.get(model_kind, [])
+                        if calculate_dof(
+                            2,
+                            (
+                                test_cfg := build_model_config(
+                                    model_kind, variant, heads
+                                )
+                            ),
+                        )
+                        == dof
+                    ),
+                    None,
+                )
 
                 if current_model_cfg is None:
-                    print(f"Warning: Could not find config variant for {name} with DOF {dof}. Skipping.")
+                    print(
+                        f"Warning: Could not find config variant for {name} with DOF {dof}. Skipping."
+                    )
                     continue
 
                 model_inst = build_model(current_model_cfg)
                 ic_weight = all_methods_cfg.get(method_kind, {}).get("ic_weight", 1.0)
 
                 for params in runs_params:
-                    loss = calculate_fosls_norm(
-                        model_inst.apply,
-                        params,
-                        method_kind,
-                        f,
-                        g,
-                        v0,
-                        sigma0,
-                        eval_integrator,
-                        ic_weight=ic_weight
-                    )
-                    run_losses.append(loss)
+                    if mode == "error":
+                        if l2:
+                            val = calculate_true_l2_error(
+                                model_inst.apply,
+                                params,
+                                method_kind,
+                                self.problem.solution_v,
+                                self.problem.solution_sigma,
+                                eval_integrator,
+                            )
+                        else:
+                            val = calculate_true_v_error(
+                                model_inst.apply,
+                                params,
+                                method_kind,
+                                self.problem.solution_v,
+                                self.problem.solution_sigma,
+                                eval_integrator,
+                            )
+                    else:
+                        val = calculate_fosls_norm(
+                            model_inst.apply,
+                            params,
+                            method_kind,
+                            f,
+                            g,
+                            v0,
+                            sigma0,
+                            eval_integrator,
+                            ic_weight=ic_weight,
+                        )
 
-                if not run_losses:
-                    print(f"Warning: No losses computed for {name} at DOF {dof}. Skipping.")
+                    run_metrics.append(val)
+
+                if not run_metrics:
                     continue
 
-                loss_central.append(np.median(run_losses))
-                loss_lows.append(np.percentile(run_losses, error_low))
-                loss_highs.append(np.percentile(run_losses, error_high))
+                run_metrics_sqrt = np.sqrt(run_metrics)
+
+                cent = np.median(run_metrics_sqrt)
+                low = np.percentile(run_metrics_sqrt, error_low)
+                high = np.percentile(run_metrics_sqrt, error_high)
+                std = np.std(run_metrics_sqrt[-n_stats:])
+
+                metric_central.append(cent)
+                metric_lows.append(low)
+                metric_highs.append(high)
                 dof_points.append(dof)
 
                 all_csv.append(
-                    pd.DataFrame({
-                        "plot-name": name,
-                        "dof": dof,
-                        "median": loss_central,
-                        "low": loss_lows,
-                        "high": loss_highs,
-                    })
+                    pd.DataFrame(
+                        {
+                            "plot-name": [name],
+                            "dof": [dof],
+                            "median": [cent],
+                            "low": [low],
+                            "high": [high],
+                        }
+                    )
                 )
 
-            if len(dof_points) == 0:
+                last_y = np.log10(run_metrics_sqrt[-n_stats:])
+                y_deltas = last_y[1:] - last_y[:-1]
+                slopes = y_deltas / self.problem.cfg["training"]["log_every"]
+                slope = np.median(slopes)
+
+                stats_records.append(
+                    {
+                        "Model": name,
+                        "dof": dof,
+                        "Iterations": len(runs_params),
+                        "Median Final Loss": cent,
+                        f"Avg Slope (last {n_stats})": slope,
+                        f"Median Std (last {n_stats})": std,
+                    }
+                )
+
+            if not dof_points:
                 continue
 
-            loss_central = np.sqrt(loss_central)
-            loss_lows = np.sqrt(loss_lows)
-            loss_highs = np.sqrt(loss_highs)
-
-            line = plt.plot(dof_points, loss_central, 'o-', label=name)[0]
+            line = plt.plot(dof_points, metric_central, "o-", label=name)[0]
 
             if show_error:
-                lower_error = np.asarray(loss_central) - np.asarray(loss_lows)
-                upper_error = np.asarray(loss_highs) - np.asarray(loss_central)
+                lower_error = np.asarray(metric_central) - np.asarray(metric_lows)
+                upper_error = np.asarray(metric_highs) - np.asarray(metric_central)
                 plt.errorbar(
                     dof_points,
-                    loss_central,
+                    metric_central,
                     yerr=np.vstack([lower_error, upper_error]),
-                    fmt='none',
+                    fmt="none",
                     ecolor=line.get_color(),
                     elinewidth=1.2,
                     capsize=4,
                     alpha=0.8,
                 )
 
-        if show_fgk_results:
+        if mode == "loss" and show_fgk_results:
             if self.problem.cfg["integration"]["spatial_dim"] == 1:
-                # Results of https://github.com/tofuuhh/LSQwave with p = 1, theta = 1
                 results_p1 = [
                     (52, 0.5756866371215883),
                     (170, 0.29187518013493063),
@@ -526,11 +462,15 @@ class DataProcessor:
                     (8962, 0.03664409901398263),
                     (35330, 0.018360842574137087),
                     (140290, 0.009186660103311175),
-                    (559106, 0.004593974156104411)
+                    (559106, 0.004593974156104411),
                 ]
-                plt.plot([r[0] for r in results_p1], [r[1] for r in results_p1], 's-',label="p = 1, FGK23")
+                plt.plot(
+                    [r[0] for r in results_p1],
+                    [r[1] for r in results_p1],
+                    "s-",
+                    label="p = 1, FGK23",
+                )
 
-                # Results of https://github.com/tofuuhh/LSQwave with p = 1, theta = 1
                 results_p2 = [
                     (170, 0.058319364244092314),
                     (610, 0.016828815552101146),
@@ -538,13 +478,16 @@ class DataProcessor:
                     (8962, 0.0011133926412367256),
                     (35330, 0.00028217278718509876),
                     (140290, 7.105015195418527e-05),
-                    (559106, 1.7827563767345488e-05)
+                    (559106, 1.7827563767345488e-05),
                 ]
-                plt.plot([r[0] for r in results_p2], [r[1] for r in results_p2], 's-',label="p = 2, FGK23")
-
+                plt.plot(
+                    [r[0] for r in results_p2],
+                    [r[1] for r in results_p2],
+                    "s-",
+                    label="p = 2, FGK23",
+                )
             else:
                 raise ValueError("No other dimension of FGK23 available.")
-
 
         plt.xscale("log")
         plt.yscale("log")
@@ -562,12 +505,12 @@ class DataProcessor:
         plt.savefig(plot_path)
         print(f"Plot saved to {plot_path}")
 
-        csv_dir = os.path.join(self.results_dir, "csv")
-        os.makedirs(csv_dir, exist_ok=True)
-        csv_path = os.path.join(csv_dir, filename.replace(".png", ".csv"))
-        all_csv = pd.concat(all_csv, ignore_index=True)
-        all_csv.to_csv(csv_path, index=False)
-        print(f"CSV saved to {csv_path}")
+        if all_csv:
+            csv_dir = os.path.join(self.results_dir, "csv")
+            os.makedirs(csv_dir, exist_ok=True)
+            csv_path = os.path.join(csv_dir, filename.replace(".png", ".csv"))
+            pd.concat(all_csv, ignore_index=True).to_csv(csv_path, index=False)
+            print(f"CSV saved to {csv_path}")
 
         pdf_dir = os.path.join(self.results_dir, "pdf")
         os.makedirs(pdf_dir, exist_ok=True)
@@ -577,12 +520,23 @@ class DataProcessor:
 
         plt.close()
 
+        if stats_records:
+            stats_df = pd.DataFrame(stats_records)
+            print(f"\n--- Statistics for {title} ---")
+            print(stats_df.to_string(index=False))
+
+            stats_csv_path = os.path.join(
+                self.results_dir, "csv", filename.replace(".png", "_stats.csv")
+            )
+            stats_df.to_csv(stats_csv_path, index=False)
+            print(f"Statistics saved to {stats_csv_path}\n")
+
 
 def run(
     cfg: DictConfig,
     output_dir: str,
-    generate_data: bool=True,
-    make_plots: bool=True
+    generate_data: bool = True,
+    make_plots: bool = True,
 ):
     """
     Entry point for an experiment.
@@ -602,7 +556,9 @@ def run(
 
     if generate_data:
         iterations = cfg.get("iterations", 1)
-        print(f"[PHASE 1] Generating Data and Training Models ({iterations} iterations)...")
+        print(
+            f"[PHASE 1] Generating Data and Training Models ({iterations} iterations)..."
+        )
         trainer = RunTraining(problem, cfg, output_dir)
         trainer.train_multiple(iterations)
         print("[PHASE 1] Complete.\n")
@@ -613,18 +569,18 @@ def run(
         processor.plot_dof_vs_loss(
             ylabel="Error estimator $\\eta$",
             title="Error Estimator $\\eta$ Convergence vs DOF",
-            filename="error_estimator_vs_dof_scenario_1.png"
+            filename="error_estimator_vs_dof_scenario_1.png",
         )
         processor.plot_dof_vs_true_error(
             ylabel="$V$-norm error",
             title="$V$-norm Error Convergence vs DOF",
-            filename="v_error_vs_dof_scenario_1.png"
+            filename="v_error_vs_dof_scenario_1.png",
         )
         processor.plot_dof_vs_true_error(
             ylabel="$L^2$-norm error",
             title="$L^2$-norm Error Convergence vs DOF",
             filename="l2_error_vs_dof_scenario_1.png",
-            l2=True
+            l2=True,
         )
         print("[PHASE 2] Complete.\n")
 
